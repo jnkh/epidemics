@@ -107,3 +107,47 @@ def P_fix(y0,alpha,beta,N):
     def psi(y,a,b):
         return np.exp(-2*integrate.quad(lambda x: a(x)/b(x),0,y)[0])
     return integrate.quad(lambda x: psi(x,a,b),0,y0)[0]/integrate.quad(lambda x: psi(x,a,b),0,1)[0]
+
+
+def plot_schematic(n_n,c_r,N,k=None):
+    if not k:
+        k = N-1
+    
+    beta = 4.0/(c_r*n_n)
+    alpha = (N*beta)/n_n
+    print N,alpha,beta
+
+    y_n, y_minus,y_plus,y_p,critical_determinant = get_parameters(N,alpha,beta)
+    def f(y):
+        return alpha*y**2
+
+    def s(y):
+        return f(y)/y - beta
+
+    def get_y_eff(y,k):
+        return y*(1 + (1-y)/(y*k))
+
+    def get_s_eff(y,alpha,beta,k):
+        return alpha*get_y_eff(y,k) - beta
+
+
+    y_range = arange(0,1.2*y_p,y_p/1000.0)
+    close(1)
+    figure(1)
+    plot(y_range,1.0/abs(N*s(y_range)),'-r',label=r'$\frac{1}{N|s(y)|}$')
+    plot(y_range,1.0/abs(N*get_s_eff(y_range,alpha,beta,k)),'-b',label=r'$\frac{1}{N|s(y_{eff})|}$')
+    plot(y_range,y_range,'-k',label=r'$y$')
+    axvline(y_n,linestyle='--',label=r'$y_n$')
+    axvline(y_p,linestyle='-',label=r'$y_p$')
+    if y_minus > 0:
+        axvline(y_minus,linestyle='-.',label=r'$y_-$')
+        axvline(y_plus,linestyle='-.',label=r'$y_+$')
+    ylim([0,2*max(y_range)])
+    legend(prop={'size':20},loc='upper left')
+    xlabel(r'$y$',size=20)
+    figure(2)
+    y_range = arange(0,1.0,0.01)
+    plot(y_range,get_s_eff(y_range,alpha,beta,k),'-b',label=r'$s_{eff}(y)$')
+    plot(y_range,s(y_range),'-r',label=r'$s(y)$')
+    legend(prop={'size':20},loc='upper left')
+    xlabel(r'$y$',size=20)

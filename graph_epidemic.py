@@ -16,8 +16,12 @@ def draw_graph(G,pos=None):
     nx.draw_networkx_labels(G,pos,node_label)
     #nx.draw(G,node_color=node_color,labels=node_label,cmap='spring',pos=pos)
 
-def create_graph(N_nodes,p_edge,n_infected):
-    G = nx.gnp_random_graph(N_nodes,p_edge,directed=False)
+def create_graph(N_nodes,p_edge,n_infected,regular = False):
+    if regular:
+        k = int(round(p_edge*(N_nodes-1)))
+        G = nx.random_regular_graph(k,N_nodes)
+    else:
+        G = nx.gnp_random_graph(N_nodes,p_edge,directed=False)
     return set_graph_strategies(G, n_infected)
 
 def create_small_world_graph(N_nodes,p_edge,n_infected):
@@ -117,15 +121,15 @@ def p_infect(x):
     #return 1.0/(1 + exp(-beta*(x - 0.4)))
     return x
 
-def simulate_graph_trajectory_adaptive(N,alpha,beta,plotting=False,k=None):
+def simulate_graph_trajectory_adaptive(N,alpha,beta,plotting=False,k=None,regular = False):
     if k is None:
         k = N-1
     p_desired = 0.1
     ns = [1]
     ts = [0]
     p_edge = 1.0*k/(N-1)
-    print p_edge
-    G = create_graph(N,p_edge,ns[0])
+    G = create_graph(N,p_edge,ns[0],regular)
+    print len(sorted(nx.connected_components(G),key=len,reverse=True)[0])
     
     def f(y):
         return alpha*y**2
