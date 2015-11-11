@@ -80,4 +80,4 @@ data_dir_path = "/mnt/D/windows/MIT/classes/6/338/project/data/"
 filename = "epidemics_$(now()).jld"
 
 
-save(data_dir_path + filename,"params",params,"sizes",sizes,"runs",runs,"num_fixed",num_fixed)
+save(data_dir_path * filename,"params",params,"sizes",sizes,"runs",runs,"num_fixed",num_fixed)
