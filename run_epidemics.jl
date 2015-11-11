@@ -1,12 +1,12 @@
 #Add the number of processors
-Pkg.add("LightGraphs")
-Pkg.add("Cubature")
-Pkg.add("Distributions")
-Pkg.add("JLD")
+% Pkg.add("LightGraphs")
+% Pkg.add("Cubature")
+% Pkg.add("Distributions")
+% Pkg.add("JLD")
 using SIS,IM,PayloadGraph, Epidemics
 using JLD
 
-addprocs(CPU_CORES)
+addprocs(8)
 
 @everywhere begin
 
