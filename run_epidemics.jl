@@ -76,7 +76,7 @@ println( mean(sizes) )
 
 params = Dict{AbstractString,Any}("N" => N, "alpha" => alpha, "beta" => beta, "k" => k, "fixation_threshold" => fixation_threshold,"graph_model" => graph_model)
 
-data_dir_path = "/mnt/D/windows/MIT/classes/6/338/project/data/"
+data_dir_path = "../data"  #"/mnt/D/windows/MIT/classes/6/338/project/data/"
 filename = "epidemics_$(now()).jld"
 
 
