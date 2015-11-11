@@ -39,7 +39,7 @@ graph_model = true
 
 end
 
-println("running in parallel on $(numprocs()-1) nodes...")
+println("running in parallel on $(nprocs()-1) nodes...")
 if graph_model
 @time sizes,num_fixed,_,runs = 
 run_epidemics_parallel(N,num_trials,im, (N,im)
