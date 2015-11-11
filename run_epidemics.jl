@@ -1,4 +1,5 @@
 #Add the number of processors
+Pkg.add("LightGraphs")
 using SIS,IM,PayloadGraph, Epidemics
 using JLD
 
