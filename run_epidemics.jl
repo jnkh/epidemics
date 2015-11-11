@@ -1,5 +1,7 @@
 #Add the number of processors
 Pkg.add("LightGraphs")
+Pkg.add("Cubature")
+Pkg.add("Distributions")
 using SIS,IM,PayloadGraph, Epidemics
 using JLD
 
