@@ -2,6 +2,7 @@
 Pkg.add("LightGraphs")
 Pkg.add("Cubature")
 Pkg.add("Distributions")
+Pkg.add("JLD")
 using SIS,IM,PayloadGraph, Epidemics
 using JLD
 
