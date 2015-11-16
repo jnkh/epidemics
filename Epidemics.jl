@@ -2,7 +2,7 @@ module Epidemics
 
 using SIS,Distributions, IM, LightGraphs,PayloadGraph
 
-export run_epidemic_graph,run_epidemic_well_mixed,get_s_eff,run_epidemics_parallel,run_epidemics
+export run_epidemic_graph,run_epidemic_well_mixed,get_s_eff,run_epidemics_parallel,run_epidemics,s,get_s_eff,normed_distribution, P_w_th,get_y_eff
 
 
 function graph_is_connected(g::LightGraphs.Graph)
@@ -12,8 +12,13 @@ end
 
 function guarantee_connected(graph_fn)
     g = graph_fn()
+    resampled = 0
     while(!graph_is_connected(g))
         g = graph_fn()
+        resampled += 1
+    end
+    if resampled > 0
+        println("Resampled Graph $resampled times.")
     end
     return g
 end
@@ -69,14 +74,14 @@ function update_n(n::Int,N::Int,im::InfectionModel)
     return n + delta_n_plus - delta_n_minus
 end
     
-function run_epidemics(N::Int,num_runs::Int,im::InfectionModel,run_epidemic_fn)  
+function run_epidemics(num_runs::Int,im::InfectionModel,run_epidemic_fn)  
     runs = []
     num_fixed = 0
     sizes = zeros(num_runs)
     total_length =0
     
     for i in 1:num_runs
-        infecteds,fixed = run_epidemic_fn(N,im)
+        infecteds,fixed = run_epidemic_fn(im)
         push!(runs,infecteds)
         if fixed
             num_fixed += 1
@@ -94,14 +99,14 @@ function run_epidemics(N::Int,num_runs::Int,im::InfectionModel,run_epidemic_fn)
 end
 
 
-function run_epidemics_parallel(N::Int,num_runs::Int,im::InfectionModel,run_epidemic_fn,parallel=true)  
+function run_epidemics_parallel(num_runs::Int,im::InfectionModel,run_epidemic_fn,parallel=true)  
     num_fixed = 0
     sizes = zeros(num_runs)
     fixed_array = Array{Bool,1}(num_runs)
     total_length =0
     
     mapfn = parallel ? pmap : map 
-    runs = mapfn(_ -> run_epidemic_fn(N,im),1:num_runs)
+    runs = mapfn(_ -> run_epidemic_fn(im),1:num_runs)
     runs,fixed_array = unzip(runs)
     
     for i in 1:num_runs
@@ -162,5 +167,13 @@ s(y,alpha,beta) = alpha*y - beta
 get_y_eff(y,k) = y.*(1 + (1-y)./(y*k))
 
 get_s_eff(y,alpha,beta,k) = alpha*get_y_eff(y,k) - beta
+
+function get_c_r(N,alpha,beta)
+    return 4*alpha/(beta^2*N)
+end
+
+function get_n_n(N,alpha,beta)
+    return beta/alpha*N
+end
 
 end
