@@ -6,7 +6,7 @@
 using SIS,IM,PayloadGraph, Epidemics
 using JLD
 
-addprocs(8)
+addprocs(64)
 
 @everywhere begin
 
@@ -19,8 +19,8 @@ verbose = false
 k = 4
 #y_n = 0.1
 c_r = 0.18
-N = 5000 #1000
-n_n = 2000#400#y_n*N
+N = 100 #1000
+n_n = 40#y_n*N
 beta = 4.0/(c_r*n_n)
 alpha = (N*beta)/n_n
 if verbose println(N, ' ' ,alpha, ' ',beta) end
@@ -32,12 +32,13 @@ y_n, y_minus, y_plus, y_p,critical_determinant = get_parameters(N,alpha,beta,ver
 
 ########## Set simulation params ###############
 
-num_trials = 100
-num_trials_mixed = 10000
-fixation_threshold = 2*y_n
+num_trials = 100000
+num_trials_mixed = 100000
+fixation_threshold = 1.0
 regular=true
 
 graph_model = true
+in_parallel = true
 
 
 end
@@ -46,11 +47,11 @@ println("running in parallel on $(nprocs()-1) nodes...")
 if graph_model
 @time sizes,num_fixed,_,runs = 
 run_epidemics_parallel(N,num_trials,im, (N,im)
-    -> run_epidemic_graph(N,k,im,regular,fixation_threshold),true);
+    -> run_epidemic_graph(N,k,im,regular,fixation_threshold),in_parallel);
 else
 @time sizes,num_fixed,_,runs = 
 run_epidemics_parallel(N,num_trials_mixed,im,(N,im)
-    -> run_epidemic_well_mixed(N,imk,fixation_threshold),true);
+    -> run_epidemic_well_mixed(N,imk,fixation_threshold),in_parallel);
 end
 println("done")
 
