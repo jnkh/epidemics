@@ -35,13 +35,14 @@ function run_epidemic_graph(N::Int,k::Int,im::InfectionModel,regular=false,fixat
     set_payload(p,1,INFECTED)
     frac = get_fraction_of_type(p,INFECTED)
     push!(infecteds,N*frac)
+    new_types = fill(SUSCEPTIBLE,N)
 
     while frac > 0
         if !(frac < 1 && frac < fixation_threshold)
             fixed = true
             break
         end
-        update_graph(p,im)
+        update_graph(p,im,new_types)
         frac = get_fraction_of_type(p,INFECTED)
         push!(infecteds,N*frac)
 

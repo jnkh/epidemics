@@ -78,9 +78,9 @@ function print_graph{P}(g::Graph{P})
     end
 end
 
-function update_graph{P}(g::Graph{P},im::InfectionModel)
+function update_graph{P}(g::Graph{P},im::InfectionModel,new_types::Array{P,1})
 
-    new_types = copy(get_payload(g))
+    new_types[:] = copy(get_payload(g))
     for v in vertices(g)
         update_node(g,v,im,new_types)
     end
