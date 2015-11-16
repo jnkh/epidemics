@@ -34,7 +34,7 @@ function set_payload{P}(g::PayloadGraph.Graph{P},val_array::Array{P,1})
     end
 end
 
-function set_array_with_payload(g::PayloadGraph.Graph{P},val_array::Array{P,1})
+function set_array_with_payload{P}(g::PayloadGraph.Graph{P},val_array::Array{P,1})
     for i in length(g.payload)
         val_array[i] = g.payload[i]
     end
