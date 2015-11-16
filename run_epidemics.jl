@@ -58,7 +58,7 @@ end
 using SIS,IM,PayloadGraph, Epidemics
 using JLD
 
-addprocs(100)
+addprocs(200)
 
 @everywhere begin
 
@@ -76,7 +76,7 @@ beta = 4.0/(c_r*n_n)
 alpha = (N*beta)/n_n
 if verbose println(N, ' ' ,alpha, ' ',beta) end
 
-num_trials = num_trials_mixed = 10000
+num_trials = num_trials_mixed = 1000
 fixation_threshold = 2*n_n/N
 regular=true
 in_parallel = true
