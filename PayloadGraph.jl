@@ -29,13 +29,13 @@ end
 
 
 function set_payload{P}(g::PayloadGraph.Graph{P},val_array::Array{P,1})
-    for i in length(g.payload)
+    for i in 1:length(g.payload)
         g.payload[i] = val_array[i]
     end
 end
 
 function set_array_with_payload{P}(g::PayloadGraph.Graph{P},val_array::Array{P,1})
-    for i in length(g.payload)
+    for i in 1:length(g.payload)
         val_array[i] = g.payload[i]
     end
 end
