@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH -p general
-#SBATCH -n 64
+#SBATCH -n 100
 #SBATCH -t 10
 #SBATCH --mem-per-cpu 4000
 #SBATCH -o log.out
