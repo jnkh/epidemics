@@ -80,12 +80,11 @@ end
 
 function update_graph{P}(g::Graph{P},im::InfectionModel,new_types::Array{P,1})
 
-    new_types[:] = copy(get_payload(g))
+    set_array_with_payload(g,new_types)
     for v in vertices(g)
         update_node(g,v,im,new_types)
     end
-    
-    update_types(g,new_types)
+    set_payload(g,new_types)
 end
 
 

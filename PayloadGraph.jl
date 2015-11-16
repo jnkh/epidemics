@@ -6,7 +6,7 @@ import LightGraphs
 
 export Graph,create_graph_from_value,fill_graph,set_payload,
 get_payload,num_vertices,num_edges,get_average_degree,out_edges,
-neighbors,vertices,add_edge!,add_vertex!,is_connected
+neighbors,vertices,add_edge!,add_vertex!,is_connected,set_array_with_payload
 
 type Graph{P}
     g::LightGraphs.Graph
@@ -29,7 +29,15 @@ end
 
 
 function set_payload{P}(g::PayloadGraph.Graph{P},val_array::Array{P,1})
-    g.payload = copy(val_array)
+    for i in length(g.payload)
+        g.payload[i] = val_array[i]
+    end
+end
+
+function set_array_with_payload(g::PayloadGraph.Graph{P},val_array::Array{P,1})
+    for i in length(g.payload)
+        val_array[i] = g.payload[i]
+    end
 end
 
 function set_payload{P}(g::PayloadGraph.Graph{P},v::Int,val::P)
