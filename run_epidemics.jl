@@ -26,7 +26,7 @@ alpha = (N*beta)/n_n
 if verbose println(N, ' ' ,alpha, ' ',beta) end
 
 num_trials = num_trials_mixed = 100000
-fixation_threshold = 2*y_n
+fixation_threshold = 2*n_n/N
 regular=true
 in_parallel = true
 
@@ -37,7 +37,6 @@ in_parallel = true
 #k = 4
 #graph_model = true
 
-params = Dict{AbstractString,Any}("N" => N, "alpha" => alpha, "beta" => beta, "k" => k, "fixation_threshold" => fixation_threshold,"graph_model" => graph_model,"in_parallel" => in_parallel, "num_trials" => num_trials, "num_trials_mixed" => num_trials_mixed,"regular"=>regular,"verbose"=>verbose)
 
 
 k_range = [4,100]
@@ -45,8 +44,8 @@ graph_model_range = [false,true]
 
 for k in k_range
 	for graph_model in graph_model_range
-		params["k"] = k
-		params["graph_model"] =graph_model 
+
+		params = Dict{AbstractString,Any}("N" => N, "alpha" => alpha, "beta" => beta, "k" => k, "fixation_threshold" => fixation_threshold,"graph_model" => graph_model,"in_parallel" => in_parallel, "num_trials" => num_trials, "num_trials_mixed" => num_trials_mixed,"regular"=>regular,"verbose"=>verbose)
 		save_epidemics_results(params)
 	end
 end
