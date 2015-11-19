@@ -5,7 +5,7 @@
 module SIS
 
 
-using PayloadGraph,IM,Distributions, Threads.Base
+using PayloadGraph,IM,Distributions, Base.Threads 
 
 export INFECTED,SUSCEPTIBLE,get_average_degree,
 get_fraction_of_type,print_graph,update_graph,set_all_types,get_neighbor_fraction_of_type,get_neighbor_fraction_of_type_new,get_parameters, update_graph_threads, update_node_threads
