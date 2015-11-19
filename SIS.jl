@@ -123,7 +123,7 @@ function update_node_threads{P}(g::Graph{P},v::Int,im::InfectionModel,new_types,
                 x = get_neighbor_fraction_of_type(g,w,INFECTED)
                 p::Float64 = p_birth(im,x)/k
                 if rand(rngs[threadid()]) < p
-                    lock!(m); new_types[w] = INFECTED; unlock!(m)
+                    lock!(m); new_types[w] = 2; unlock!(m);#INFECTED; unlock!(m)
                 end
             end
         end
@@ -132,7 +132,7 @@ function update_node_threads{P}(g::Graph{P},v::Int,im::InfectionModel,new_types,
         x =get_neighbor_fraction_of_type(g,v,INFECTED)
         p = p_death(im,x)
         if rand(rngs[threadid()]) < p
-            lock!(m); new_types[v] = get_sample_of_types_from_neighbors(g,v); unlock!(m)
+            lock!(m); new_types[v] = 2; unlock!(m);#get_sample_of_types_from_neighbors(g,v); unlock!(m)
         end
     end
 
