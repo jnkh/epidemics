@@ -139,7 +139,6 @@ function update_graph_threads_test{P}(g::Graph{P},im::InfectionModel,new_types::
     @threads all for v = 1:length(vertices(g))
         if get_payload(g,v) == INFECTED
 
-            #THIS DOESN'T WORK neighbors::array{Int,1} = payloadgraph.neighbors(g,v)
             neighbors = PayloadGraph.neighbors(g,v)
             k = get_average_degree(g) 
             for w in neighbors
@@ -161,9 +160,9 @@ function update_graph_threads_test{P}(g::Graph{P},im::InfectionModel,new_types::
 
             if rand(rngs[threadid()]) < 0.5#p
                 # println_safe("death at node $v",m)
-                lock!(m)
+                #lock!(m)
                 new_types[v] = get_sample_of_types_from_neighbors_threadsafe(g,v,rngs[threadid()])
-                unlock!(m);
+                #unlock!(m);
             end
         end
     end
