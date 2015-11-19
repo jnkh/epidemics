@@ -35,7 +35,7 @@ function run_epidemic_graph(N::Int,k::Int,im::InfectionModel,regular=false,fixat
     set_payload(p,1,INFECTED)
     frac = get_fraction_of_type(p,INFECTED)
     push!(infecteds,N*frac)
-    new_types = fill(SUSCEPTIBLE,N)
+    new_types = convert(SharedArray,fill(SUSCEPTIBLE,N))
 
     while frac > 0
         if !(frac < 1 && frac < fixation_threshold)
@@ -163,11 +163,17 @@ end
 
 P_w_th(w,s) = exp(-s.^2.*w./4).*w.^(-1.5)./(2*sqrt(pi).*(1 .+ s))
 
-s(y,alpha,beta) = alpha*y - beta
+function s(y::Float64,alpha::Int,beta::Int)
+    return alpha*y - beta
+end
 
-get_y_eff(y,k) = y.*(1 + (1-y)./(y*k))
+function get_y_eff(y::Float64,k::Int)
+    return y.*(1 + (1-y)./(y*k))
+end
 
-get_s_eff(y,alpha,beta,k) = alpha*get_y_eff(y,k) - beta
+function get_s_eff(y::Float64,alpha::Float64,beta::Float64,k::Int)
+    return alpha*get_y_eff(y,k) - beta
+end
 
 function get_c_r(N,alpha,beta)
     return 4*alpha/(beta^2*N)

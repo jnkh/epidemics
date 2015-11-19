@@ -3,9 +3,9 @@ function save_epidemics_results(params)
 
 	@everywhere begin
 
-	N = params["N"]
-	alpha = params["alpha"]
-	beta = params["beta"]
+	N::Int = params["N"]
+	alpha::Float64 = params["alpha"]
+	beta::Float64 = params["beta"]
 	k = params["k"]
 	verbose = params["verbose"]
 	fixation_threshold = params["fixation_threshold"]
@@ -15,8 +15,16 @@ function save_epidemics_results(params)
 	graph_model = params["graph_model"]
 	regular = params["regular"]
 
+	#function f1(x::Float64) 1 + alpha::Float64*x end
+	#function f2(x::Float64)  1 + beta::Float64 end
+	#function f3(x::Float64) 1 + beta + get_s_eff(x,alpha,beta,k) end
+	#im_normal = InfectionModel(f1,f2);
+	#im_effective = InfectionModel(f3,f2);
+
 	im_normal = InfectionModel(x -> 1 + alpha*x , x -> 1 + beta);
 	im_effective = InfectionModel(x -> 1 + beta + get_s_eff(x,alpha,beta,k) , x -> 1 + beta);
+
+
 
 	y_n, y_minus, y_plus, y_p,critical_determinant = get_parameters(N,alpha,beta,verbose)
 
@@ -58,7 +66,7 @@ end
 using SIS,IM,PayloadGraph, Epidemics
 using JLD
 
-addprocs(200)
+#addprocs(2)
 
 @everywhere begin
 

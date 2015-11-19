@@ -1,0 +1,186 @@
+        - module Epidemics
+        - 
+        - using SIS,Distributions, IM, LightGraphs,PayloadGraph
+        - 
+        - export run_epidemic_graph,run_epidemic_well_mixed,get_s_eff,run_epidemics_parallel,run_epidemics,s,get_s_eff,normed_distribution, P_w_th,get_y_eff
+        - 
+        - 
+        - function graph_is_connected(g::LightGraphs.Graph)
+        0     parents = LightGraphs.dijkstra_shortest_paths(g,1).parents[2:end]
+        0     return size(parents) == 0 || minimum(parents) > 0
+        - end
+        - 
+        - function guarantee_connected(graph_fn)
+        0     g = graph_fn()
+        0     resampled = 0
+        0     while(!graph_is_connected(g))
+        0         g = graph_fn()
+        0         resampled += 1
+        -     end
+        0     if resampled > 0
+        0         println("Resampled Graph $resampled times.")
+        -     end
+        0     return g
+        - end
+        -     
+        - function run_epidemic_graph(N::Int,k::Int,im::InfectionModel,regular=false,fixation_threshold=1.0)
+   606497     fixed=false
+        0     if regular
+        0         g = guarantee_connected( () -> LightGraphs.random_regular_graph(N,k))
+        -     else
+        0         g = guarantee_connected( () -> LightGraphs.erdos_renyi(N,1.0*k/(N-1)))
+        -     end
+        0     p = create_graph_from_value(g,SUSCEPTIBLE)
+        0     infecteds::Array{Float64,1} = []
+        0     set_payload(p,1,INFECTED)
+        0     frac = get_fraction_of_type(p,INFECTED)
+        0     push!(infecteds,N*frac)
+  8330480     new_types = fill(SUSCEPTIBLE,N)
+        - 
+        0     while frac > 0
+        0         if !(frac < 1 && frac < fixation_threshold)
+        0             fixed = true
+        0             break
+        -         end
+        0         update_graph(p,im,new_types)
+        0         frac = get_fraction_of_type(p,INFECTED)
+        0         push!(infecteds,N*frac)
+        - 
+        -     end
+    32992     return infecteds,fixed
+        - end
+        - 
+        - function run_epidemic_well_mixed(N,im,fixation_threshold=1.0)
+        0     infecteds::Array{Float64,1} = []
+        0     n = 1
+        0     fixed=false
+        0     push!(infecteds,n)
+        -     
+        - 
+        0     while n > 0
+        0         if !(n < N && n < N*fixation_threshold)
+        0             fixed = true
+        0             break
+        -         end
+        0         n = update_n(n,N,im)
+        0         push!(infecteds,n)
+        -     end
+    64000     return infecteds,fixed
+        - end
+        - 
+        - function update_n(n::Int,N::Int,im::InfectionModel)
+        0     y = n/N
+  2763840     delta_n_plus = rand(Binomial(n,(1-y)*p_birth(im,n/N)))
+  2763840     delta_n_minus = rand(Binomial(n,(1-y)*p_death(im,n/N)))
+        0     return n + delta_n_plus - delta_n_minus
+        - end
+        -     
+        - function run_epidemics(num_runs::Int,im::InfectionModel,run_epidemic_fn)  
+        -     runs = []
+        -     num_fixed = 0
+        -     sizes = zeros(num_runs)
+        -     total_length =0
+        -     
+        -     for i in 1:num_runs
+        -         infecteds,fixed = run_epidemic_fn(im)
+        -         push!(runs,infecteds)
+        -         if fixed
+        -             num_fixed += 1
+        -             sizes[i] = Inf
+        -         else
+        -             sizes[i]= im.dt*sum(infecteds)
+        -             total_length += size(infecteds)[1]
+        -         end
+        -         
+        -     end
+        -     #get rid of fixed ones
+        -     sizes = sizes[sizes .< Inf]
+        - 
+        -     return sizes,num_fixed,total_length,runs
+        - end
+        - 
+        - 
+        - function run_epidemics_parallel(num_runs::Int,im::InfectionModel,run_epidemic_fn,parallel=true)  
+   377587     num_fixed = 0
+        0     sizes = zeros(num_runs)
+     4352     fixed_array = Array{Bool,1}(num_runs)
+        0     total_length =0
+        -     
+        0     mapfn = parallel ? pmap : map 
+        0     runs = mapfn(_ -> run_epidemic_fn(im),1:num_runs)
+        0     runs,fixed_array = unzip(runs)
+        -     
+        0     for i in 1:num_runs
+       16         if fixed_array[i]
+        0             num_fixed += 1
+    23456             sizes[i] = Inf
+        -         else
+    47968             sizes[i]= im.dt*sum(runs[i])
+    47504             total_length += size(runs[i])[1]
+        -         end
+        -     end
+        -     
+        -     #get rid of fixed ones
+        0     sizes = sizes[sizes .< Inf]
+        - 
+      320     return sizes,num_fixed,total_length,runs
+        - end
+        - 
+        - 
+        - ########### Utility Functions ##################
+        - 
+        - 
+        - function unzip{A,B}(zipped::Array{Tuple{A,B},1})
+        -     l = length(zipped)
+        -     a = Array{A,1}(l)
+        -     b = Array{B,1}(l)
+        -     for (i,(a_el,b_el)) in enumerate(zipped)
+        -         a[i] = a_el
+        -         b[i] = b_el
+        -     end
+        -     return a,b
+        - end
+        - 
+        - function unzip(zipped)
+   427858     l = length(zipped)
+      192     a = []
+      192     b = []
+       48     for (i,(a_el,b_el)) in enumerate(zipped)
+    50016         push!(a,a_el)
+    50016         push!(b,b_el)
+        -     end
+       96     return a,b
+        - end
+        - 
+        - 
+        - 
+        - 
+        - 
+        - 
+        - function normed_distribution(x,px)
+        -     return px./sum(diff(x).*px[1:end-1])
+        - end
+        - 
+        - P_w_th(w,s) = exp(-s.^2.*w./4).*w.^(-1.5)./(2*sqrt(pi).*(1 .+ s))
+        - 
+        - function s(y::Float64,alpha::Int,beta::Int)
+        -     return alpha*y - beta
+        - end
+        - 
+        - function get_y_eff(y::Float64,k::Int)
+        -     return y.*(1 + (1-y)./(y*k))
+        - end
+        - 
+        - function get_s_eff(y::Float64,alpha::Float64,beta::Float64,k::Int)
+  4395157     return alpha*get_y_eff(y,k) - beta
+        - end
+        - 
+        - function get_c_r(N,alpha,beta)
+        -     return 4*alpha/(beta^2*N)
+        - end
+        - 
+        - function get_n_n(N,alpha,beta)
+        -     return beta/alpha*N
+        - end
+        - 
+        - end

@@ -1,15 +1,16 @@
 #########################Graph new type#####################3
 
-module PayloadGraph
+module ParallelPayloadGraph
 
-import LightGraphs
+import LightGraphs,ParallelSparseMatMul
+PS = ParallelSparseMatMul
 
 export Graph,create_graph_from_value,fill_graph,set_payload,
 get_payload,num_vertices,num_edges,get_average_degree,out_edges,
 neighbors,vertices,add_edge!,add_vertex!,is_connected,set_array_with_payload
 
 type Graph{P}
-    g::LightGraphs.Graph
+    g::PS.SharedSparseCSCMatrix
     payload::Array{P,1}
     
     Graph(a::LightGraphs.Graph,b::Array{P,1}) =  LightGraphs.nv(a) == length(b) ? new(a,b) :  error("Incorrect array length")
@@ -28,13 +29,13 @@ function fill_graph{P}(g::PayloadGraph.Graph{P},val::P)
 end
 
 
-function set_payload{P}(g::PayloadGraph.Graph{P},val_array::Union{Array{P,1},SharedArray{P,1}})
+function set_payload{P}(g::PayloadGraph.Graph{P},val_array::Array{P,1})
     for i in 1:length(g.payload)
         g.payload[i] = val_array[i]
     end
 end
 
-function set_array_with_payload{P}(g::PayloadGraph.Graph{P},val_array::Union{Array{P,1},SharedArray{P,1}})
+function set_array_with_payload{P}(g::PayloadGraph.Graph{P},val_array::Array{P,1})
     for i in 1:length(g.payload)
         val_array[i] = g.payload[i]
     end

@@ -1,0 +1,126 @@
+        - ##################################################
+        - #### SIS Model captured in a module###############
+        - ##################################################
+        - 
+        - module SIS
+        - 
+        - 
+        - using PayloadGraph,IM,Distributions
+        - 
+        - export INFECTED,SUSCEPTIBLE,get_average_degree,
+        - get_fraction_of_type,print_graph,update_graph,set_all_types,get_neighbor_fraction_of_type,get_neighbor_fraction_of_type_new,get_parameters
+        - 
+        - 
+        - 
+        - const INFECTED = 1
+        - const SUSCEPTIBLE = 0
+        - 
+        - function get_parameters(N,alpha,beta,verbose=false)
+   187119     critical_determinant = 4*alpha/(N*beta^2)
+        0     y_n = beta/alpha
+        0     if critical_determinant < 1
+       64         y_minus = beta/(2*alpha)*(1 -  sqrt(1 - critical_determinant))
+       64         y_plus = beta/(2*alpha)*(1 +  sqrt(1 - critical_determinant))
+        -     else
+        0         y_minus = -1
+        0         y_plus = -1
+        -     end
+        0     y_p = beta/(2*alpha)*(1 +  sqrt(1 + critical_determinant))
+        0     if verbose
+        0         println("y_n = $y_n, y_- = $y_minus, y_+ = $y_plus, y_p = $y_p, critical determinant = $critical_determinant")
+        0         println("'n_n = $(y_n*N)")
+        -     end
+      384     return y_n, y_minus, y_plus, y_p,critical_determinant
+        - end
+        - 
+        - function get_neighbor_fraction_of_type{P}(g::Graph{P},v::Int,thistype::P)
+        0     neighbors = PayloadGraph.neighbors(g,v)
+        0     if length(neighbors) == 0 return 0.0 end
+        0     count = 0
+        0     for n in neighbors
+        0         if get_payload(g,n) == thistype
+        0             count += 1
+        -         end
+        -     end
+        0     return count/length(neighbors)
+        - end
+        - 
+        - function get_fraction_of_type{P}(g::Graph{P},thistype::P)
+        0     count = 0
+        0     vs = vertices(g)
+        0     for v in vs
+        0         if get_payload(g,v) == thistype
+        0             count += 1
+        -         end
+        -     end
+        0     return count/length(vs)
+        - end
+        - 
+        - 
+        - 
+        - function get_sample_of_types_from_neighbors{P}(g::Graph{P},v::P)
+        0     neighbors = PayloadGraph.neighbors(g,v)
+        0     if length(neighbors) == 0
+        0         error("Disconnected Graph")
+        0         return get_payload(g,v)
+        -     end
+  6734272     neighbor_types = Array(P,length(neighbors))
+  1044112     for (i,w) in enumerate(neighbors)
+        0         neighbor_types[i] = get_payload(g,w)
+        -     end
+        0     return sample(neighbor_types)
+        - end
+        - 
+        - 
+        - function print_graph{P}(g::Graph{P})
+        -     for v in vertices(g)
+        -         print(get_payload(g,v))
+        -     end
+        - end
+        - 
+        - function update_graph{P}(g::Graph{P},im::InfectionModel,new_types::Array{P,1})
+        - 
+        0     set_array_with_payload(g,new_types)
+        0     for v in vertices(g)
+        0         update_node(g,v,im,new_types)
+        -     end
+        0     set_payload(g,new_types)
+        - end
+        - 
+        - 
+        - function update_node{P}(g::Graph{P},v::Int,im::InfectionModel,new_types)
+        0     if get_payload(g,v) == INFECTED
+        0         k = get_average_degree(g) 
+        -         #infect neighbors
+        0         neighbors = PayloadGraph.neighbors(g,v)
+        0         p = 0.0
+        0         for w in neighbors
+        0             if get_payload(g,w) == SUSCEPTIBLE
+        0                 x = get_neighbor_fraction_of_type(g,w,INFECTED)
+ 39199776                 p::Float64 = p_birth(im,x)/k
+        0                 if rand() < p
+        0                     new_types[w] = INFECTED
+        -                 end
+        -             end
+        -         end
+        -         
+        -         #recover self
+        0         x =get_neighbor_fraction_of_type(g,v,INFECTED)
+ 11190256         p = p_death(im,x)
+        0         if rand() < p
+        0             new_types[v] = get_sample_of_types_from_neighbors(g,v)
+        -         end
+        -     end
+        - 
+        - end
+        - 
+        - 
+        - function update_types{P}(g::Graph{P},new_types::Array{P,1})
+        -     for v in vertices(g)
+        -         set_payload(g,v,new_types[v])
+        -     end
+        - end
+        - 
+        - 
+        - end
+        - 
