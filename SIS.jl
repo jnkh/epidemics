@@ -77,11 +77,7 @@ function get_sample_of_types_from_neighbors_threadsafe{P}(g::Graph{P},v::P,rng)
         error("Disconnected Graph")
         return get_payload(g,v)
     end
-    neighbor_types = Array(P,length(neighbors))
-    for (i,w) in enumerate(neighbors)
-        neighbor_types[i] = get_payload(g,w)
-    end
-    return sample_threadsafe(neighbor_types,rng)
+    return get_payload(g,sample_threadsafe(neighbors,rng))
 end
 
 
@@ -147,9 +143,9 @@ function update_graph_threads_test{P}(g::Graph{P},im::InfectionModel,new_types::
                     p = p_birth(im,x)/k
                     if rand(rngs[threadid()]) < 0.1#p
                         # println_safe("birth at node $w",m)
-                        #lock!(m)
+                        lock!(m)
                         new_types[w] = INFECTED
-                        #unlock!(m)
+                        unlock!(m)
                     end
                 end
             end
@@ -157,12 +153,12 @@ function update_graph_threads_test{P}(g::Graph{P},im::InfectionModel,new_types::
             #recover self
             x =get_neighbor_fraction_of_type(g,v,INFECTED)
             p = p_death(im,x)
-
             if rand(rngs[threadid()]) < 0.5#p
                 # println_safe("death at node $v",m)
-                #lock!(m)
-                new_types[v] = get_sample_of_types_from_neighbors_threadsafe(g,v,rngs[threadid()])
-                #unlock!(m);
+                samp = get_sample_of_types_from_neighbors_threadsafe(g,v,rngs[threadid()])
+                lock!(m)
+                new_types[v] = samp
+                unlock!(m);
             end
         end
     end
