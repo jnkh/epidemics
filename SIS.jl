@@ -155,7 +155,7 @@ function update_graph_threads_test{P}(g::Graph{P},im::InfectionModel,new_types::
             p = p_death(im,x)
             if rand(rngs[threadid()]) < 0.5#p
                 # println_safe("death at node $v",m)
-                samp = get_sample_of_types_from_neighbors_threadsafe(g,v,rngs[threadid()])
+                samp = Int(get_sample_of_types_from_neighbors_threadsafe(g,v,rngs[threadid()]))
                 lock!(m)
                 new_types[v] = samp
                 unlock!(m);
