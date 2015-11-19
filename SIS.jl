@@ -147,9 +147,9 @@ function update_graph_threads_test{P}(g::Graph{P},im::InfectionModel,new_types::
                     p = p_birth(im,x)/k
                     if rand(rngs[threadid()]) < 0.1#p
                         # println_safe("birth at node $w",m)
-                        lock!(m)
+                        #lock!(m)
                         new_types[w] = INFECTED
-                        unlock!(m)
+                        #unlock!(m)
                     end
                 end
             end
