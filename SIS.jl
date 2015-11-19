@@ -8,7 +8,7 @@ module SIS
 using PayloadGraph,IM,Distributions, Base.Threads 
 
 export INFECTED,SUSCEPTIBLE,get_average_degree,
-get_fraction_of_type,print_graph,update_graph,set_all_types,get_neighbor_fraction_of_type,get_neighbor_fraction_of_type_new,get_parameters, update_graph_threads, update_node_threads
+get_fraction_of_type,print_graph,update_graph,set_all_types,get_neighbor_fraction_of_type,get_neighbor_fraction_of_type_new,get_parameters, update_graph_threads,update_graph_threads_test, update_node_threads
 
 
 
@@ -71,6 +71,28 @@ function get_sample_of_types_from_neighbors{P}(g::Graph{P},v::P)
     return sample(neighbor_types)
 end
 
+function get_sample_of_types_from_neighbors_threadsafe{P}(g::Graph{P},v::P,rng)
+    neighbors = PayloadGraph.neighbors(g,v)
+    if length(neighbors) == 0
+        error("Disconnected Graph")
+        return get_payload(g,v)
+    end
+    neighbor_types = Array(P,length(neighbors))
+    for (i,w) in enumerate(neighbors)
+        neighbor_types[i] = get_payload(g,w)
+    end
+    return sample_threadsafe(neighbor_types,rng)
+end
+
+
+
+function sample_threadsafe{T}(arr::Array{T,1},rng)
+    len = length(arr)
+    rand_idx = Int(floor(1 + rand(rng)*len))
+    return arr[rand_idx]
+end
+
+
 
 function print_graph{P}(g::Graph{P})
     for v in vertices(g)
@@ -100,6 +122,54 @@ function update_graph_threads{P}(g::Graph{P},im::InfectionModel,new_types::Union
     end
     set_payload(g,new_types)
 end
+
+
+function println_safe(arg,m::Mutex)
+    lock!(m)
+    println(arg)
+    unlock!(m)
+end
+
+function update_graph_threads_test{P}(g::Graph{P},im::InfectionModel,new_types::Union{Array{P,1},SharedArray{P,1}})
+    rngs = [MersenneTwister(777+x) for x in 1:nthreads()]
+    m = Mutex()
+    set_array_with_payload(g,new_types)
+    #pmap((v) -> update_node(g,v,im,new_types),vertices(g))
+    # @sync @parallel for v in vertices(g)
+    @threads all for v = 1:length(vertices(g))
+        if get_payload(g,v) == INFECTED
+
+            #THIS DOESN'T WORK neighbors::array{Int,1} = payloadgraph.neighbors(g,v)
+            neighbors = PayloadGraph.neighbors(g,v)
+            k = get_average_degree(g) 
+            for w in neighbors
+                if get_payload(g,w) == SUSCEPTIBLE
+                    x = get_neighbor_fraction_of_type(g,w,INFECTED)
+                    p = p_birth(im,x)/k
+                    if rand(rngs[threadid()]) < 0.1#p
+                        # println_safe("birth at node $w",m)
+                        lock!(m)
+                        new_types[w] = INFECTED
+                        unlock!(m)
+                    end
+                end
+            end
+                #infect neighbors
+            #recover self
+            x =get_neighbor_fraction_of_type(g,v,INFECTED)
+            p = p_death(im,x)
+
+            if rand(rngs[threadid()]) < 0.5#p
+                # println_safe("death at node $v",m)
+                lock!(m)
+                new_types[v] = get_sample_of_types_from_neighbors_threadsafe(g,v,rngs[threadid()])
+                unlock!(m);
+            end
+        end
+    end
+    set_payload(g,new_types)
+end
+
 
 
 
