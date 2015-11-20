@@ -8,7 +8,7 @@ module SIS
 using PayloadGraph,IM,Distributions, Base.Threads 
 
 export INFECTED,SUSCEPTIBLE,get_average_degree,
-get_fraction_of_type,print_graph,update_graph,set_all_types,get_neighbor_fraction_of_type,get_neighbor_fraction_of_type_new,get_parameters, update_graph_threads,update_graph_threads_test, update_node_threads
+get_fraction_of_type,print_graph,update_graph,set_all_types,get_neighbor_fraction_of_type,get_neighbor_fraction_of_type_new,get_parameters,update_graph_threads
 
 
 
@@ -96,41 +96,19 @@ function print_graph{P}(g::Graph{P})
     end
 end
 
-function update_graph{P}(g::Graph{P},im::InfectionModel,new_types::Union{Array{P,1},SharedArray{P,1}})
-
-    set_array_with_payload(g,new_types)
-    #pmap((v) -> update_node(g,v,im,new_types),vertices(g))
-    @sync @parallel for v in vertices(g)
-        update_node(g,v,im,new_types)
-    end
-    set_payload(g,new_types)
-end
-
-
-function update_graph_threads{P}(g::Graph{P},im::InfectionModel,new_types::Union{Array{P,1},SharedArray{P,1}})
-    rngs = [MersenneTwister(777+x) for x in 1:nthreads()]
-    m = Mutex()
-    set_array_with_payload(g,new_types)
-    #pmap((v) -> update_node(g,v,im,new_types),vertices(g))
-    # @sync @parallel for v in vertices(g)
-    @threads all for v in vertices(g)
-        update_node_threads(g,v,im,new_types,rngs,m)
-    end
-    set_payload(g,new_types)
-end
-
-
 function println_safe(arg,m::Mutex)
     lock!(m)
     println(arg)
     unlock!(m)
 end
 
-function update_graph_threads_test{P}(g::Graph{P},im::InfectionModel,new_types::Union{Array{P,1},SharedArray{P,1}})
+
+
+#This function doesn't use the infection model yet since anonymous functions crash in the threading package!
+function update_graph_threads{P}(g::Graph{P},im::InfectionModel,new_types::Union{Array{P,1},SharedArray{P,1}})
     rngs = [MersenneTwister(777+x) for x in 1:nthreads()]
     m = Mutex()
     set_array_with_payload(g,new_types)
-    #pmap((v) -> update_node(g,v,im,new_types),vertices(g))
     # @sync @parallel for v in vertices(g)
     @threads all for v = 1:length(vertices(g))
         if get_payload(g,v) == INFECTED
@@ -180,14 +158,15 @@ end
 
 
 
-# function update_graph{P}(g::Graph{P},im::InfectionModel,new_types::Array{P,1})
+function update_graph{P}(g::Graph{P},im::InfectionModel,new_types::Array{P,1})
 
-#     set_array_with_payload(g,new_types)
-#     @sync @parallel for v in vertices(g)
-#         update_node(g,v,im,new_types)
-#     end
-#     set_payload(g,new_types)
-# end
+    set_array_with_payload(g,new_types)
+    @sync @parallel for v in vertices(g)
+    for v in vertices(g)
+        update_node(g,v,im,new_types)
+    end
+    set_payload(g,new_types)
+end
 
 function update_node_threads{P}(g::Graph{P},v::Int,im::InfectionModel,new_types,rngs,m::Mutex)
     if get_payload(g,v) == INFECTED
