@@ -17,9 +17,13 @@ function get_timing_threads(N)
 	# p.payload[15] = 1
 	# p.payload[10] = 1
 	new_types = zeros(Int,N)
-	num_trials = 100
+	SIS.update_graph_threads_test(p,im,new_types)
+	num_trials = 200
+	if N >300 num_trials = 50 end
+	if N >500	num_trials = 10	end
+	if N > 1000 num_trials = 3 end
 
-	println("running on $(nthreads()) threads.")
+	println("running on $(nthreads()) threads, N = $N, num_trials = $num_trials")
 
 	tic()
 	for i = 1:num_trials
@@ -35,19 +39,18 @@ function get_timing_threads(N)
 		print("$(i/num_trials)\r")
 		flush(STDOUT)
 	end
-	elapsed = toc()
+	elapsed = toc()/num_trials
 	println()
 	flush(STDOUT)
 
-	println("elapsed = $elapsed, N = $N")
 	return elapsed
 end
 	# println(p)
 # println(new_types)
 
 
-saving = true
-N_range = [100,200,300]
+saving = false
+N_range = [100,200,400,800,1600]
 elapsed_range = []
 num_threads = nthreads()
 
@@ -56,7 +59,9 @@ for N in N_range
 	push!(elapsed_range,elapsed)
 end
 
-save("thread_data/$(num_threads)_threads.jld","N_range",N_range,"elapsed_range",elapsed_range,"num_threads",num_threads)
+if saving
+	save("thread_data/$(num_threads)_threads.jld","N_range",N_range,"elapsed_range",elapsed_range,"num_threads",num_threads)
+end
 
 
 
