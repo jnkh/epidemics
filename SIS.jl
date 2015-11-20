@@ -153,11 +153,11 @@ function update_graph_threads_test{P}(g::Graph{P},im::InfectionModel,new_types::
             #recover self
             x =get_neighbor_fraction_of_type(g,v,INFECTED)
             p = p_death(im,x)
-            if 0#rand(rngs[threadid()]) < 0.5#p
+            if rand(rngs[threadid()]) < 0.5#p
                 # println_safe("death at node $v",m)
-                samp = Int(get_sample_of_types_from_neighbors_threadsafe(g,v,rngs[threadid()]))
+                #samp = Int(get_sample_of_types_from_neighbors_threadsafe(g,v,rngs[threadid()]))
                 lock!(m)
-                new_types[v] = samp
+                new_types[v] = 1#samp
                 unlock!(m);
             end
         end
