@@ -140,7 +140,9 @@ function update_graph_threads_test{P}(g::Graph{P},im::InfectionModel,new_types::
             for w in neighbors
                 if get_payload(g,w) == SUSCEPTIBLE
                     x = get_neighbor_fraction_of_type(g,w,INFECTED)
-                    p = p_birth(im,x)/k
+                    # p = p_birth(im,k)/k
+                    # p = p_birth(im,x)/k
+                    p = pb(x)/k
                     if rand(rngs[threadid()]) < 0.1#p
                         # println_safe("birth at node $w",m)
                         lock!(m)
@@ -152,17 +154,27 @@ function update_graph_threads_test{P}(g::Graph{P},im::InfectionModel,new_types::
                 #infect neighbors
             #recover self
             x =get_neighbor_fraction_of_type(g,v,INFECTED)
-            p = p_death(im,x)
+            # p = p_death(im,x)
+            # p = p_death(im,x)
+            p = pd(x)
             if rand(rngs[threadid()]) < 0.5#p
-                # println_safe("death at node $v",m)
-                samp = Int(get_sample_of_types_from_neighbors_threadsafe(g,v,rngs[threadid()]))
-                lock!(m)
-                new_types[v] = 1#samp
+            #     # println_safe("death at node $v",m)
+            samp = Int(get_sample_of_types_from_neighbors_threadsafe(g,v,rngs[threadid()]))
+                 lock!(m)
+                new_types[v] = samp
                 unlock!(m);
             end
         end
     end
     set_payload(g,new_types)
+end
+
+function pd(x)
+    return 1 + 0.1
+end
+
+function pb(x)
+    return 1 + 0.1*x
 end
 
 
