@@ -143,7 +143,7 @@ function update_graph_threads_test{P}(g::Graph{P},im::InfectionModel,new_types::
                     # p = p_birth(im,k)/k
                     # p = p_birth(im,x)/k
                     p = pb(x)/k
-                    if rand(rngs[threadid()]) < 0.1#p
+                    if rand(rngs[threadid()]) < 0.05#p
                         # println_safe("birth at node $w",m)
                         lock!(m)
                         new_types[w] = INFECTED
@@ -157,7 +157,7 @@ function update_graph_threads_test{P}(g::Graph{P},im::InfectionModel,new_types::
             # p = p_death(im,x)
             # p = p_death(im,x)
             p = pd(x)
-            if rand(rngs[threadid()]) < 0.5#p
+            if rand(rngs[threadid()]) < 0.2#p
             #     # println_safe("death at node $v",m)
             samp = Int(get_sample_of_types_from_neighbors_threadsafe(g,v,rngs[threadid()]))
                  lock!(m)
