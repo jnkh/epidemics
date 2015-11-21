@@ -32,6 +32,7 @@ function save_epidemics_results(params)
 
 
 	println("running in parallel on $(nprocs()-1) nodes...")
+	tic()
 	if graph_model
 	@time sizes,num_fixed,_,runs = 
 	run_epidemics_parallel(num_trials,im_normal, (x)
@@ -47,13 +48,21 @@ function save_epidemics_results(params)
 			    -> run_epidemic_well_mixed(N,x,fixation_threshold),in_parallel);
 		end
 	end
-	println("done")
+	elapsed = toc()
+	println("done after $elapsed seconds.")
 
 
 	filename = "epidemics_$(now()).jld"
-
-
 	save(data_dir_path * filename,"params",params,"sizes",sizes,"runs",runs,"num_fixed",num_fixed)
+
+
+	timing_filename = "timing_$(now()).jld"
+	save(data_dir_path * timing_filename,"params",params,"elapsed",elapsed)
+
+	timing_log_filename = "timing_log.out"
+	f = open(timing_log_filename,"a")	
+	write(f,"$N $k $num_trials $elapsed\n")
+
 end
 
 
