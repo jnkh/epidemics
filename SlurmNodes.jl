@@ -4,6 +4,8 @@ export get_list_of_nodes
 
 #returns a zipped list of tuples of the form (nodename<:AbstractString,num_procs_on_node::Int). This can be fed directly to addprocs like addprocs(get_list_of_nodes()).
 function get_list_of_nodes()
+	println("nodelist: $(ENV["SLURM_NODELIST"])")
+	println("cpus_per_node: $(ENV["SLURM_JOB_CPUS_PER_NODE"])")
 	s = ENV["SLURM_NODELIST"]
 	cpus_per_node = map(s -> parse(Int,s),split(ENV["SLURM_JOB_CPUS_PER_NODE"],','))
 	idx = searchindex(s,"[")
