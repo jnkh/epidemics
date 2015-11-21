@@ -129,112 +129,112 @@ end
 
 
 ###################THREADING########################
-using Base.Threads 
+# using Base.Threads 
 
-function println_safe(arg,m::Mutex)
-    lock!(m)
-    println(arg)
-    unlock!(m)
-end
-
-
-function get_sample_of_types_from_neighbors_threadsafe{P}(g::Graph{P},v::P,rng)
-    neighbors = PayloadGraph.neighbors(g,v)
-    if length(neighbors) == 0
-        error("Disconnected Graph")
-        return get_payload(g,v)
-    end
-    return get_payload(g,sample_threadsafe(neighbors,rng))
-end
+# function println_safe(arg,m::Mutex)
+#     lock!(m)
+#     println(arg)
+#     unlock!(m)
+# end
 
 
-
-function sample_threadsafe{T}(arr::Array{T,1},rng)
-    len = length(arr)
-    rand_idx = Int(floor(1 + rand(rng)*len))
-    return arr[rand_idx]
-end
+# function get_sample_of_types_from_neighbors_threadsafe{P}(g::Graph{P},v::P,rng)
+#     neighbors = PayloadGraph.neighbors(g,v)
+#     if length(neighbors) == 0
+#         error("Disconnected Graph")
+#         return get_payload(g,v)
+#     end
+#     return get_payload(g,sample_threadsafe(neighbors,rng))
+# end
 
 
 
+# function sample_threadsafe{T}(arr::Array{T,1},rng)
+#     len = length(arr)
+#     rand_idx = Int(floor(1 + rand(rng)*len))
+#     return arr[rand_idx]
+# end
 
 
-#This function doesn't use the infection model yet since anonymous functions crash in the threading package!
-function update_graph_threads{P}(g::Graph{P},im::InfectionModel,new_types::Union{Array{P,1},SharedArray{P,1}})
-    rngs = [MersenneTwister(777+x) for x in 1:nthreads()]
-    m = Mutex()
-    set_array_with_payload(g,new_types)
-    # @sync @parallel for v in vertices(g)
-    @threads all for v = 1:length(vertices(g))
-        if get_payload(g,v) == INFECTED
 
-            neighbors = PayloadGraph.neighbors(g,v)
-            k = get_average_degree(g) 
-            for w in neighbors
-                if get_payload(g,w) == SUSCEPTIBLE
-                    x = get_neighbor_fraction_of_type(g,w,INFECTED)
-                    # p = p_birth(im,k)/k
-                    # p = p_birth(im,x)/k
-                    p = pb(x)/k
-                    if rand(rngs[threadid()]) < 0.05#p
-                        # println_safe("birth at node $w",m)
-                        lock!(m)
-                        new_types[w] = INFECTED
-                        unlock!(m)
-                    end
-                end
-            end
-                #infect neighbors
-            #recover self
-            x =get_neighbor_fraction_of_type(g,v,INFECTED)
-            # p = p_death(im,x)
-            q = pd(x)
-            if rand(rngs[threadid()]) < 0.2#p
-            #     # println_safe("death at node $v",m)
-            samp = Int(get_sample_of_types_from_neighbors_threadsafe(g,v,rngs[threadid()]))
-                 lock!(m)
-                new_types[v] = samp
-                unlock!(m);
-            end
-        end
-    end
-    set_payload(g,new_types)
-end
 
-function pd(x)
-    return 1 + 0.1
-end
 
-function pb(x)
-    return 1 + 0.1*x
-end
+# #This function doesn't use the infection model yet since anonymous functions crash in the threading package!
+# function update_graph_threads{P}(g::Graph{P},im::InfectionModel,new_types::Union{Array{P,1},SharedArray{P,1}})
+#     rngs = [MersenneTwister(777+x) for x in 1:nthreads()]
+#     m = Mutex()
+#     set_array_with_payload(g,new_types)
+#     # @sync @parallel for v in vertices(g)
+#     @threads all for v = 1:length(vertices(g))
+#         if get_payload(g,v) == INFECTED
 
-function update_node_threads{P}(g::Graph{P},v::Int,im::InfectionModel,new_types,rngs,m::Mutex)
-    if get_payload(g,v) == INFECTED
-        k = get_average_degree(g) 
-        #infect neighbors
-        neighbors::Array{Int,1} = PayloadGraph.neighbors(g,v)
-        p = 0.0
-        for w in neighbors
-            if get_payload(g,w) == SUSCEPTIBLE
-                x = get_neighbor_fraction_of_type(g,w,INFECTED)
-                p::Float64 = p_birth(im,x)/k
-                if rand(rngs[threadid()]) < p
-                    lock!(m); new_types[w] = 2; unlock!(m);#INFECTED; unlock!(m)
-                end
-            end
-        end
+#             neighbors = PayloadGraph.neighbors(g,v)
+#             k = get_average_degree(g) 
+#             for w in neighbors
+#                 if get_payload(g,w) == SUSCEPTIBLE
+#                     x = get_neighbor_fraction_of_type(g,w,INFECTED)
+#                     # p = p_birth(im,k)/k
+#                     # p = p_birth(im,x)/k
+#                     p = pb(x)/k
+#                     if rand(rngs[threadid()]) < 0.05#p
+#                         # println_safe("birth at node $w",m)
+#                         lock!(m)
+#                         new_types[w] = INFECTED
+#                         unlock!(m)
+#                     end
+#                 end
+#             end
+#                 #infect neighbors
+#             #recover self
+#             x =get_neighbor_fraction_of_type(g,v,INFECTED)
+#             # p = p_death(im,x)
+#             q = pd(x)
+#             if rand(rngs[threadid()]) < 0.2#p
+#             #     # println_safe("death at node $v",m)
+#             samp = Int(get_sample_of_types_from_neighbors_threadsafe(g,v,rngs[threadid()]))
+#                  lock!(m)
+#                 new_types[v] = samp
+#                 unlock!(m);
+#             end
+#         end
+#     end
+#     set_payload(g,new_types)
+# end
+
+# function pd(x)
+#     return 1 + 0.1
+# end
+
+# function pb(x)
+#     return 1 + 0.1*x
+# end
+
+# function update_node_threads{P}(g::Graph{P},v::Int,im::InfectionModel,new_types,rngs,m::Mutex)
+#     if get_payload(g,v) == INFECTED
+#         k = get_average_degree(g) 
+#         #infect neighbors
+#         neighbors::Array{Int,1} = PayloadGraph.neighbors(g,v)
+#         p = 0.0
+#         for w in neighbors
+#             if get_payload(g,w) == SUSCEPTIBLE
+#                 x = get_neighbor_fraction_of_type(g,w,INFECTED)
+#                 p::Float64 = p_birth(im,x)/k
+#                 if rand(rngs[threadid()]) < p
+#                     lock!(m); new_types[w] = 2; unlock!(m);#INFECTED; unlock!(m)
+#                 end
+#             end
+#         end
         
-        #recover self
-        x =get_neighbor_fraction_of_type(g,v,INFECTED)
-        p = p_death(im,x)
-        if rand(rngs[threadid()]) < p
-            lock!(m); new_types[v] = 2; unlock!(m);#get_sample_of_types_from_neighbors(g,v); unlock!(m)
-        end
-    end
-
-end
-
-
+#         #recover self
+#         x =get_neighbor_fraction_of_type(g,v,INFECTED)
+#         p = p_death(im,x)
+#         if rand(rngs[threadid()]) < p
+#             lock!(m); new_types[v] = 2; unlock!(m);#get_sample_of_types_from_neighbors(g,v); unlock!(m)
+#         end
+#     end
 
 # end
+
+
+
+# # end
