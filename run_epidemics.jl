@@ -61,7 +61,7 @@ function save_epidemics_results(params)
 
 	timing_log_filename = "timing_log.out"
 	f = open(timing_log_filename,"a")	
-	write(f,"$N $k $num_trials $elapsed\n")
+	write(f,"$N $k $num_trials $elapsed $(now())\n")
 
 end
 
