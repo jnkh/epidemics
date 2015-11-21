@@ -133,8 +133,7 @@ function update_graph_threads{P}(g::Graph{P},im::InfectionModel,new_types::Union
             #recover self
             x =get_neighbor_fraction_of_type(g,v,INFECTED)
             # p = p_death(im,x)
-            # p = p_death(im,x)
-            p = pd(x)
+            q = pd(x)
             if rand(rngs[threadid()]) < 0.2#p
             #     # println_safe("death at node $v",m)
             samp = Int(get_sample_of_types_from_neighbors_threadsafe(g,v,rngs[threadid()]))
@@ -161,7 +160,7 @@ end
 function update_graph{P}(g::Graph{P},im::InfectionModel,new_types::Array{P,1})
 
     set_array_with_payload(g,new_types)
-    @sync @parallel for v in vertices(g)
+    # @sync @parallel for v in vertices(g)
     for v in vertices(g)
         update_node(g,v,im,new_types)
     end
