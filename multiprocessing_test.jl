@@ -2,10 +2,12 @@ using SlurmNodes
 
 N_range = [100,200,400]
 nprocs_range = [8,64,200]
+map(N -> myfun(N,N),Nlist)
 
 for N in N_range
-	@everywhere myfun(N,M) = sum(randn(N,M)^2)
+	myfun(N,M) = sum(randn(N,M)^2)
 	Nlist = repmat([N],maximum(nprocs_range))
+	map(N -> myfun(N,N),[10])#for compilation
 	tic()
 	map(N -> myfun(N,N),Nlist)
 	elapsed_serial = toc()
@@ -18,7 +20,7 @@ for N in N_range
 
 
 
-		pmap(N -> myfun(N,N),Nlist)
+		pmap(N -> myfun(N,N),Nlist)#for compilation
 		tic()
 		pmap(N -> myfun(N,N),Nlist)
 		elapsed_parallel = toc()
