@@ -2,7 +2,7 @@ using SlurmNodes
 
 N_range = [100,200,400]
 nprocs_range = [8,64,200]
-
+Nlist = repmat([N],maximum(nprocs_range))
 
 for N in N_range
 	tic()
@@ -14,7 +14,6 @@ for N in N_range
 		addprocs(nl)
 
 		@everywhere N = 400
-		Nlist = repmat([N],200)
 		@everywhere myfun(N,M) = sum(randn(N,M)^2)
 		@everywhere M = N #doens't work without @everywhere!
 
