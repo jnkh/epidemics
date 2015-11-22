@@ -1,8 +1,34 @@
 module SlurmNodes
 
-export get_list_of_nodes
+export get_list_of_nodes,get_partial_list_of_nodes
 
 #returns a zipped list of tuples of the form (nodename<:AbstractString,num_procs_on_node::Int). This can be fed directly to addprocs like addprocs(get_list_of_nodes()).
+
+function get_partial_list_of_nodes(num_nodes::Int,)
+    hostnames,nums = unzip(get_list_of_nodes())
+	total_procs = sum(nums)
+    if num_nodes >= total_procs return zip(hostnames,nums) end
+    
+    nums_to_use = []
+    i = 1
+    while num_nodes > 0
+        if num_nodes >= nums[i]
+            push!(nums_to_use,nums[i])
+            num_nodes -= nums[i]
+        else
+            push!(nums_to_use,num_nodes)
+            num_nodes = 0
+        end
+        i+= 1
+    end
+#     while length(nums_to_use) < length(nums)
+#         push!(nums_to_use,0)
+#     end
+    return zip(hostnames[1:length(nums_to_use)],nums_to_use)
+end
+
+
+
 function get_list_of_nodes()
 	println("nodelist: $(ENV["SLURM_NODELIST"])")
 	println("cpus_per_node: $(ENV["SLURM_JOB_CPUS_PER_NODE"])")
@@ -51,6 +77,21 @@ end
 function get_list_of_nodes_from_range(node_range)
        lower,upper = map(x -> parse(Int,x),split(node_range,"-"))
        return collect(lower:upper)
+end
+
+
+
+function unzip(input::Vector)
+    n = length(input)
+    types  = map(typeof, first(input))
+    output = map(T->Vector{T}(n), types)
+
+    for i = 1:n
+       @inbounds for (j, x) in enumerate(input[i])
+           (output[j])[i] = x
+       end
+    end
+    return (output...)
 end
 
 end
