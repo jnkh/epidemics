@@ -4,24 +4,23 @@ N_range = [100,200,400]
 nprocs_range = [8,64,200]
 
 for N in N_range
+	@everywhere myfun(N,M) = sum(randn(N,M)^2)
 	Nlist = repmat([N],maximum(nprocs_range))
 	tic()
-	map(N -> myfun(N,M),Nlist)
+	map(N -> myfun(N,N),Nlist)
 	elapsed_serial = toc()
 	for nprocs in nprocs_range 
 		rmprocs(procs()[2:end])
 		nl = get_partial_list_of_nodes(nprocs)
 		addprocs(nl)
 
-		@everywhere N = 400
 		@everywhere myfun(N,M) = sum(randn(N,M)^2)
-		@everywhere M = N #doens't work without @everywhere!
 
 
 
-		pmap(N -> myfun(N,M),Nlist)
+		pmap(N -> myfun(N,N),Nlist)
 		tic()
-		pmap(N -> myfun(N,M),Nlist)
+		pmap(N -> myfun(N,N),Nlist)
 		elapsed_parallel = toc()
 
 
