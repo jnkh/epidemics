@@ -7,7 +7,7 @@ export get_list_of_nodes,get_partial_list_of_nodes
 function get_partial_list_of_nodes(num_nodes::Int,)
     hostnames,nums = unzip(get_list_of_nodes())
 	total_procs = sum(nums)
-    if num_nodes >= total_procs return zip(hostnames,nums) end
+    if num_nodes >= total_procs return collect(zip(hostnames,nums)) end
     
     nums_to_use = []
     i = 1
