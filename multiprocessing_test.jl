@@ -28,7 +28,7 @@ for (i,N) in enumerate(N_range)
 		elapsed_parallel[i,j] = toc();
 
 
-		println("N: $N, nprocs: $(nprocs() == 1 ? nprocs() : nprocs()-1")
+		println("N: $N, nprocs: $(nprocs() == 1 ? nprocs() : nprocs()-1)")
 		println("serial: $(elapsed_serial[i]), parallel: $(elapsed_parallel[i,j]), speedup: $(elapsed_serial[i]/elapsed_parallel[i,j])")
 	end
 end
