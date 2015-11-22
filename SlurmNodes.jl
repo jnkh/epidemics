@@ -7,7 +7,7 @@ function get_list_of_nodes()
 	println("nodelist: $(ENV["SLURM_NODELIST"])")
 	println("cpus_per_node: $(ENV["SLURM_JOB_CPUS_PER_NODE"])")
 	s = ENV["SLURM_NODELIST"]
-	cpus_per_node = map(s -> parse(Int,s),split(ENV["SLURM_JOB_CPUS_PER_NODE"],','))
+	cpus_per_node = reduce(vcat,map(convert_cpus_strings_to_ints,split(ENV["SLURM_JOB_CPUS_PER_NODE"],',')))
 	idx = searchindex(s,"[")
 	if idx > 0
 		numlist = split(s[idx+1:end-1],",")
@@ -20,8 +20,20 @@ function get_list_of_nodes()
 	return collect(zip(node_list,cpus_per_node))
 end
 
+function get_integer_list_from_string(s::AbstractString)
+	idx = searchindex(s,"(")
 
 
+
+function convert_cpus_strings_to_ints(s::AbstractString)
+    idx = searchindex(s,"(")
+    if idx == 0
+        return [parse(Int,s)]
+    else
+#        println(s[1:idx-1]," ",s[idx+2:searchindex(s,")")-1])
+        return repmat([parse(Int,s[1:idx-1])],parse(Int,s[idx+2:searchindex(s,")")-1]))
+    end
+end
 
 
 function generate_list_of_node_numbers{S <: AbstractString}(numlist::Array{S,1})
