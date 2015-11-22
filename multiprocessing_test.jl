@@ -2,7 +2,6 @@ using SlurmNodes
 
 N_range = [100,200,400]
 nprocs_range = [8,64,200]
-map(N -> myfun(N,N),Nlist)
 
 for N in N_range
 	myfun(N,M) = sum(randn(N,M)^2)
@@ -11,9 +10,9 @@ for N in N_range
 	tic()
 	map(N -> myfun(N,N),Nlist)
 	elapsed_serial = toc()
-	for nprocs in nprocs_range 
+	for nprocesses in nprocs_range 
 		rmprocs(procs()[2:end])
-		nl = get_partial_list_of_nodes(nprocs)
+		nl = get_partial_list_of_nodes(nprocesses)
 		addprocs(nl)
 
 		@everywhere myfun(N,M) = sum(randn(N,M)^2)
