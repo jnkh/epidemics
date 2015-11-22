@@ -20,10 +20,6 @@ function get_list_of_nodes()
 	return collect(zip(node_list,cpus_per_node))
 end
 
-function get_integer_list_from_string(s::AbstractString)
-	idx = searchindex(s,"(")
-
-
 
 function convert_cpus_strings_to_ints(s::AbstractString)
     idx = searchindex(s,"(")
