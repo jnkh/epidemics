@@ -1,4 +1,4 @@
-using SlurmNodes
+using SlurmNodes,JLD
 
 N_range = [100,200,400,800,1200]
 nprocs_range = [2,4,8,16,32,64,128,256]
