@@ -1,5 +1,7 @@
 using SlurmNodes,JLD
 
+blas_set_num_threads(1)
+
 N_range = [100,200,400,800,1200]
 nprocs_range = [2,4,8,16,32,64,128,256]
 
@@ -22,6 +24,7 @@ end
 		addprocs(nl)
 
 		@everywhere myfun(N,M) = sum(randn(N,M)^2)
+		@everywhere blas_set_num_threads(1)
 
 
 		for (i,N) in enumerate(N_range)
