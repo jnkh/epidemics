@@ -7,8 +7,19 @@ addprocs(nl)
 Nlist = repmat([N],200)
 @everywhere myfun(N,M) = sum(randn(N,M)^2)
 @everywhere M = N #doens't work without @everywhere!
-@time pmap(N -> myfun(N,M),Nlist)
-@time map(N -> myfun(N,M),Nlist)
+
+
+tic()
+map(N -> myfun(N,M),Nlist)
+elapsed_serial = toc()
+
+pmap(N -> myfun(N,M),Nlist)
+tic()
+pmap(N -> myfun(N,M),Nlist)
+elapsed_parallel = toc()
+
+
+println("serial: $elapsed_serial, parallel: $elapsed_parallel, speedup: $(elapsed_serial/elapsed_parallel)")
 
 
 
