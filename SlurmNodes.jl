@@ -24,7 +24,7 @@ function get_partial_list_of_nodes(num_nodes::Int,)
 #     while length(nums_to_use) < length(nums)
 #         push!(nums_to_use,0)
 #     end
-    return zip(hostnames[1:length(nums_to_use)],nums_to_use)
+    return collect(zip(hostnames[1:length(nums_to_use)],nums_to_use))
 end
 
 
