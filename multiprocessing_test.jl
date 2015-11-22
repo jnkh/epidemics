@@ -1,9 +1,9 @@
 using SlurmNodes
 
-N = 400
 nl = get_partial_list_of_nodes(200)
 addprocs(nl)
 
+@everywhere N = 400
 Nlist = repmat([N],200)
 @everywhere myfun(N,M) = sum(randn(N,M)^2)
 @everywhere M = N #doens't work without @everywhere!
