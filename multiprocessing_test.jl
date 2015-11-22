@@ -2,9 +2,9 @@ using SlurmNodes
 
 N_range = [100,200,400]
 nprocs_range = [8,64,200]
-Nlist = repmat([N],maximum(nprocs_range))
 
 for N in N_range
+	Nlist = repmat([N],maximum(nprocs_range))
 	tic()
 	map(N -> myfun(N,M),Nlist)
 	elapsed_serial = toc()
