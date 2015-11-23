@@ -36,14 +36,22 @@ function get_list_of_nodes()
 	cpus_per_node = reduce(vcat,map(convert_cpus_strings_to_ints,split(ENV["SLURM_JOB_CPUS_PER_NODE"],',')))
 	idx = searchindex(s,"[")
 	if idx > 0
+		num_digits = length(split(split(s[idx+1:end-1],",")[end],"-")[end])
 		numlist = split(s[idx+1:end-1],",")
 		node_numbers = generate_list_of_node_numbers(numlist)
 		node_str = s[1:idx-1]
-		node_list = [node_str*"$n" for n in node_numbers]
+		node_list = [node_str*pad_zeros(n,num_digits) for n in node_numbers]
 	else
 		node_list = [s]
 	end
 	return collect(zip(node_list,cpus_per_node))
+end
+
+function pad_zeros(n::Int,num_digits::Int)
+	num_already = length("$n")
+	num_needed = num_digits - num_already
+	if num_needed < 0 num_needed = 0 end
+	return "0"^num_needed * "$n"
 end
 
 
