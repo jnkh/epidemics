@@ -15,7 +15,7 @@ for (i,N) in enumerate(N_range)
 # 	tic()
 # 	map(N -> myfun(N,N),Nlist)
 # 	elapsed_serial[i] = toc();
-# end
+end
 	
 
 	for (j,nprocesses) in enumerate(nprocs_range)
