@@ -78,7 +78,7 @@ function print_graph{P}(g::Graph{P})
 end
 
 
-function update_graph{P}(g::Graph{P},im::InfectionModel,new_types::Array{P,1})
+function update_graph{P}(g::Graph{P},im::InfectionModel,new_types::Union{Array{P,1},SharedArray{P,1}})
 
     set_array_with_payload(g,new_types)
     # @sync @parallel for v in vertices(g)
@@ -90,7 +90,7 @@ end
 
 
 
-function update_node{P}(g::Graph{P},v::Int,im::InfectionModel,new_types)
+function update_node{P}(g::Graph{P},v::Int,im::InfectionModel,new_types::Union{Array{P,1},SharedArray{P,1}})
     if get_payload(g,v) == INFECTED
         k = get_average_degree(g) 
         #infect neighbors
