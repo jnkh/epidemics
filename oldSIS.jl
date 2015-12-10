@@ -3,7 +3,8 @@
 ##################################################
 
 
-module SIS
+module oldSIS
+
 
 using Graphs,IM,Distributions
 export INFECTED,SUSCEPTIBLE,TypeGraph,set_type,get_type_graph,get_average_k,
