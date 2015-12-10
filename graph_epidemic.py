@@ -1,4 +1,5 @@
 import networkx as nx
+import numpy as np
 from graph_reciprocity import *
 susceptible = 0
 infected = 1
@@ -70,32 +71,41 @@ def set_graph_strategies(G, n_infected,pos_infected=None):
         print 'invalid node positions'
         return None
 
-def update_node(G,G_old,n,p_recover,p_infect):
-    current_strategy = G_old.node[n]['strategy']
+def update_node(G,k,adjacency_matrix,infecteds,strategies,strategies_old,n,p_recover,p_infect):
+    current_strategy = strategies_old[n] 
     if current_strategy == infected:
         #infect neighbors
-        k = 2*len(G.edges())/len(G.nodes())
-        edges = G_old.edges([n])
+        edges = G.edges([n])
         if len(edges) != 0:
             neighbors = [e[1] for e in edges]
             for n2 in neighbors:
-                if G_old.node[n2]['strategy'] == susceptible:
-                    x = get_infected_neighbor_fraction(G_old,n2)
+                if strategies_old[n2] == susceptible:
+                    x = get_infected_neighbor_fraction(G,adjacency_matrix,infecteds,strategies_old,n2)
                     p = p_infect(x)/k
                     if np.random.binomial(1,p):
-                        G.node[n2]['strategy'] = infected
+                        strategies[n2] = infected
         #recover
-        x = get_infected_neighbor_fraction(G_old,n)
+        x = get_infected_neighbor_fraction(G,adjacency_matrix,infecteds,strategies_old,n)
         p = p_recover(x)
         if np.random.binomial(1,p):
-            G.node[n]['strategy'] = recovered
+            strategies[n] = recovered
         
 
-def update_graph(G,p_recover=lambda x: 1.0,p_infect= lambda x: x):
-    G_old = G.copy()
-    nodes= G_old.nodes()
+def update_graph(G,k,adjacency_matrix,p_recover=lambda x: 1.0,p_infect= lambda x: x):
+    #copy onto strategy array 
+    strategies = np.zeros(len(G.nodes()))
+    for n in G.nodes():
+        strategies[n] = G.node[n]['strategy']
+    strategies_old = strategies.copy()
+
+    nodes= np.where(strategies == infected)[0]
+    infecteds = strategies == infected
+
     for n in nodes:
-        update_node(G,G_old,n,p_recover,p_infect)
+        update_node(G,k,adjacency_matrix,infecteds,strategies,strategies_old,n,p_recover,p_infect)
+    #copy back to graph
+    for n in G.nodes():
+        G.node[n]['strategy'] = strategies[n]
     return
 
 def get_num_infected(G):
@@ -105,13 +115,14 @@ def get_num_with_strategy(G,strategy=infected):
     strategies = [G.node[n]['strategy'] for n in G.nodes()]
     return len([s for s in strategies if s == strategy])
         
-def get_infected_neighbor_fraction(G,n):
-    edges = G.edges([n])
-    if len(edges) == 0:
-        return 0.0
-    strategies = [G.node[e[1]]['strategy'] for e in edges]
-    x = 1.0*len([s for s in strategies if s == infected])/len(edges)
-    return x
+def get_infected_neighbor_fraction(G,adjacency_matrix,infecteds,strategies,n):
+    neighbors = list(nx.all_neighbors(G,n))
+    neighbor_strategies = strategies[neighbors]
+    return 1.0*sum(neighbor_strategies == infected)/len(neighbor_strategies)
+    # neighbors = adjacency_matrix[n,:]
+    # return 1.0*np.sum(dot(neighbors
+    #     ,infecteds))/np.sum(neighbors)
+
 
 def p_recover(x):
     return 1.0
@@ -129,7 +140,9 @@ def simulate_graph_trajectory_adaptive(N,alpha,beta,plotting=False,k=None,regula
     ts = [0]
     p_edge = 1.0*k/(N-1)
     G = create_graph(N,p_edge,ns[0],regular)
-    print len(sorted(nx.connected_components(G),key=len,reverse=True)[0])
+    component_size = len(sorted(nx.connected_components(G),key=len,reverse=True)[0])
+    if component_size < len(G.nodes()):
+        print 'not connected, size = ' + str(component_size)
     
     def f(y):
         return alpha*y**2
@@ -148,9 +161,9 @@ def simulate_graph_trajectory_adaptive(N,alpha,beta,plotting=False,k=None,regula
     if plotting:
         figure(1)
         pos = nx.spring_layout(G,iterations=100,k=2.0/sqrt(N_nodes))
-    
+    adjacency_matrix = nx.adjacency_matrix(G)
     while ns[-1] > 0 and ns[-1] < N:
-        update_graph(G,p_recover,p_infect)
+        update_graph(G,k,adjacency_matrix, p_recover,p_infect)
         num_infected = get_num_infected(G)
         ns.append(num_infected)
         ts.append(ts[-1]+dt)
@@ -158,3 +171,4 @@ def simulate_graph_trajectory_adaptive(N,alpha,beta,plotting=False,k=None,regula
             draw_graph(G,pos=pos)
             pause(0.05)
     return np.array(ns),np.array(ts)
+
