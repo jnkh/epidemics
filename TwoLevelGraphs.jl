@@ -2,7 +2,7 @@ module TwoLevelGraphs
 
 using LightGraphs
 
-export TwoLevel, is_valid, get_num_infected, distribute_randomly, make_consistent
+export TwoLevel, is_valid, get_num_infected, distribute_randomly, make_consistent, TwoLevelGraph, get_clusters, make_two_level_random_graph
 
 type TwoLevel
     a::Array{Int,1} #number communities with [idx] infected nodes
@@ -66,6 +66,11 @@ type TwoLevelGraph
     clusters::Array{Array{Int,1},1}
 end
 
+function TwoLevelGraph(t::TwoLevel)
+    g,clusters = make_two_level_random_graph(t)
+    return TwoLevelGraph(g,t,clusters)
+end
+
 function get_clusters(t::TwoLevel)
     ##produce clusters
     clusters = [Int[] for _ in 1:t.n]
@@ -77,11 +82,6 @@ function get_clusters(t::TwoLevel)
         end
     end
     clusters
-end
-
-function TwoLevelGraph(t::TwoLevel)
-    g,clusters = make_two_level_random_graph(t)
-    return TwoLevelGraph(g,t,clusters)
 end
 
 #This only works in an unbiased way if the subgraphs have the same sizes.
