@@ -34,16 +34,16 @@ function save_epidemics_results(params)
 	println("running in parallel on $(nprocs()-1) nodes...")
 	tic()
 	if graph_model
-	@time sizes,num_fixed,_,runs = 
+	@time runs = 
 	run_epidemics_parallel(num_trials,im_normal, (x)
 	    -> run_epidemic_graph(N,k,x,regular,fixation_threshold),in_parallel);
 	else
 		if k < N-1
-			@time sizes,num_fixed,_,runs = 
+			@time runs = 
 			run_epidemics_parallel(num_trials_mixed,im_effective,(x)
 			    -> run_epidemic_well_mixed(N,x,fixation_threshold),in_parallel);
 		else
-			@time sizes,num_fixed,_,runs = 
+			@time runs = 
 			run_epidemics_parallel(num_trials_mixed,im_normal,(x)
 			    -> run_epidemic_well_mixed(N,x,fixation_threshold),in_parallel);
 		end
@@ -53,7 +53,7 @@ function save_epidemics_results(params)
 
 
 	filename = "epidemics_$(now()).jld"
-	save(data_dir_path * filename,"params",params,"sizes",sizes,"runs",runs,"num_fixed",num_fixed)
+	save(data_dir_path * filename,"params",params,"runs",runs)
 
 
 	timing_filename = "timing_$(now()).jld"
