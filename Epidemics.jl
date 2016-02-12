@@ -2,7 +2,7 @@ module Epidemics
 
 using SIS,Distributions, IM, LightGraphs,PayloadGraph
 
-export run_epidemic_graph,run_epidemic_well_mixed,get_s_eff,run_epidemics_parallel,run_epidemics,s,get_s_eff,normed_distribution, P_w_th,get_y_eff, EpidemicRun, get_sizes, get_num_fixed
+export run_epidemic_graph,run_epidemic_well_mixed,get_s_eff,run_epidemics_parallel,run_epidemics,s,get_s_eff,normed_distribution, P_w_th,get_y_eff, EpidemicRun, get_sizes, get_num_fixed,GraphInformation
 
 
 function graph_is_connected(g::LightGraphs.Graph)
