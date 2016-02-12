@@ -119,7 +119,7 @@ if graph_type == TWO_LEVEL
 end
     
 graph_information = GraphInformation(graph_fn,LightGraphs.Graph(),graph_data)
-in_parallel = true
+in_parallel = false
 
 
 #########set changing params ###############
