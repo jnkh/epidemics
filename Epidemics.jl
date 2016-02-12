@@ -2,7 +2,7 @@ module Epidemics
 
 using SIS,Distributions, IM, LightGraphs,PayloadGraph
 
-export run_epidemic_graph,run_epidemic_well_mixed,get_s_eff,run_epidemics_parallel,run_epidemics,s,get_s_eff,normed_distribution, P_w_th,get_y_eff
+export run_epidemic_graph,run_epidemic_well_mixed,get_s_eff,run_epidemics_parallel,run_epidemics,s,get_s_eff,normed_distribution, P_w_th,get_y_eff, EpidemicRun, get_sizes, get_num_fixed
 
 
 function graph_is_connected(g::LightGraphs.Graph)
@@ -34,7 +34,19 @@ function EpidemicRun(infecteds_vs_time::Array{Float64,1},size::Float64,fixed::Bo
     return EpidemicRun(infecteds_vs_time,[],size,fixed)
 end
 
+function get_sizes(runs::Array{EpidemicRun,1})
+    return filter(x -> x < Inf,[e.size for e in runs])
+end
 
+function get_num_fixed(runs::Array{EpidemicRun,1})
+    sum = 0
+    for r in runs
+        if r.fixed
+            sum += 1
+        end
+    end
+    return sum
+end
     
 
 ### Epidemic on a Graph ###
