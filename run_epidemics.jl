@@ -118,7 +118,7 @@ if graph_type == TWO_LEVEL
     graph_fn = () -> make_two_level_random_graph(t)[1]
 end
     
-graph_information = GraphInformation(graph_fn,nothing,graph_data)
+graph_information = GraphInformation(graph_fn,LightGraphs.Graph(),graph_data)
 in_parallel = true
 
 
