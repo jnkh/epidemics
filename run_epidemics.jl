@@ -101,7 +101,7 @@ fixation_threshold = 2*n_n/N
 graph_data = nothing
 if graph_type == REGULAR
     graph_fn = () -> LightGraphs.random_regular_graph(N,k)
-elseif graph_type = RANDOM
+elseif graph_type == RANDOM
     graph_fn = () -> LightGraphs.erdos_renyi(N,1.0*k/(N-1)))
 end
         
