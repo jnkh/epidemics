@@ -48,6 +48,7 @@ function save_epidemics_results(params)
 			    -> run_epidemic_well_mixed(N,x,fixation_threshold),in_parallel);
 		end
 	end
+	println("runs")
 	elapsed = toc()
 	println("done after $elapsed seconds.")
 
