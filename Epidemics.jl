@@ -127,13 +127,10 @@ end
 
 function run_epidemics(num_runs::Int,im::InfectionModel,run_epidemic_fn)  
     runs = Array{EpidemicRun,1}
-    num_fixed = 0
-    sizes = zeros(num_runs)
-    total_length =0
     
     for i in 1:num_runs
         run = run_epidemic_fn(im)
-        push!(runs,infecteds)
+        push!(runs,run)
     end
     #get rid of fixed ones
 
@@ -142,13 +139,9 @@ end
 
 
 function run_epidemics_parallel(num_runs::Int,im::InfectionModel,run_epidemic_fn,parallel=true)  
-    num_fixed = 0
-    sizes = zeros(num_runs)
-    fixed_array = Array{Bool,1}(num_runs)
-    total_length =0
     
     mapfn = parallel ? pmap : map 
-    runs = mapfn(_ -> run_epidemic_fn(im),1:num_runs)
+    runs::Array{EpidemicRun,1} = mapfn(_ -> run_epidemic_fn(im),1:num_runs)
 
     return runs
 end
