@@ -35,20 +35,16 @@ function save_epidemics_results(params)
 	tic()
 	if graph_model
 	@time runs = 
-	run_epidemics_parallel(num_trials,im_normal, (x)
-	    -> run_epidemic_graph(N,k,x,regular,fixation_threshold),in_parallel);
+	run_epidemics_parallel(num_trials, () -> run_epidemic_graph(N,k,im_normal,regular,fixation_threshold),in_parallel);
 	else
 		if k < N-1
 			@time runs = 
-			run_epidemics_parallel(num_trials_mixed,im_effective,(x)
-			    -> run_epidemic_well_mixed(N,x,fixation_threshold),in_parallel);
+			run_epidemics_parallel(num_trials_mixed, () -> run_epidemic_well_mixed(N,im_effective,fixation_threshold),in_parallel);
 		else
 			@time runs = 
-			run_epidemics_parallel(num_trials_mixed,im_normal,(x)
-			    -> run_epidemic_well_mixed(N,x,fixation_threshold),in_parallel);
+			run_epidemics_parallel(num_trials_mixed, () -> run_epidemic_well_mixed(N,im_normal,fixation_threshold),in_parallel);
 		end
 	end
-	println("runs")
 	elapsed = toc()
 	println("done after $elapsed seconds.")
 
