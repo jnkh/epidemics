@@ -45,7 +45,6 @@ function save_epidemics_results(params)
 			run_epidemics_parallel(num_trials_mixed, () -> run_epidemic_well_mixed(N,im_normal,fixation_threshold),in_parallel);
 		end
 	end
-	println("$runs")
 	elapsed = toc()
 
 
