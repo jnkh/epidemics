@@ -46,6 +46,7 @@ function save_epidemics_results(params)
 		end
 	end
 	elapsed = toc()
+	println("done after $elapsed seconds.")
 
 
 	filename = "epidemics_$(now()).jld"
@@ -77,6 +78,10 @@ addprocs(get_list_of_nodes())
 
 using SIS,IM,PayloadGraph, Epidemics
 
+TWO_LEVEL = 3
+REGULAR = 2
+RANDOM = 1    
+    
 verbose = false
 
 ########## Set up model ###############
@@ -89,9 +94,29 @@ beta = 4.0/(c_r*n_n)
 alpha = (N*beta)/n_n
 if verbose println(N, ' ' ,alpha, ' ',beta) end
 
-num_trials = num_trials_mixed = 100
+num_trials = num_trials_mixed = 1000
 fixation_threshold = 2*n_n/N
-regular=true
+    
+
+graph_data = nothing
+if graph_type == REGULAR
+    graph_fn = () -> LightGraphs.random_regular_graph(N,k)
+else if graph_type = RANDOM
+    graph_fn = () -> LightGraphs.erdos_renyi(N,1.0*k/(N-1)))
+        end
+        
+if graph_type == TWO_LEVEL
+    m = 40 #nodes per subnode
+    n = Int(N/m)
+    l = Int(m/2)#internal
+    r = Int(m/2)#2 #external
+
+    t = TwoLevel(N,m,l,r)
+    graph_data = TwoLevelGraph(t,get_clusters(t),nothing)
+    graph_fn = () -> make_two_level_random_graph(t)[1]
+end
+    
+graph_information = (graph_fn,nothing,graph_data)
 in_parallel = true
 
 

@@ -23,15 +23,24 @@ function guarantee_connected(graph_fn)
     return g
 end
 
-type EpidemicRun
-    infecteds_vs_time::Array{Float64,1}
-    infecteds_by_nodes_vs_time::Array{Array{Int,1},1}
-    size::Float64
-    fixed::Bool
+type GraphInformation
+    graph_fn::Function
+    graph::LightGraphs.Graph
+    data
 end
 
+type EpidemicRun
+    infecteds_vs_time::Array{Float64,1}
+    size::Float64
+    fixed::Bool
+    infecteds_by_nodes_vs_time::Array{Array{Int,1},1}
+    graph_information::GraphInformation
+end
+
+
+
 function EpidemicRun(infecteds_vs_time::Array{Float64,1},size::Float64,fixed::Bool)
-    return EpidemicRun(infecteds_vs_time,[],size,fixed)
+    return EpidemicRun(infecteds_vs_time,size,fixed,[],nothing)
 end
 
 function get_sizes(runs::Array{EpidemicRun,1})
@@ -50,17 +59,18 @@ end
     
 
 ### Epidemic on a Graph ###
-function run_epidemic_graph(N::Int,k::Int,im::InfectionModel,regular=false,fixation_threshold=1.0)
+function run_epidemic_graph(N::Int,im::InfectionModel,graph_information,fixation_threshold=1.0)
     fixed=false
-    if regular
-        g = guarantee_connected( () -> LightGraphs.random_regular_graph(N,k))
-    else
-        g = guarantee_connected( () -> LightGraphs.erdos_renyi(N,1.0*k/(N-1)))
-    end
+    #construct graph
+    g = guarantee_connected(graph_information.graph_fn)
+    graph_information.graph = g
+
+    #create payload graph
     p = create_graph_from_value(g,SUSCEPTIBLE)
     infecteds::Array{Float64,1} = []
     infecteds_by_nodes::Array{Array{Int,1},1} = []
 
+    
     set_payload(p,1,INFECTED)
     frac = get_fraction_of_type(p,INFECTED)
     push!(infecteds,N*frac)
@@ -84,8 +94,7 @@ function run_epidemic_graph(N::Int,k::Int,im::InfectionModel,regular=false,fixat
         size = Inf
     end
     
-    
-    return EpidemicRun(infecteds,infecteds_by_nodes,size,fixed)
+    return EpidemicRun(infecteds,size,fixed,infecteds_by_nodes,graph_information)
 end
 
 
