@@ -76,7 +76,7 @@ addprocs(get_list_of_nodes())
 
 @everywhere begin
 
-using SIS,IM,PayloadGraph, Epidemics, TwoLevel, TwoLevelGraphs
+using SIS,IM,PayloadGraph, Epidemics, TwoLevelGraphs
 
 TWO_LEVEL = 3
 REGULAR = 2
