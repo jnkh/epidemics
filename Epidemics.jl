@@ -29,6 +29,10 @@ type GraphInformation
     data
 end
 
+function GraphInformation()
+    return GraphInformation(_ -> _,LightGraphs.Graph(),nothing)
+end
+
 type EpidemicRun
     infecteds_vs_time::Array{Float64,1}
     size::Float64
@@ -40,7 +44,7 @@ end
 
 
 function EpidemicRun(infecteds_vs_time::Array{Float64,1},size::Float64,fixed::Bool)
-    return EpidemicRun(infecteds_vs_time,size,fixed,[],nothing)
+    return EpidemicRun(infecteds_vs_time,size,fixed,[],GraphInformation())
 end
 
 function get_sizes(runs::Array{EpidemicRun,1})
