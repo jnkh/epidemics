@@ -96,7 +96,8 @@ if verbose println(N, ' ' ,alpha, ' ',beta) end
 
 num_trials = num_trials_mixed = 1000
 fixation_threshold = 2*n_n/N
-    
+
+graph_type = TWO_LEVEL
 
 graph_data = nothing
 if graph_type == REGULAR
