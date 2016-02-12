@@ -64,7 +64,7 @@ function run_epidemic_graph(N::Int,k::Int,im::InfectionModel,regular=false,fixat
     set_payload(p,1,INFECTED)
     frac = get_fraction_of_type(p,INFECTED)
     push!(infecteds,N*frac)
-    push!(infecteds_by_nodes,get_payload(p) )
+    push!(infecteds_by_nodes,copy(get_payload(p)))
 
     new_types = convert(SharedArray,fill(SUSCEPTIBLE,N))
 
@@ -76,7 +76,7 @@ function run_epidemic_graph(N::Int,k::Int,im::InfectionModel,regular=false,fixat
         update_graph(p,im,new_types)
         frac = get_fraction_of_type(p,INFECTED)
         push!(infecteds,N*frac)
-        push!(infecteds_by_nodes,get_payload(p))
+        push!(infecteds_by_nodes,copy(get_payload(p)))
     end
     
     size = im.dt*sum(infecteds)
@@ -125,11 +125,11 @@ end
 
 ###Performing Many Runs###
 
-function run_epidemics(num_runs::Int,im::InfectionModel,run_epidemic_fn)  
+function run_epidemics(num_runs::Int,run_epidemic_fn)  
     runs = Array{EpidemicRun,1}
     
     for i in 1:num_runs
-        run = run_epidemic_fn(im)
+        run = run_epidemic_fn()
         push!(runs,run)
     end
     #get rid of fixed ones
@@ -138,10 +138,10 @@ function run_epidemics(num_runs::Int,im::InfectionModel,run_epidemic_fn)
 end
 
 
-function run_epidemics_parallel(num_runs::Int,im::InfectionModel,run_epidemic_fn,parallel=true)  
+function run_epidemics_parallel(num_runs::Int,run_epidemic_fn,parallel=true)  
     
     mapfn = parallel ? pmap : map 
-    runs::Array{EpidemicRun,1} = mapfn(_ -> run_epidemic_fn(im),1:num_runs)
+    runs::Array{EpidemicRun,1} = mapfn(_ -> run_epidemic_fn(),1:num_runs)
 
     return runs
 end

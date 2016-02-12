@@ -45,8 +45,8 @@ function save_epidemics_results(params)
 			run_epidemics_parallel(num_trials_mixed, () -> run_epidemic_well_mixed(N,im_normal,fixation_threshold),in_parallel);
 		end
 	end
+	println("$runs")
 	elapsed = toc()
-	println("done after $elapsed seconds.")
 
 
 	filename = "epidemics_$(now()).jld"
@@ -90,7 +90,7 @@ beta = 4.0/(c_r*n_n)
 alpha = (N*beta)/n_n
 if verbose println(N, ' ' ,alpha, ' ',beta) end
 
-num_trials = num_trials_mixed = 1000
+num_trials = num_trials_mixed = 100
 fixation_threshold = 2*n_n/N
 regular=true
 in_parallel = true
