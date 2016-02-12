@@ -22,7 +22,22 @@ function guarantee_connected(graph_fn)
     end
     return g
 end
+
+type EpidemicRun
+    infecteds_vs_time::Array{Float64,1}
+    infecteds_by_nodes_vs_time::Array{Array{Int,1},1}
+    size::Float64
+    fixed::Bool
+end
+
+function EpidemicRun(infecteds_vs_time::Array{Float64,1},size::Float64,fixed::Bool)
+    return EpidemicRun(infecteds_vs_time,[],size,fixed)
+end
+
+
     
+
+### Epidemic on a Graph ###
 function run_epidemic_graph(N::Int,k::Int,im::InfectionModel,regular=false,fixation_threshold=1.0)
     fixed=false
     if regular
@@ -35,6 +50,8 @@ function run_epidemic_graph(N::Int,k::Int,im::InfectionModel,regular=false,fixat
     set_payload(p,1,INFECTED)
     frac = get_fraction_of_type(p,INFECTED)
     push!(infecteds,N*frac)
+    infecteds_by_nodes = [get_payload(p)]
+
     new_types = convert(SharedArray,fill(SUSCEPTIBLE,N))
 
     while frac > 0
@@ -45,11 +62,20 @@ function run_epidemic_graph(N::Int,k::Int,im::InfectionModel,regular=false,fixat
         update_graph(p,im,new_types)
         frac = get_fraction_of_type(p,INFECTED)
         push!(infecteds,N*frac)
-
+        push!(infecteds_by_nodes,get_payload(p))
     end
-    return infecteds,fixed
+    
+    size = im.dt*sum(infecteds)
+    if fixed
+        size = Inf
+    end
+    
+    
+    return EpidemicRun(infecteds,infecteds_by_nodes,size,fixed)
 end
 
+
+### Well Mixed Case ###
 function run_epidemic_well_mixed(N,im,fixation_threshold=1.0)
     infecteds::Array{Float64,1} = []
     n = 1
@@ -65,7 +91,13 @@ function run_epidemic_well_mixed(N,im,fixation_threshold=1.0)
         n = update_n(n,N,im)
         push!(infecteds,n)
     end
-    return infecteds,fixed
+    
+    size = im.dt*sum(infecteds)
+    if fixed
+        size = Inf
+    end
+    
+    return EpidemicRun(infecteds,size,fixed)
 end
 
 function update_n(n::Int,N::Int,im::InfectionModel)
@@ -74,29 +106,24 @@ function update_n(n::Int,N::Int,im::InfectionModel)
     delta_n_minus = rand(Binomial(n,(1-y)*p_death(im,n/N)))
     return n + delta_n_plus - delta_n_minus
 end
-    
+
+
+
+###Performing Many Runs###
+
 function run_epidemics(num_runs::Int,im::InfectionModel,run_epidemic_fn)  
-    runs = []
+    runs = Array{EpidemicRun,1}
     num_fixed = 0
     sizes = zeros(num_runs)
     total_length =0
     
     for i in 1:num_runs
-        infecteds,fixed = run_epidemic_fn(im)
+        run = run_epidemic_fn(im)
         push!(runs,infecteds)
-        if fixed
-            num_fixed += 1
-            sizes[i] = Inf
-        else
-            sizes[i]= im.dt*sum(infecteds)
-            total_length += size(infecteds)[1]
-        end
-        
     end
     #get rid of fixed ones
-    sizes = sizes[sizes .< Inf]
 
-    return sizes,num_fixed,total_length,runs
+    return runs
 end
 
 
@@ -108,22 +135,8 @@ function run_epidemics_parallel(num_runs::Int,im::InfectionModel,run_epidemic_fn
     
     mapfn = parallel ? pmap : map 
     runs = mapfn(_ -> run_epidemic_fn(im),1:num_runs)
-    runs,fixed_array = unzip(runs)
-    
-    for i in 1:num_runs
-        if fixed_array[i]
-            num_fixed += 1
-            sizes[i] = Inf
-        else
-            sizes[i]= im.dt*sum(runs[i])
-            total_length += size(runs[i])[1]
-        end
-    end
-    
-    #get rid of fixed ones
-    sizes = sizes[sizes .< Inf]
 
-    return sizes,num_fixed,total_length,runs
+    return runs
 end
 
 
@@ -163,15 +176,15 @@ end
 
 P_w_th(w,s) = exp(-s.^2.*w./4).*w.^(-1.5)./(2*sqrt(pi).*(1 .+ s))
 
-function s(y::Float64,alpha::Int,beta::Int)
+function s(y,alpha::Int,beta::Int)
     return alpha*y - beta
 end
 
-function get_y_eff(y::Float64,k::Int)
+function get_y_eff(y,k::Int)
     return y.*(1 + (1-y)./(y*k))
 end
 
-function get_s_eff(y::Float64,alpha::Float64,beta::Float64,k::Int)
+function get_s_eff(y,alpha::Float64,beta::Float64,k::Int)
     return alpha*get_y_eff(y,k) - beta
 end
 
