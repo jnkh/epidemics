@@ -1,6 +1,6 @@
 module TwoLevelGraphs
 
-using LightGraphs
+using LightGraphs, Distributions
 
 export TwoLevel, is_valid, get_num_infected, distribute_randomly, make_consistent, TwoLevelGraph, get_clusters, make_two_level_random_graph
 
