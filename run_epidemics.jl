@@ -1,7 +1,7 @@
 function save_epidemics_results(params)
 	data_dir_path = "../data/"  #"/mnt/D/windows/MIT/classes/6/338/project/data/"
 
-	@everywhere begin
+@everywhere begin
 
 	N::Int = params["N"]
 	alpha::Float64 = params["alpha"]
@@ -13,7 +13,7 @@ function save_epidemics_results(params)
 	num_trials = params["num_trials"]
 	num_trials_mixed = params["num_trials_mixed"]
 	graph_model = params["graph_model"]
-	regular = params["regular"]
+    graph_information = params["graph_information"]
 
 	#function f1(x::Float64) 1 + alpha::Float64*x end
 	#function f2(x::Float64)  1 + beta::Float64 end
@@ -21,6 +21,7 @@ function save_epidemics_results(params)
 	#im_normal = InfectionModel(f1,f2);
 	#im_effective = InfectionModel(f3,f2);
 
+    
 	im_normal = InfectionModel(x -> 1 + alpha*x , x -> 1 + beta);
 	im_effective = InfectionModel(x -> 1 + beta + get_s_eff(x,alpha,beta,k) , x -> 1 + beta);
 
@@ -35,7 +36,7 @@ function save_epidemics_results(params)
 	tic()
 	if graph_model
 	@time runs = 
-	run_epidemics_parallel(num_trials, () -> run_epidemic_graph(N,k,im_normal,regular,fixation_threshold),in_parallel);
+        run_epidemics_parallel(num_trials, () -> run_epidemic_graph(N,k,im_normal,graph_information,fixation_threshold),in_parallel);
 	else
 		if k < N-1
 			@time runs = 
@@ -113,11 +114,11 @@ if graph_type == TWO_LEVEL
     r = Int(m/2)#2 #external
 
     t = TwoLevel(N,m,l,r)
-    graph_data = TwoLevelGraph(nothing,t,get_clusters(t))
+    graph_data = TwoLevelGraph(LightGraphs.Graph(),t,get_clusters(t))
     graph_fn = () -> make_two_level_random_graph(t)[1]
 end
     
-graph_information = (graph_fn,nothing,graph_data)
+graph_information = GraphInformation(graph_fn,nothing,graph_data)
 in_parallel = true
 
 
@@ -133,7 +134,7 @@ k_range = [4,100]
 graph_model_range = [false,true]
 
 @everywhere begin
-	params = Dict{AbstractString,Any}("N" => N, "alpha" => alpha, "beta" => beta, "fixation_threshold" => fixation_threshold,"in_parallel" => in_parallel, "num_trials" => num_trials, "num_trials_mixed" => num_trials_mixed,"regular"=>regular,"verbose"=>verbose)
+	params = Dict{AbstractString,Any}("N" => N, "alpha" => alpha, "beta" => beta, "fixation_threshold" => fixation_threshold,"in_parallel" => in_parallel, "num_trials" => num_trials, "num_trials_mixed" => num_trials_mixed,"graph_information"=>graph_information,"verbose"=>verbose)
 end
 
 for k in k_range

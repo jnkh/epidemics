@@ -59,7 +59,7 @@ end
     
 
 ### Epidemic on a Graph ###
-function run_epidemic_graph(N::Int,im::InfectionModel,graph_information,fixation_threshold=1.0)
+function run_epidemic_graph(N::Int,im::InfectionModel,graph_information::GraphInformation,fixation_threshold=1.0)
     fixed=false
     #construct graph
     g = guarantee_connected(graph_information.graph_fn)
