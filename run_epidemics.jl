@@ -87,8 +87,8 @@ verbose = false
 
 #y_n = 0.1
 c_r = 0.18
-N = 1000
-n_n = 400#y_n*N
+N = 400
+n_n = 10#y_n*N
 beta = 4.0/(c_r*n_n)
 alpha = (N*beta)/n_n
 if verbose println(N, ' ' ,alpha, ' ',beta) end
