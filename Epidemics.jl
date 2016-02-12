@@ -47,10 +47,12 @@ function run_epidemic_graph(N::Int,k::Int,im::InfectionModel,regular=false,fixat
     end
     p = create_graph_from_value(g,SUSCEPTIBLE)
     infecteds::Array{Float64,1} = []
+    infecteds_by_nodes::Array{Array{Int,1},1} = []
+
     set_payload(p,1,INFECTED)
     frac = get_fraction_of_type(p,INFECTED)
     push!(infecteds,N*frac)
-    infecteds_by_nodes = [get_payload(p)]
+    push!(infecteds_by_nodes,get_payload(p) )
 
     new_types = convert(SharedArray,fill(SUSCEPTIBLE,N))
 
