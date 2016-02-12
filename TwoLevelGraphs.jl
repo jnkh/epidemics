@@ -75,8 +75,8 @@ function get_clusters(t::TwoLevel)
     ##produce clusters
     clusters = [Int[] for _ in 1:t.n]
     node_idx = 1
-    for clust = 1:n
-        for idx = 1:m
+    for clust = 1:t.n
+        for idx = 1:t.m
             push!(clusters[clust],node_idx)
             node_idx += 1
         end
