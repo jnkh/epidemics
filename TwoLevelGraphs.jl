@@ -108,19 +108,32 @@ end
 
 function get_edges_for_supergraph(clusters::Array{Array{Int,1},1},num_edges::Int)
     possible_edges = []
-    for i = 1:length(clusters)
-        for j = i+1:length(clusters)
-            push!(possible_edges,Pair(i,j))
+    for clust in clusters
+        for v in clust
+            for w in get_out_nodes(clusters,v)
+                if w > v
+                    push!(possible_edges,Pair(v,w))
+                end
+            end
         end
     end
-    super_edges = sample(possible_edges,num_edges)
-    edges = []
-    for se in super_edges
-        e = Pair(sample(clusters[se[1]]),sample(clusters[se[2]]))
-        push!(edges,e)
-    end
-    return edges
+    return sample(possible_edges,num_edges)
 end
+   
+#     possible_edges = []
+#     for i = 1:length(clusters)
+#         for j = i+1:length(clusters)
+#             push!(possible_edges,Pair(i,j))
+#         end
+#     end
+#     super_edges = sample(possible_edges,num_edges)
+#     edges = []
+#     for se in super_edges
+#         e = Pair(sample(clusters[se[1]]),sample(clusters[se[2]]))
+#         push!(edges,e)
+#     end
+#    return edges
+#end
     
     
 function num_internal_edges(cluster::Array{Int,1},t::TwoLevel)
