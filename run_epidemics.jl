@@ -113,7 +113,7 @@ if graph_type == TWO_LEVEL
     r = Int(m/2)#2 #external
 
     t = TwoLevel(N,m,l,r)
-    graph_data = TwoLevelGraph(t,get_clusters(t),nothing)
+    graph_data = TwoLevelGraph(nothing,t,get_clusters(t))
     graph_fn = () -> make_two_level_random_graph(t)[1]
 end
     
