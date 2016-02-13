@@ -119,7 +119,7 @@ function get_edges_for_supergraph(clusters::Array{Array{Int,1},1},num_edges::Int
             end
         end
     end
-    return sample(possible_edges,num_edges)
+    return sample(possible_edges,num_edges,replace=false)
 end
    
 #     possible_edges = []
