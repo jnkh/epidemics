@@ -2,7 +2,6 @@ function save_epidemics_results(params)
 	data_dir_path = "../data/"  #"/mnt/D/windows/MIT/classes/6/338/project/data/"
 
 @everywhere begin
-
 	N::Int = params["N"]
 	alpha::Float64 = params["alpha"]
 	beta::Float64 = params["beta"]
@@ -13,7 +12,7 @@ function save_epidemics_results(params)
 	num_trials = params["num_trials"]
 	num_trials_mixed = params["num_trials_mixed"]
 	graph_model = params["graph_model"]
-    graph_information = params["graph_information"]
+  graph_information = params["graph_information"]
 
 	#function f1(x::Float64) 1 + alpha::Float64*x end
 	#function f2(x::Float64)  1 + beta::Float64 end
@@ -21,7 +20,7 @@ function save_epidemics_results(params)
 	#im_normal = InfectionModel(f1,f2);
 	#im_effective = InfectionModel(f3,f2);
 
-    
+
 	im_normal = InfectionModel(x -> 1 + alpha*x , x -> 1 + beta);
 	im_effective = InfectionModel(x -> 1 + beta + get_s_eff(x,alpha,beta,k) , x -> 1 + beta);
 
@@ -35,14 +34,14 @@ function save_epidemics_results(params)
 	println("running in parallel on $(nprocs()-1) nodes...")
 	tic()
 	if graph_model
-	@time runs = 
+	@time runs =
         run_epidemics_parallel(num_trials, () -> run_epidemic_graph(N,im_normal,graph_information,fixation_threshold),in_parallel);
 	else
 		if k < N-1
-			@time runs = 
+			@time runs =
 			run_epidemics_parallel(num_trials_mixed, () -> run_epidemic_well_mixed(N,im_effective,fixation_threshold),in_parallel);
 		else
-			@time runs = 
+			@time runs =
 			run_epidemics_parallel(num_trials_mixed, () -> run_epidemic_well_mixed(N,im_normal,fixation_threshold),in_parallel);
 		end
 	end
@@ -58,7 +57,7 @@ function save_epidemics_results(params)
 	save(data_dir_path * timing_filename,"params",params,"elapsed",elapsed)
 
 	timing_log_filename = "timing_log.out"
-	f = open(timing_log_filename,"a")	
+	f = open(timing_log_filename,"a")
 	write(f,"$N $k $num_trials $elapsed $graph_model $(now())\n")
 
 end
@@ -81,8 +80,8 @@ using SIS,IM,PayloadGraph, Epidemics, TwoLevelGraphs
 
 TWO_LEVEL = 3
 REGULAR = 2
-RANDOM = 1    
-    
+RANDOM = 1
+
 verbose = false
 
 ########## Set up model ###############
@@ -108,7 +107,7 @@ if graph_type == REGULAR
 elseif graph_type == RANDOM
     graph_fn = () -> LightGraphs.erdos_renyi(N,1.0*k/(N-1))
 end
-        
+
 if graph_type == TWO_LEVEL
     m = 40 #nodes per subnode
     n = Int(N/m)
@@ -119,7 +118,7 @@ if graph_type == TWO_LEVEL
     graph_data = TwoLevelGraph(LightGraphs.Graph(),t,get_clusters(t))
     graph_fn = () -> make_two_level_random_graph(t)[1]
 end
-    
+
 graph_information = GraphInformation(graph_fn,LightGraphs.Graph(),graph_data)
 in_parallel = true
 

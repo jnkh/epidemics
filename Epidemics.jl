@@ -60,21 +60,21 @@ function get_num_fixed(runs::Array{EpidemicRun,1})
     end
     return sum
 end
-    
+
 
 ### Epidemic on a Graph ###
 function run_epidemic_graph(N::Int,im::InfectionModel,graph_information::GraphInformation,fixation_threshold=1.0)
     fixed=false
     #construct graph
     g = guarantee_connected(graph_information.graph_fn)
-    graph_information.graph = g
+#     graph_information.graph = g
 
     #create payload graph
     p = create_graph_from_value(g,SUSCEPTIBLE)
     infecteds::Array{Float64,1} = []
     infecteds_by_nodes::Array{Array{Int,1},1} = []
 
-    
+
     set_payload(p,1,INFECTED)
     frac = get_fraction_of_type(p,INFECTED)
     push!(infecteds,N*frac)
@@ -92,12 +92,12 @@ function run_epidemic_graph(N::Int,im::InfectionModel,graph_information::GraphIn
         push!(infecteds,N*frac)
         push!(infecteds_by_nodes,copy(get_payload(p)))
     end
-    
+
     size = im.dt*sum(infecteds)
     if fixed
         size = Inf
     end
-    
+
     return EpidemicRun(infecteds,size,fixed,infecteds_by_nodes,graph_information)
 end
 
@@ -108,7 +108,7 @@ function run_epidemic_well_mixed(N,im,fixation_threshold=1.0)
     n = 1
     fixed=false
     push!(infecteds,n)
-    
+
 
     while n > 0
         if !(n < N && n < N*fixation_threshold)
@@ -118,12 +118,12 @@ function run_epidemic_well_mixed(N,im,fixation_threshold=1.0)
         n = update_n(n,N,im)
         push!(infecteds,n)
     end
-    
+
     size = im.dt*sum(infecteds)
     if fixed
         size = Inf
     end
-    
+
     return EpidemicRun(infecteds,size,fixed)
 end
 
@@ -138,9 +138,9 @@ end
 
 ###Performing Many Runs###
 
-function run_epidemics(num_runs::Int,run_epidemic_fn)  
+function run_epidemics(num_runs::Int,run_epidemic_fn)
     runs = Array{EpidemicRun,1}
-    
+
     for i in 1:num_runs
         run = run_epidemic_fn()
         push!(runs,run)
@@ -151,9 +151,9 @@ function run_epidemics(num_runs::Int,run_epidemic_fn)
 end
 
 
-function run_epidemics_parallel(num_runs::Int,run_epidemic_fn,parallel=true)  
-    
-    mapfn = parallel ? pmap : map 
+function run_epidemics_parallel(num_runs::Int,run_epidemic_fn,parallel=true)
+
+    mapfn = parallel ? pmap : map
     runs::Array{EpidemicRun,1} = mapfn(_ -> run_epidemic_fn(),1:num_runs)
 
     return runs
