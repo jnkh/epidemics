@@ -110,7 +110,8 @@ function get_edges_for_supergraph(clusters::Array{Array{Int,1},1},num_edges::Int
     possible_edges = []
     for clust in clusters
         for v in clust
-            for w in get_out_nodes(clusters,v)
+            out_nodes = get_out_nodes(clusters,v)
+            for w in out_nodes
                 if w > v
                     push!(possible_edges,Pair(v,w))
                 end
