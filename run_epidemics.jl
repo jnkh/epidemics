@@ -93,6 +93,8 @@ N = 400
 n_n = 10#y_n*N
 beta = 4.0/(c_r*n_n)
 alpha = (N*beta)/n_n
+k = 4#k_range = [4,100]
+
 if verbose println(N, ' ' ,alpha, ' ',beta) end
 
 num_trials = num_trials_mixed = 1000
@@ -130,22 +132,19 @@ in_parallel = true
 
 end
 
-k_range = [4,100]
 graph_model_range = [false,true]
 
 @everywhere begin
 	params = Dict{AbstractString,Any}("N" => N, "alpha" => alpha, "beta" => beta, "fixation_threshold" => fixation_threshold,"in_parallel" => in_parallel, "num_trials" => num_trials, "num_trials_mixed" => num_trials_mixed,"graph_information"=>graph_information,"verbose"=>verbose)
 end
 
-for k in k_range
-	for graph_model in graph_model_range
-		println("k = $k, graph_model = $graph_model")
-		#share among processors
-		for p in procs()
-			remotecall_fetch(p,(x,y) -> (params["k"] = x; params["graph_model"] = y),k,graph_model)
-		end
-		save_epidemics_results(params)
-	end
+for graph_model in graph_model_range
+    println("k = $k, graph_model = $graph_model")
+    #share among processors
+    for p in procs()
+        remotecall_fetch(p,(x,y) -> (params["k"] = x; params["graph_model"] = y),k,graph_model)
+    end
+    save_epidemics_results(params)
 end
 
 
