@@ -12,9 +12,9 @@ type TwoLevel
     i::Int #total number of infecteds
     r::Int #outside connections
     l::Int #internal connections
-    
+
 end
-    
+
 function TwoLevel(N::Int,m::Int)
     a = zeros(Int,m+1)
     n = Int(N/m)
@@ -32,7 +32,9 @@ function TwoLevel(N::Int,m::Int,l::Int,r::Int)
     return TwoLevel(a,N,m,n,i,r,l)
 end
 
-
+function TwoLevel(t::TwoLevel)
+  return TwoLevel(t.a,t.N,t.m,t.n,t.i,t.r,t.l)
+end
 
 function is_valid(t::TwoLevel)
     #check normalization
@@ -87,15 +89,15 @@ end
 #This only works in an unbiased way if the subgraphs have the same sizes.
 function make_two_level_random_graph(t::TwoLevel)
     g = LightGraphs.Graph(t.N)
-    
+
     clusters = get_clusters(t)
-    
+
     #get intra-cluster edges
     edges = []
     for clust in clusters
         edges = vcat(edges,get_edges_for_subgraph(clust,num_internal_edges(clust,t)))
     end
-    
+
     #get between-cluster edges
     edges = vcat(edges,get_edges_for_supergraph(clusters,num_external_edges(clusters,t)))
 
@@ -121,7 +123,7 @@ function get_edges_for_supergraph(clusters::Array{Array{Int,1},1},num_edges::Int
     end
     return sample(possible_edges,num_edges,replace=false)
 end
-   
+
 #     possible_edges = []
 #     for i = 1:length(clusters)
 #         for j = i+1:length(clusters)
@@ -136,8 +138,8 @@ end
 #     end
 #    return edges
 #end
-    
-    
+
+
 function num_internal_edges(cluster::Array{Int,1},t::TwoLevel)
     num_desired = Int(length(cluster)*t.l/2)
     num_trials = Int(length(cluster)*(length(cluster) - 1)/2)
@@ -193,9 +195,9 @@ function get_cluster_idx(clusters::Array{Array{Int,1},1},node::Int)
 end
 
 
-        
+
 function get_in_nodes(clusters::Array{Array{Int,1},1},node::Int)
-    cluster_idx = get_cluster_idx(clusters,node)   
+    cluster_idx = get_cluster_idx(clusters,node)
     to_sample = copy(clusters[cluster_idx])
     self_idx = findfirst(to_sample,node)
     splice!(to_sample,self_idx)
@@ -203,7 +205,7 @@ function get_in_nodes(clusters::Array{Array{Int,1},1},node::Int)
 end
 
 function get_out_nodes(clusters::Array{Array{Int,1},1},node::Int)
-    cluster_idx = get_cluster_idx(clusters,node)   
+    cluster_idx = get_cluster_idx(clusters,node)
     clusters = copy(clusters)
     splice!(clusters,cluster_idx)
     to_sample = vcat(clusters...)
