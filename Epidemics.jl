@@ -1,9 +1,9 @@
 module Epidemics
 
-using SIS,Distributions, IM, LightGraphs,PayloadGraph
+using SIS,Distributions, IM, LightGraphs,PayloadGraph, Dierckx
 
-export run_epidemic_graph,run_epidemic_well_mixed,get_s_eff,run_epidemics_parallel,run_epidemics,s,get_s_eff,normed_distribution, P_w_th,get_y_eff, EpidemicRun, get_sizes, get_num_fixed,GraphInformation
-
+export run_epidemic_graph,run_epidemic_well_mixed,get_s_eff,run_epidemics_parallel,run_epidemics,s,get_s_eff,normed_distribution, P_w_th,get_y_eff, EpidemicRun, get_sizes, get_num_fixed,GraphInformation,
+get_dt_two_level,run_epidemic_well_mixed_two_level, update_n_two_level
 
 function graph_is_connected(g::LightGraphs.Graph)
     parents = LightGraphs.dijkstra_shortest_paths(g,1).parents[2:end]
@@ -26,11 +26,12 @@ end
 type GraphInformation
     graph_fn::Function
     graph::LightGraphs.Graph
+    carry_by_node_info::Bool
     data
 end
 
 function GraphInformation()
-    return GraphInformation(_ -> _,LightGraphs.Graph(),nothing)
+    return GraphInformation(_ -> _,LightGraphs.Graph(),false,nothing)
 end
 
 type EpidemicRun
@@ -68,6 +69,7 @@ function run_epidemic_graph(N::Int,im::InfectionModel,graph_information::GraphIn
     #construct graph
     g = guarantee_connected(graph_information.graph_fn)
 #     graph_information.graph = g
+    carry_by_node_info::Bool = graph_information.carry_by_node_info
 
     #create payload graph
     p = create_graph_from_value(g,SUSCEPTIBLE)
@@ -78,7 +80,9 @@ function run_epidemic_graph(N::Int,im::InfectionModel,graph_information::GraphIn
     set_payload(p,1,INFECTED)
     frac = get_fraction_of_type(p,INFECTED)
     push!(infecteds,N*frac)
-    push!(infecteds_by_nodes,copy(get_payload(p)))
+    if carry_by_node_info
+        push!(infecteds_by_nodes,copy(get_payload(p)))
+    end
 
     new_types = convert(SharedArray,fill(SUSCEPTIBLE,N))
 
@@ -90,7 +94,9 @@ function run_epidemic_graph(N::Int,im::InfectionModel,graph_information::GraphIn
         update_graph(p,im,new_types)
         frac = get_fraction_of_type(p,INFECTED)
         push!(infecteds,N*frac)
-        push!(infecteds_by_nodes,copy(get_payload(p)))
+        if carry_by_node_info
+            push!(infecteds_by_nodes,copy(get_payload(p)))
+        end
     end
 
     size = im.dt*sum(infecteds)
@@ -134,18 +140,78 @@ function update_n(n::Int,N::Int,im::InfectionModel)
     return n + delta_n_plus - delta_n_minus
 end
 
+### Well Mixed Case Two Level###
+### Well Mixed Case Two Level###
+function run_epidemic_well_mixed_two_level(dt::AbstractFloat,N::Int,y_susc_fn,y_sq_susc_fn,y_inf_fn,y_sq_inf_fn,alpha::AbstractFloat,beta::AbstractFloat,fixation_threshold=1.0)
+    infecteds::Array{Float64,1} = []
+    n = 1
+    fixed=false
+    push!(infecteds,n)
+
+    while n > 0
+        if !(n < N && n < N*fixation_threshold)
+            fixed = true
+            break
+        end
+        n = update_n_two_level(dt,n,N,y_susc_fn,y_sq_susc_fn,y_inf_fn,y_sq_inf_fn,alpha,beta)
+        push!(infecteds,n)
+    end
+
+    size = dt*sum(infecteds)
+    if fixed
+        size = Inf
+    end
+
+    return EpidemicRun(infecteds,size,fixed)
+end
+
+function get_dt_two_level(alpha::AbstractFloat,beta::AbstractFloat)
+    desired_rate = 0.1
+    max_rate = maximum([(1 + alpha),(1 + beta)])
+    dt = desired_rate/max_rate
+    return float(dt)
+end
+
+function update_n_two_level(dt::AbstractFloat,n::Int,N::Int,y_susc_fn,y_sq_susc_fn,y_inf_fn,y_sq_inf_fn,alpha::AbstractFloat,beta::AbstractFloat)
+    y = n/N
+    y_susc = evaluate(y_susc_fn,y)
+    y_inf = evaluate(y_inf_fn,y)
+    y_sq_susc = evaluate(y_sq_susc_fn,y)
+    y_sq_inf = evaluate(y_sq_inf_fn,y)
+
+    prob_birth = (y_susc + y_sq_susc*alpha)*dt
+    prob_death = (1 - y_inf)*(1 + beta)*dt
 
 
-###Performing Many Runs###
+    if prob_birth == 0
+        delta_n_plus = 0
+    else
+       delta_n_plus = rand(Binomial(N-n,prob_birth))
+    end
+
+    if prob_death == 0
+        delta_n_minus = 0
+    else
+        delta_n_minus = rand(Binomial(n,prob_death))
+    end
+
+    return n + delta_n_plus - delta_n_minus
+
+end
+
+
+
+
+###performing many runs###
 
 function run_epidemics(num_runs::Int,run_epidemic_fn)
-    runs = Array{EpidemicRun,1}
+    runs = EpidemicRun[]
 
     for i in 1:num_runs
         run = run_epidemic_fn()
         push!(runs,run)
     end
-    #get rid of fixed ones
+    #get rid of fixed oneus
 
     return runs
 end
