@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH -p general
-#SBATCH -n 10
-#SBATCH -t 100
+#SBATCH -n 64
+#SBATCH -t 0-02:00
 #SBATCH --mem-per-cpu 8000
 #SBATCH -o log.out
 #SBATCH -e log.err
