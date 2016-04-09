@@ -89,7 +89,7 @@ verbose = false
 #y_n = 0.1
 c_r = 0.18
 N = 400
-n_n = 10#y_n*N
+n_n = 40#y_n*N
 beta = 4.0/(c_r*n_n)
 alpha = (N*beta)/n_n
 k = 4#k_range = [4,100]
@@ -97,7 +97,8 @@ k = 4#k_range = [4,100]
 if verbose println(N, ' ' ,alpha, ' ',beta) end
 
 num_trials = num_trials_mixed = 2000
-fixation_threshold = 8*n_n/N
+fixation_threshold = 4*n_n/N
+carry_by_node_information = false
 
 graph_type = TWO_LEVEL
 
@@ -119,9 +120,8 @@ if graph_type == TWO_LEVEL
     graph_fn = () -> make_two_level_random_graph(t)[1]
 end
 
-graph_information = GraphInformation(graph_fn,LightGraphs.Graph(),graph_data)
+graph_information = GraphInformation(graph_fn,LightGraphs.Graph(),graph_data,carry_by_node_information)
 in_parallel = true
-
 
 #########set changing params ###############
 
