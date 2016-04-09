@@ -96,8 +96,8 @@ k = 4#k_range = [4,100]
 
 if verbose println(N, ' ' ,alpha, ' ',beta) end
 
-num_trials = num_trials_mixed = 2000
-fixation_threshold = 4*n_n/N
+num_trials = num_trials_mixed = 100_000
+fixation_threshold = 8*n_n/N
 carry_by_node_information = false
 
 graph_type = TWO_LEVEL
@@ -110,10 +110,10 @@ elseif graph_type == RANDOM
 end
 
 if graph_type == TWO_LEVEL
-    m = 40 #nodes per subnode
+    m = 20 #nodes per subnode
     n = Int(N/m)
     l = Int(m/2)#internal
-    r = 4# Int(m/2)#2 #external
+    r = 2# Int(m/2)#2 #external
 
     t = TwoLevel(N,m,l,r)
     graph_data = TwoLevelGraph(LightGraphs.Graph(),t,get_clusters(t))
