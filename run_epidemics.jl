@@ -49,16 +49,18 @@ function save_epidemics_results(params)
 	println("done after $elapsed seconds.")
 
 
-	filename = "epidemics_$(now()).jld"
+	structure = graph_model ? "graph" : "mixed"
+	filename = "epidemics_$structure_$(now()).jld"
 	save(data_dir_path * filename,"params",params,"runs",runs)
 
 
-	timing_filename = "timing_$(now()).jld"
+	timing_filename = "timing_$structure_$(now()).jld"
 	save(data_dir_path * timing_filename,"params",params,"elapsed",elapsed)
 
 	timing_log_filename = "timing_log.out"
 	f = open(timing_log_filename,"a")
-	write(f,"$N $k $num_trials $elapsed $graph_model $(now())\n")
+	nt = graph_model ? num_trials : num_trials_mixed
+	write(f,"$N $k $nt $elapsed $graph_model $(now())\n")
 
 end
 
