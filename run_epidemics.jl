@@ -91,14 +91,15 @@ verbose = false
 #y_n = 0.1
 c_r = 0.18
 N = 400
-n_n = 40#y_n*N
+n_n = 20#y_n*N
 beta = 4.0/(c_r*n_n)
 alpha = (N*beta)/n_n
 k = 4#k_range = [4,100]
 
 if verbose println(N, ' ' ,alpha, ' ',beta) end
 
-num_trials = num_trials_mixed = 100_000
+num_trials_mixed = 100_000
+num_trials = 10_000
 fixation_threshold = 8*n_n/N
 carry_by_node_information = false
 
