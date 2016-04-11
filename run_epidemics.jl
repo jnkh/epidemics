@@ -50,11 +50,11 @@ function save_epidemics_results(params)
 
 
 	structure = graph_model ? "graph" : "mixed"
-	filename = "epidemics_$structure_$(now()).jld"
+	filename = "epidemics_$(structure)_$(now()).jld"
 	save(data_dir_path * filename,"params",params,"runs",runs)
 
 
-	timing_filename = "timing_$structure_$(now()).jld"
+	timing_filename = "timing_$(structure)_$(now()).jld"
 	save(data_dir_path * timing_filename,"params",params,"elapsed",elapsed)
 
 	timing_log_filename = "timing_log.out"
