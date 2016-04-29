@@ -5,15 +5,15 @@ using LightGraphs, Distributions, StatsBase
 export TwoLevel, is_valid, get_num_infected, distribute_randomly, make_consistent, TwoLevelGraph, get_clusters, make_two_level_random_graph,
 birth_fn,death_fn,adjust_infecteds,get_stationary_distribution,p_j_plus,p_j_minus,
 compute_mean_y_local,compute_mean_y_squared_local,set_y, get_interpolations, get_stationary_distribution_nonlinear_theory,
-generate_transition_matrix
-
+generate_transition_matrix, get_frac_infected,get_s_effective_two_level,get_splus_effective_two_level,
+get_s_birth_effective_two_level,get_s_death_effective_two_level
 
 type TwoLevel
     a::Array{Number,1} #number communities with [idx] infected nodes
     N::Int #total number of nodes
     m::Int #number of nodes per community
     n::Int #number of communities
-    i::Int #total number of infecteds
+    i::Number #total number of infecteds
     r::Int #outside connections
     l::Int #internal connections
 
@@ -237,6 +237,13 @@ end
 
 
 function adjust_infecteds(t::TwoLevel,y_desired::AbstractFloat)
+  if y_desired < 1/t.N
+    t.a *= 0
+    t.a[2] = y_desired*t.N
+    t.a[1] = t.n - sum(t.a)
+    return
+  end
+
     t.a[max(1,Int(round(y_desired*t.m)))] = t.n
     num_infected_desired = Int(round(y_desired*t.N))
     if get_num_infected(t) > num_infected_desired
@@ -316,8 +323,9 @@ function get_stationary_distribution_nonlinear_theory(N::Int,m::Int,l::Int,r::In
     t = TwoLevel(N,m,l,r)
     #distribute_randomly(t,n)
     adjust_infecteds(t,y_desired)
-    make_consistent(t)
-    assert(is_valid(t))
+    t.i = y_desired 
+    # make_consistent(t)
+    # assert(is_valid(t))
     return get_stationary_distribution_nonlinear_theory(t,alpha,beta,y_desired)
 end
 
@@ -489,14 +497,15 @@ function get_stationary_distribution_from_matrix(t::TwoLevel,transition_matrix)
   equilibrium_distribution = nullspace(transition_matrix)
   if size(equilibrium_distribution)[2] > 1
     nsolutions = size(equilibrium_distribution)[2]
+    if nsolutions > 1
+     println("PROBLEM: $(size(equilibrium_distribution)[2]) SOLUTIONS");
+   end
     mask = Array(Bool, nsolutions)
     for i = 1:nsolutions
       mask[i] = all(equilibrium_distribution[:,i] .>= 0) && any(equilibrium_distribution[:,i] .> 0.0)
     end
     equilibrium_distribution = equilibrium_distribution[:,mask]
-    if size(equilibrium_distribution)[2] > 1
-     println("PROBLEM: $(size(equilibrium_distribution)[2]) SOLUTIONS");
-   end
+
   end
   equilibrium_distribution = equilibrium_distribution[:,1]
   equilibrium_distribution *= t.n/sum(equilibrium_distribution)
@@ -504,7 +513,7 @@ function get_stationary_distribution_from_matrix(t::TwoLevel,transition_matrix)
 end
 
 function binary_search_transition_matrix(f_out,y_target,x_initial=1.0)
-    tol = 1e-4
+    tol = 1e-6
     max_iter = 1000
     x_upper = guarantee_upper_bound(f_out,y_target,x_initial)
     x_lower = guarantee_lower_bound(f_out,y_target,x_initial)
@@ -562,7 +571,7 @@ function get_y_out(t,alpha,beta,gamma)
 end
 
 function get_stationary_distribution_nonlinear_theory(t,alpha,beta,y_desired)
-    if y_desired == 0.0 || t.i == 0
+    if y_desired == 0.0 #|| t.i == 0
       arr = zeros(t.a)
       arr[1] = t.n
       return arr 
@@ -579,11 +588,16 @@ end
 using Dierckx
 
 function get_interpolations(t::TwoLevel,alpha,beta)
-    y_min = 1.0/t.N
+    dy = 1.0/t.N
+    y_min = dy/25
 
-    dy = clamp(y_min,0.01,0.1)
-    y_range = collect(y_min:dy:(1.0-y_min))
-    interpolation_order = 2
+
+
+    dy0 = clamp(y_min,1e-5,0.01)
+    # dy = clamp(y_min,0.001,0.1)
+    dy2 = clamp(y_min,0.01,0.1)
+    y_range = vcat( collect(y_min:y_min:4*dy),collect(5*dy:dy:0.1) , collect(0.1+dy:dy2:(1.0-dy)) )
+    interpolation_order = 1
     y_real_range = zeros(y_range)
 
     y_eff_range_inf = zeros(y_range)
@@ -594,16 +608,18 @@ function get_interpolations(t::TwoLevel,alpha,beta)
 
 
     for (i,y_desired) in enumerate(y_range)
-      set_y(t,y_desired)
+      # set_y(t,y_desired)
       #accum = get_stationary_distribution(t.N,t.m,t.l,t.r,y_desired,((x,y) -> death_fn(x,y,beta)),((x,y) -> birth_fn(x,y,alpha)),500_000)
       accum = get_stationary_distribution_nonlinear_theory(t.N,t.m,t.l,t.r,y_desired,alpha,beta)
       t.a = accum
+      y_real = get_frac_infected(t)
+      t.i = y_real*t.N
       y_eff_range_inf[i] = compute_mean_y_local(t,false)
       y_sq_eff_range_inf[i] = compute_mean_y_squared_local(t,false)
       y_eff_range_susc[i] = compute_mean_y_local(t,true)
       y_sq_eff_range_susc[i] = compute_mean_y_squared_local(t,true)
-      y_real_range[i] = get_frac_infected(t) 
-      #y_real_range[i] = t.i/t.N 
+      y_real_range[i] = y_real 
+      # y_real_range[i] = t.i/t.N 
       if y_desired == 1.0
         y_eff_range_inf[i] = 1.0
         y_sq_eff_range_inf[i] = 1.0
@@ -665,6 +681,61 @@ function get_clusters(t::TwoLevel)
         end
     end
     clusters
+end
+
+
+function get_s_effective_two_level(y,y_susc,y_sq_susc,y_inf,y_sq_inf,alpha::Float64,beta::Float64)
+    return get_s_birth_effective_two_level(y,y_susc,y_sq_susc,alpha) - get_s_death_effective_two_level(y_inf,beta)
+end
+
+function get_splus_effective_two_level(y,y_susc,y_sq_susc,y_inf,y_sq_inf,alpha::Float64,beta::Float64)
+    return get_s_birth_effective_two_level(y,y_susc,y_sq_susc,alpha) + get_s_death_effective_two_level(y_inf,beta)
+end
+
+function get_s_birth_effective_two_level(y::Array,y_susc,y_sq_susc,alpha::Float64)
+    ret = (1-y)./y.*(y_susc + alpha .* y_sq_susc)
+    ret[y .== 0] = 0.0
+    return ret
+end
+
+function get_s_birth_effective_two_level(y::Number,y_susc,y_sq_susc,alpha::Float64)
+    if y == 0 return 0.0 end
+    ret = (1-y)./y.*(y_susc + alpha .* y_sq_susc)
+#     ret[y .== 0] = 0
+    return ret
+end
+
+function get_s_death_effective_two_level(y_inf,beta::Float64)
+    return (1 - y_inf).*(1 + beta)
+end
+    
+function get_splus_effective_two_level_interp(yy,alpha::Float64,beta::Float64,y_inf_interp,y_sq_inf_interp,y_susc_interp,y_sq_susc_interp)
+    y_inf = evaluate(y_inf_interp,yy)
+    y_susc = evaluate(y_susc_interp,yy)
+    y_sq_inf = evaluate(y_sq_inf_interp,yy)
+    y_sq_susc = evaluate(y_sq_susc_interp,yy)
+    return get_splus_effective_two_level(yy,y_susc,y_sq_susc,y_inf,y_sq_inf,alpha,beta)
+end
+
+
+function get_s_effective_two_level_interp(yy,alpha::Float64,beta::Float64,y_inf_interp,y_sq_inf_interp,y_susc_interp,y_sq_susc_interp)
+    y_inf = evaluate(y_inf_interp,yy)
+    y_susc = evaluate(y_susc_interp,yy)
+    y_sq_inf = evaluate(y_sq_inf_interp,yy)
+    y_sq_susc = evaluate(y_sq_susc_interp,yy)
+    return get_s_effective_two_level(yy,y_susc,y_sq_susc,y_inf,y_sq_inf,alpha,beta)
+end
+
+
+function get_s_birth_effective_two_level_interp(yy,alpha::Float64,y_susc_interp,y_sq_susc_interp)
+    y_susc = evaluate(y_susc_interp,yy)
+    y_sq_susc = evaluate(y_sq_susc_interp,yy)
+    return get_s_birth_effective_two_level(yy,y_susc,y_sq_susc,alpha)
+end
+
+function get_s_death_effective_two_level_interp(yy,beta::Float64,y_inf_interp)
+    y_inf = evaluate(y_inf_interp,yy)
+    return get_s_death_effective_two_level(y_inf,beta)
 end
 
 
