@@ -138,7 +138,7 @@ end
 graph_model_range = [true]
 
 @everywhere begin
-	params = Dict{AbstractString,Any}("N" => N, "alpha" => alpha, "beta" => beta, "fixation_threshold" => fixation_threshold,"in_parallel" => in_parallel, "num_trials" => num_trials, "num_trials_mixed" => num_trials_mixed,"graph_information"=>graph_information,"verbose"=>verbose)
+	params = Dict{AbstractString,Any}("N" => N, "alpha" => alpha, "beta" => beta, "fixation_threshold" => fixation_threshold,"in_parallel" => in_parallel, "num_trials" => num_trials, "num_trials_mixed" => num_trials_mixed,"graph_information"=>graph_information,"verbose"=>verbose,"graph_type"=>graph_type)
 end
 
 for graph_model in graph_model_range
