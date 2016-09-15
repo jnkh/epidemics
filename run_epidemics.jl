@@ -124,6 +124,9 @@ end
 for k in k_range
 for graph_type in graph_type_range
 for graph_model in graph_model_range
+
+	@everywhere begin
+
 	graph_data = nothing
 	if graph_type == REGULAR
 	    graph_fn = () -> LightGraphs.random_regular_graph(N,k)
@@ -139,7 +142,6 @@ for graph_model in graph_model_range
 
 	graph_information = GraphInformation(graph_fn,LightGraphs.Graph(),carry_by_node_information,graph_data)
 
-	@everywhere begin
 	params = Dict{AbstractString,Any}("N" => N, "alpha" => alpha, "beta" => beta, "fixation_threshold" => fixation_threshold,"in_parallel" => in_parallel, "num_trials" => num_trials, "num_trials_mixed" => num_trials_mixed,"graph_information"=>graph_information,"verbose"=>verbose,"graph_type"=>graph_type)
 	end
 
