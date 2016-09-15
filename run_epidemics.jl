@@ -147,7 +147,7 @@ for graph_model in graph_model_range
     println("k = $k, graph_model = $graph_model")
     #share among processors
     for p in procs()
-        remotecall_fetch(p,(x,y,z) -> (params["k"] = x; params["graph_model"] = y,params["graph_type"] = z),k,graph_model,graph_type)
+        remotecall_fetch(p,(x,y,z) -> (params["k"] = x; params["graph_model"] = y;params["graph_type"] = z),k,graph_model,graph_type)
     end
     save_epidemics_results(params)
 end
