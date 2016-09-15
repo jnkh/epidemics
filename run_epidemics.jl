@@ -94,7 +94,17 @@ N = 400
 n_n = 20#y_n*N
 beta = 4.0/(c_r*n_n)
 alpha = (N*beta)/n_n
-k = 4#k_range = [4,100]
+k_range = [4,12]
+
+####only for two-level graphs####
+m = 20 #nodes per subnode
+n = Int(N/m)
+l = Int(m/2)#internal
+r = 2# Int(m/2)#2 #external
+#################################
+
+
+graph_type_range = [TWO_LEVEL,REGULAR]
 
 if verbose println(N, ' ' ,alpha, ' ',beta) end
 
@@ -103,51 +113,46 @@ num_trials = 10_000
 fixation_threshold = 1.0#8*n_n/N
 ###Set to true if we want by-node information on infecteds (much more data!)
 carry_by_node_information = false
-
-graph_type = TWO_LEVEL
-
-graph_data = nothing
-if graph_type == REGULAR
-    graph_fn = () -> LightGraphs.random_regular_graph(N,k)
-elseif graph_type == RANDOM
-    graph_fn = () -> LightGraphs.erdos_renyi(N,1.0*k/(N-1))
-end
-
-if graph_type == TWO_LEVEL
-    m = 20 #nodes per subnode
-    n = Int(N/m)
-    l = Int(m/2)#internal
-    r = 2# Int(m/2)#2 #external
-
-    t = TwoLevel(N,m,l,r)
-    graph_data = TwoLevelGraph(LightGraphs.Graph(),t,get_clusters(t))
-    graph_fn = () -> make_two_level_random_graph(t)[1]
-end
-
-graph_information = GraphInformation(graph_fn,LightGraphs.Graph(),carry_by_node_information,graph_data)
-in_parallel = true
-
-#########set changing params ###############
-
-
-#k = 4
-#graph_model = true
-
-end
-
+###Set to false only if we want to simulate in a well-mixedm model
 graph_model_range = [true]
 
-@everywhere begin
-	params = Dict{AbstractString,Any}("N" => N, "alpha" => alpha, "beta" => beta, "fixation_threshold" => fixation_threshold,"in_parallel" => in_parallel, "num_trials" => num_trials, "num_trials_mixed" => num_trials_mixed,"graph_information"=>graph_information,"verbose"=>verbose,"graph_type"=>graph_type)
+in_parallel = true
+
 end
 
+
+for k in k_range
+for graph_type in graph_type_range
 for graph_model in graph_model_range
+	graph_data = nothing
+	if graph_type == REGULAR
+	    graph_fn = () -> LightGraphs.random_regular_graph(N,k)
+	elseif graph_type == RANDOM
+	    graph_fn = () -> LightGraphs.erdos_renyi(N,1.0*k/(N-1))
+	elseif graph_type == TWO_LEVEL
+
+
+	    t = TwoLevel(N,m,l,r)
+	    graph_data = TwoLevelGraph(LightGraphs.Graph(),t,get_clusters(t))
+	    graph_fn = () -> make_two_level_random_graph(t)[1]
+	end
+
+	graph_information = GraphInformation(graph_fn,LightGraphs.Graph(),carry_by_node_information,graph_data)
+
+	@everywhere begin
+	params = Dict{AbstractString,Any}("N" => N, "k" =>k, "graph_model" => graph_model,
+	"graph_type" => graph_type, "alpha" => alpha, "beta" => beta, "fixation_threshold" => fixation_threshold,"in_parallel" => in_parallel, "num_trials" => num_trials, "num_trials_mixed" => num_trials_mixed,"graph_information"=>graph_information,"verbose"=>verbose,"graph_type"=>graph_type)
+	end
+
+
     println("k = $k, graph_model = $graph_model")
     #share among processors
-    for p in procs()
-        remotecall_fetch(p,(x,y) -> (params["k"] = x; params["graph_model"] = y),k,graph_model)
-    end
+    # for p in procs()
+    #     remotecall_fetch(p,(x,y) -> (params["k"] = x; params["graph_model"] = y),k,graph_model)
+    # end
     save_epidemics_results(params)
+end
+end
 end
 
 
