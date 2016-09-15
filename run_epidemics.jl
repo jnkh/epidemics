@@ -140,16 +140,15 @@ for graph_model in graph_model_range
 	graph_information = GraphInformation(graph_fn,LightGraphs.Graph(),carry_by_node_information,graph_data)
 
 	@everywhere begin
-	params = Dict{AbstractString,Any}("N" => N, "k" =>k, "graph_model" => graph_model,
-	"graph_type" => graph_type, "alpha" => alpha, "beta" => beta, "fixation_threshold" => fixation_threshold,"in_parallel" => in_parallel, "num_trials" => num_trials, "num_trials_mixed" => num_trials_mixed,"graph_information"=>graph_information,"verbose"=>verbose,"graph_type"=>graph_type)
+	params = Dict{AbstractString,Any}("N" => N, "alpha" => alpha, "beta" => beta, "fixation_threshold" => fixation_threshold,"in_parallel" => in_parallel, "num_trials" => num_trials, "num_trials_mixed" => num_trials_mixed,"graph_information"=>graph_information,"verbose"=>verbose,"graph_type"=>graph_type)
 	end
 
 
     println("k = $k, graph_model = $graph_model")
-    #share among processors
-    # for p in procs()
-    #     remotecall_fetch(p,(x,y) -> (params["k"] = x; params["graph_model"] = y),k,graph_model)
-    # end
+    share among processors
+    for p in procs()
+        remotecall_fetch(p,(x,y,z) -> (params["k"] = x; params["graph_model"] = y,params["graph_type"] = z),k,graph_model,graph_type)
+    end
     save_epidemics_results(params)
 end
 end
