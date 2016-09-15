@@ -98,9 +98,10 @@ k = 4#k_range = [4,100]
 
 if verbose println(N, ' ' ,alpha, ' ',beta) end
 
-num_trials_mixed = 100_000
+num_trials_mixed = 10_000
 num_trials = 10_000
 fixation_threshold = 8*n_n/N
+###Set to true if we want by-node information on infecteds (much more data!)
 carry_by_node_information = false
 
 graph_type = TWO_LEVEL
