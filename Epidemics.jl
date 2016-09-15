@@ -2,8 +2,8 @@ module Epidemics
 
 using SIS,Distributions, IM, LightGraphs,PayloadGraph, Dierckx
 
-export run_epidemic_graph,run_epidemic_well_mixed,get_s_eff,run_epidemics_parallel,run_epidemics,s,get_s_eff,normed_distribution, P_w_th,get_y_eff, EpidemicRun, get_sizes, get_num_fixed,GraphInformation,
-get_dt_two_level,run_epidemic_well_mixed_two_level, update_n_two_level
+export run_epidemic_graph,run_epidemic_well_mixed,run_epidemics_parallel,run_epidemics,s,get_s_eff,normed_distribution, P_w_th,get_y_eff, EpidemicRun, get_sizes, get_num_fixed,GraphInformation,
+get_dt_two_level,run_epidemic_well_mixed_two_level, update_n_two_level, get_p_reach
 
 function graph_is_connected(g::LightGraphs.Graph)
     parents = LightGraphs.dijkstra_shortest_paths(g,1).parents[2:end]
@@ -61,6 +61,35 @@ function get_num_fixed(runs::Array{EpidemicRun,1})
     end
     return sum
 end
+
+function get_max_reach(run::EpidemicRun)
+    return maximum(run.infecteds_vs_time)
+end
+
+function get_max_reaches(runs::Array{EpidemicRun, 1})
+    return map(get_max_reach,runs)
+end
+
+function get_p_reach(runs::Array{EpidemicRun, 1})
+    max_reaches = get_max_reaches(runs)
+    sorted_max_reaches = sort(max_reaches)
+    xvals = unique(sorted_max_reaches)
+    yvals = zeros(xvals)
+    for r in sorted_max_reaches
+        idx = findfirst(xvals,r)
+        yvals[1:idx] += 1
+    end
+
+    return xvals,yvals/length(max_reaches)
+end
+
+
+function get_p_reach(runs::Array{EpidemicRun, 1},N::Real)
+    xvals,yvals = get_p_reach(runs)
+    return xvals/N,yvals
+end
+
+
 
 
 ### Epidemic on a Graph ###
