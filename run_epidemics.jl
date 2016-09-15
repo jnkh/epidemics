@@ -100,7 +100,7 @@ if verbose println(N, ' ' ,alpha, ' ',beta) end
 
 num_trials_mixed = 10_000
 num_trials = 10_000
-fixation_threshold = 8*n_n/N
+fixation_threshold = 1.0#8*n_n/N
 ###Set to true if we want by-node information on infecteds (much more data!)
 carry_by_node_information = false
 
@@ -135,7 +135,7 @@ in_parallel = true
 
 end
 
-graph_model_range = [false,true]
+graph_model_range = [true]
 
 @everywhere begin
 	params = Dict{AbstractString,Any}("N" => N, "alpha" => alpha, "beta" => beta, "fixation_threshold" => fixation_threshold,"in_parallel" => in_parallel, "num_trials" => num_trials, "num_trials_mixed" => num_trials_mixed,"graph_information"=>graph_information,"verbose"=>verbose)
