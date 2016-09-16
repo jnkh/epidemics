@@ -30,7 +30,7 @@ function save_epidemics_results(params)
 
 	# end
 
-	if myid() == 1:
+	if myid() == 1
 		println("running in parallel on $(nprocs()-1) nodes...")
 		tic()
 		if graph_model
