@@ -120,40 +120,44 @@ in_parallel = true
 
 end
 
+@everywhere begin
+	for k in k_range
+	for graph_type in graph_type_range
+	for graph_model in graph_model_range
 
-for k in k_range
-for graph_type in graph_type_range
-for graph_model in graph_model_range
-
-	@everywhere begin
-
-	graph_data = nothing
-	if graph_type == REGULAR
-	    graph_fn = () -> LightGraphs.random_regular_graph(N,k)
-	elseif graph_type == RANDOM
-	    graph_fn = () -> LightGraphs.erdos_renyi(N,1.0*k/(N-1))
-	elseif graph_type == TWO_LEVEL
+		graph_data = nothing
+		if graph_type == REGULAR
+		    graph_fn = () -> LightGraphs.random_regular_graph(N,k)
+		elseif graph_type == RANDOM
+		    graph_fn = () -> LightGraphs.erdos_renyi(N,1.0*k/(N-1))
+		elseif graph_type == TWO_LEVEL
 
 
-	    t = TwoLevel(N,m,l,r)
-	    graph_data = TwoLevelGraph(LightGraphs.Graph(),t,get_clusters(t))
-	    graph_fn = () -> make_two_level_random_graph(t)[1]
+		    t = TwoLevel(N,m,l,r)
+		    graph_data = TwoLevelGraph(LightGraphs.Graph(),t,get_clusters(t))
+		    graph_fn = () -> make_two_level_random_graph(t)[1]
+		end
+
+		graph_information = GraphInformation(graph_fn,LightGraphs.Graph(),carry_by_node_information,graph_data)
+
+		params = Dict{AbstractString,Any}("N" => N, "alpha" => alpha, "beta" => beta, "fixation_threshold" => fixation_threshold,"in_parallel" => in_parallel, "num_trials" => num_trials, "num_trials_mixed" => num_trials_mixed,"graph_information"=>graph_information,"verbose"=>verbose,"graph_type"=>graph_type)
+
+
+	    println("k = $k, graph_model = $graph_model")
+	    params["k"] = k
+	    params["graph_model"] = graph_model
+	    params["graph_type"] = graph_type
+	    # #share among processors
+	    # for p in procs()
+	    #     remotecall_fetch(p,(x,y,z) -> (params["k"] = x; params["graph_model"] = y;params["graph_type"] = z),k,graph_model,graph_type)
+	    # end
+
+	    if myid() == 1
+	    	save_epidemics_results(params)
+	    end
+
+	end
+	end
 	end
 
-	graph_information = GraphInformation(graph_fn,LightGraphs.Graph(),carry_by_node_information,graph_data)
-
-	params = Dict{AbstractString,Any}("N" => N, "alpha" => alpha, "beta" => beta, "fixation_threshold" => fixation_threshold,"in_parallel" => in_parallel, "num_trials" => num_trials, "num_trials_mixed" => num_trials_mixed,"graph_information"=>graph_information,"verbose"=>verbose,"graph_type"=>graph_type)
-	end
-
-
-    println("k = $k, graph_model = $graph_model")
-    #share among processors
-    for p in procs()
-        remotecall_fetch(p,(x,y,z) -> (params["k"] = x; params["graph_model"] = y;params["graph_type"] = z),k,graph_model,graph_type)
-    end
-    save_epidemics_results(params)
 end
-end
-end
-
-
