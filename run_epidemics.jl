@@ -1,3 +1,12 @@
+#Add the number of processors
+# Pkg.add("LightGraphs")
+# Pkg.add("Cubature")
+# Pkg.add("Distributions")
+# Pkg.add("JLD")
+using SlurmNodes
+addprocs(get_list_of_nodes())
+
+
 @everywhere function save_epidemics_results(params)
 	data_dir_path = "../data/"  #"/mnt/D/windows/MIT/classes/6/338/project/data/"
 
@@ -65,21 +74,9 @@
 
 end
 
-
-
-#Add the number of processors
-# Pkg.add("LightGraphs")
-# Pkg.add("Cubature")
-# Pkg.add("Distributions")
-# Pkg.add("JLD")
-using SIS,IM,PayloadGraph, Epidemics,SlurmNodes, TwoLevelGraphs
-using JLD
-
-addprocs(get_list_of_nodes())
-
 @everywhere begin
 
-using SIS,IM,PayloadGraph, Epidemics, TwoLevelGraphs
+using JLD,SIS,IM,PayloadGraph, Epidemics, TwoLevelGraphs
 
 TWO_LEVEL = 3
 REGULAR = 2

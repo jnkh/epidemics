@@ -1,6 +1,6 @@
 module TwoLevelGraphs
 
-using LightGraphs, Distributions, StatsBase#, PyPlot
+using LightGraphs, Distributions, StatsBase, PyPlot
 
 export TwoLevel, is_valid, get_num_infected, distribute_randomly, make_consistent, TwoLevelGraph, get_clusters, make_two_level_random_graph,
 birth_fn,death_fn,adjust_infecteds,get_stationary_distribution,p_j_plus,p_j_minus,
@@ -184,12 +184,34 @@ function compute_mean_y_local(t::TwoLevel,susceptible::Bool)
   y_local = 0.
   weight = 0.
 
+  weights = zeros(t.a)
+  y_locals = zeros(t.a)
+
   for j = 0:t.m
     curr_weight = get_number_weight(t,j,susceptible)
     weight += curr_weight
     y_local += curr_weight*get_y_local(t,j,susceptible)
+
+    weights[j+1] = curr_weight
+    y_locals[j+1] = get_y_local(t,j,susceptible)
+
+
   end
   if weight == 0.0 return 0.0 end
+
+  if ~susceptible
+    pygui(true)
+    ion()
+    figure(3)
+    plot(y_locals)
+    figure(4)
+    semilogy(weights)
+    figure(5)
+    semilogy(t.a)
+    println("y_local: $(y_local/weight)")
+  end
+
+
   return y_local/weight
 end
 
