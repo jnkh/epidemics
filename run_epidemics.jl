@@ -7,7 +7,12 @@ using SlurmNodes,JLD
 addprocs(get_list_of_nodes())
 
 
-@everywhere function save_epidemics_results(params)
+@everywhere begin
+
+using SIS,IM,PayloadGraph, Epidemics, TwoLevelGraphs
+
+
+function save_epidemics_results(params)
 	data_dir_path = "../data/"  #"/mnt/D/windows/MIT/classes/6/338/project/data/"
 
 	# @everywhere begin
@@ -74,9 +79,8 @@ addprocs(get_list_of_nodes())
 
 end
 
-@everywhere begin
 
-using SIS,IM,PayloadGraph, Epidemics, TwoLevelGraphs
+
 
 TWO_LEVEL = 3
 REGULAR = 2
@@ -116,9 +120,6 @@ graph_model_range = [true]
 
 in_parallel = true
 
-end
-
-@everywhere begin
 	for k in k_range
 	for graph_type in graph_type_range
 	for graph_model in graph_model_range
