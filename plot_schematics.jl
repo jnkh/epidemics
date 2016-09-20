@@ -271,7 +271,7 @@ alpha = (N*beta)/n_n
 println("N=$N, alpha = $alpha, beta = $beta")
 
 #Generate a random startin vector
-m = 4#20 number of nodes in a community
+m = 20#20 number of nodes in a community
 n = Int(N/m) 
 l = 2#Int(m/2)#10#internal
 r = 10#2#Int(m/2)#2 #external

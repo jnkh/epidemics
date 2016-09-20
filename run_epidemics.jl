@@ -3,7 +3,7 @@
 # Pkg.add("Cubature")
 # Pkg.add("Distributions")
 # Pkg.add("JLD")
-using SlurmNodes
+using SlurmNodes,JLD
 addprocs(get_list_of_nodes())
 
 
@@ -76,7 +76,7 @@ end
 
 @everywhere begin
 
-using JLD,SIS,IM,PayloadGraph, Epidemics, TwoLevelGraphs
+using SIS,IM,PayloadGraph, Epidemics, TwoLevelGraphs
 
 TWO_LEVEL = 3
 REGULAR = 2
