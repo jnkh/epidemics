@@ -87,12 +87,12 @@ verbose = false
 ########## Set up model ###############
 
 #y_n = 0.1
-c_r = 0.18
+c_r = 0.8
 N = 400
-n_n = 20#y_n*N
+n_n = 100#y_n*N
 beta = 4.0/(c_r*n_n)
 alpha = (N*beta)/n_n
-k_range = [4,12]
+k_range = [12]
 
 ####only for two-level graphs####
 m = 20 #nodes per subnode
