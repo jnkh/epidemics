@@ -1,12 +1,13 @@
 module TwoLevelGraphs
 
-using LightGraphs, Distributions, StatsBase
+using LightGraphs, Distributions, StatsBase, PyPlot
 
 export TwoLevel, is_valid, get_num_infected, distribute_randomly, make_consistent, TwoLevelGraph, get_clusters, make_two_level_random_graph,
 birth_fn,death_fn,adjust_infecteds,get_stationary_distribution,p_j_plus,p_j_minus,
 compute_mean_y_local,compute_mean_y_squared_local,set_y, get_interpolations, get_stationary_distribution_nonlinear_theory,
 generate_transition_matrix, get_frac_infected,get_s_effective_two_level,get_splus_effective_two_level,
-get_s_birth_effective_two_level,get_s_death_effective_two_level
+get_s_birth_effective_two_level,get_s_death_effective_two_level, get_s_effective_two_level_interp,
+get_splus_effective_two_level_interp
 
 type TwoLevel
     a::Array{Number,1} #number communities with [idx] infected nodes
@@ -120,10 +121,11 @@ function get_y_external(t::TwoLevel,j::Int)
 end
 
 function get_y_internal(t::TwoLevel,j::Int,susceptible::Bool)
+  #-1 in the denominator because we can't count ourself in the average!
   if susceptible
-    y_int = j/t.m
+    y_int = j/(t.m - 1)
   else
-    y_int = (j-1)/t.m
+    y_int = (j-1)/(t.m - 1)
   end
   return y_int
 end
@@ -494,36 +496,63 @@ function compute_gamma(transition,arr)
 end
 
 function get_stationary_distribution_from_matrix(t::TwoLevel,transition_matrix)
+  success = true
+  eps = 1e-16
   equilibrium_distribution = nullspace(transition_matrix)
-  if size(equilibrium_distribution)[2] > 1
-    nsolutions = size(equilibrium_distribution)[2]
-    if nsolutions > 1
-     println("PROBLEM: $(size(equilibrium_distribution)[2]) SOLUTIONS");
-   end
+  nsolutions = size(equilibrium_distribution)[2]
+  for i = 1:nsolutions
+    equilibrium_distribution[:,i] *= t.n/sum(equilibrium_distribution[:,i])
+  end
+
+  # println(equilibrium_distribution)
+  equilibrium_distribution = clamp(equilibrium_distribution,eps,Inf)
+
+  if nsolutions > 1
+    println("$(size(equilibrium_distribution)[2]) solutions")
+    # println("PROBLEM: $(size(equilibrium_distribution)[2]) SOLUTIONS");
     mask = Array(Bool, nsolutions)
     for i = 1:nsolutions
       mask[i] = all(equilibrium_distribution[:,i] .>= 0) && any(equilibrium_distribution[:,i] .> 0.0)
     end
-    equilibrium_distribution = equilibrium_distribution[:,mask]
+    if sum(mask) != 1
+      success = false
+    else
+     equilibrium_distribution = equilibrium_distribution[:,mask]
+    end
+
+
+    # if !any(mask)
+    #  success = false 
+    # else
+    #  equilibrium_distribution = equilibrium_distribution[:,mask]
+    # end
 
   end
   equilibrium_distribution = equilibrium_distribution[:,1]
   equilibrium_distribution *= t.n/sum(equilibrium_distribution)
-  return equilibrium_distribution
+  return equilibrium_distribution,success
 end
 
 function binary_search_transition_matrix(f_out,y_target,x_initial=1.0)
     tol = 1e-6
-    max_iter = 1000
-    x_upper = guarantee_upper_bound(f_out,y_target,x_initial)
-    x_lower = guarantee_lower_bound(f_out,y_target,x_initial)
-    y_upper = f_out(x_upper) 
-    y_lower = f_out(x_lower) 
+    max_iter = 100
+    # x_upper = guarantee_upper_bound(f_out,y_target,x_initial)
+    # x_lower = guarantee_lower_bound(f_out,y_target,x_initial)
+
+    x_lower,x_upper = find_valid_initial_value(f_out,y_target)
+    y_upper = f_out(x_upper)[1]
+    y_lower = f_out(x_lower)[1]
+
     
     iter = 1
     while y_upper - y_lower > tol && iter < max_iter
         x_mid = (x_upper + x_lower)/2
-        y_mid = f_out(x_mid)
+        y_mid,success = f_out(x_mid)
+        if ! success
+          println("Unstable transition matrix solution, aborting.")
+          println("x_mid: $(x_mid), x_upper: $(x_lower), x_upper: $(x_upper)")
+          return x_mid
+        end
         if y_mid > y_target
             x_upper = x_mid
             y_upper = y_mid
@@ -536,24 +565,83 @@ function binary_search_transition_matrix(f_out,y_target,x_initial=1.0)
         iter +=1 
     end
     if iter >= max_iter
-        println("WARNING: no convergence in transition matrix method. Aborting binary search.")
+        println("WARNING: no convergence in transition matrix method. Aborting binary search with error $(y_upper - y_lower).")
     end
+    println("$(iter) binary search iterations.")
     return (x_upper+x_lower)/2
 end
 
 function guarantee_upper_bound(f_out,y_target,x_0 = 1.0)
-    while f_out(x_0) <= y_target
-      x_0 *= 1.5
-    end
-    x_0
+  # while ! f_out(x_0)[2]
+  #   println("initial x_0 too high for convergence")
+  #   x_0 /= 2
+  # end
+
+  while f_out(x_0)[1] <= y_target
+    x_0 *= 1.4
+  end
+  x_0
 end
 
 function guarantee_lower_bound(f_out,y_target,x_0 = 1.0)
-    while f_out(x_0) >= y_target
-        x_0 /= 1.5
-    end
-    x_0
+  # while ! f_out(x_0)[2]
+  #   println("initial x_0 too low for convergence")
+  #   x_0 *= 2
+  # end
+  while f_out(x_0)[1] >= y_target
+    x_0 /= 1.4
+  end
+  x_0
 end
+
+
+
+function find_valid_initial_value(f_out,y_desired)
+  x_range = logspace(-6,6,100)
+  y_range = zeros(x_range)
+  success_range = falses(x_range)
+
+
+  for (i,x) in enumerate(x_range)
+    y,success = f_out(x)
+    y_range[i] = y
+    success_range[i] = success && y >= 0
+  end
+
+  # figure(1)
+  # pygui(true)
+  # ion()
+  # loglog(x_range[success_range],y_range[success_range])
+  # loglog(x_range[~success_range],y_range[~success_range],"o")
+  # axhline(y_desired,linestyle="--",color="k")
+  lower = (y_range .< y_desired) & success_range
+  higher = (y_range .> y_desired) & success_range
+  if !any(lower) || !any(higher)
+    println("PROBLEM: No stable value for gamma found.")
+    return 0.5,1.5
+  end
+
+  x_low_ind = findlast(lower)
+  x_high_ind = findfirst(higher)
+
+  if x_high_ind <= x_low_ind
+    println("PROBLEM: unordered pair.")
+    return 0.5,1.5
+  end
+
+  assert(x_high_ind > x_low_ind)
+  x_lower = x_range[x_low_ind]
+  x_higher = x_range[x_high_ind]
+
+  println("Lower: $(x_lower) upper: $(x_higher). Mid: $((x_lower + x_higher)/2)")
+  println("f_out(x_mid): $(f_out((x_higher + x_lower)/2))")
+  println("success: $(sum(success_range))/$(length(success_range))")
+  return x_lower,x_higher 
+end
+
+
+
+
 
 function get_initial_equalizing_gamma(t,alpha,beta)
   transition = generate_transition_matrix(t,alpha,beta,1.0)
@@ -564,10 +652,10 @@ end
 
 function get_y_out(t,alpha,beta,gamma)
     transition = generate_transition_matrix(t,alpha,beta,gamma)
-    arr = get_stationary_distribution_from_matrix(t,transition)
+    arr,success = get_stationary_distribution_from_matrix(t,transition)
     gamma_out = compute_gamma(transition,arr)
     y_out = get_frac_infected(arr,t)
-    y_out
+    y_out,success
 end
 
 function get_stationary_distribution_nonlinear_theory(t,alpha,beta,y_desired)
@@ -577,10 +665,16 @@ function get_stationary_distribution_nonlinear_theory(t,alpha,beta,y_desired)
       return arr 
     end
     f_out(x) = get_y_out(t,alpha,beta,x)
-    gamma_init = get_initial_equalizing_gamma(t,alpha,beta)
+    # gamma_init = get_initial_equalizing_gamma(t,alpha,beta)
+    # gamma_init = find_valid_initial_value(f_out,y_desired)
+    gamma_init = 1.0
     gamma = binary_search_transition_matrix(f_out,y_desired,gamma_init)
     transition = generate_transition_matrix(t,alpha,beta,gamma)
-    arr = get_stationary_distribution_from_matrix(t,transition)
+    arr,success = get_stationary_distribution_from_matrix(t,transition)
+    # pygui(true)
+    # ion()
+    # figure(2)
+    # semilogy(arr)
     arr
 end
 
@@ -589,14 +683,14 @@ using Dierckx
 
 function get_interpolations(t::TwoLevel,alpha,beta)
     dy = 1.0/t.N
-    y_min = dy/25
+    y_min = dy/2
 
 
 
-    dy0 = clamp(y_min,1e-5,0.01)
-    # dy = clamp(y_min,0.001,0.1)
-    dy2 = clamp(y_min,0.01,0.1)
-    y_range = vcat( collect(y_min:y_min:4*dy),collect(5*dy:dy:0.1) , collect(0.1+dy:dy2:(1.0-dy)) )
+    # dy0 = clamp(y_min,1e-5,0.01)
+    # dy2 = clamp(y_min,0.01,0.1)
+    # y_range = vcat( collect(y_min:y_min:4*dy),collect(5*dy:dy:0.1) , collect(0.1+dy:dy2:(1.0-dy)) )
+    y_range = logspace(log10(y_min),log10(1-y_min),100)
     interpolation_order = 1
     y_real_range = zeros(y_range)
 
@@ -645,15 +739,29 @@ function get_interpolations(t::TwoLevel,alpha,beta)
     y_susc_interp = Spline1D(y_real_range,y_eff_range_susc,k=interpolation_order,bc="extrapolate")
     y_sq_inf_interp = Spline1D(y_real_range,y_sq_eff_range_inf,k=interpolation_order,bc="extrapolate")
     y_sq_susc_interp = Spline1D(y_real_range,y_sq_eff_range_susc,k=interpolation_order,bc="extrapolate")
-    #plot(y_real_range,y_eff_range_susc)
+
+    pygui(true)
+    ion()
+    figure(1)
+    plot(y_real_range,y_real_range,"-k")
+    plot(y_real_range,y_real_range.^2,"--k")
     # #plot(yy,y_susc_interp[yy])semilogx
     # println(y_range)
     # println(y_eff_range_susc)
     # println(y_sq_eff_range_susc)
-    # plot(y_real_range,y_eff_range_inf,"b")
-    # plot(y_real_range,y_eff_range_susc,"r")
-    # plot(y_real_range,y_sq_eff_range_inf,"--b")
-    # plot(y_real_range,y_sq_eff_range_susc,"--r")
+    plot(y_real_range,y_eff_range_inf,"b")
+    plot(y_real_range,y_eff_range_susc,"r")
+    plot(y_real_range,y_sq_eff_range_inf,"--b")
+    plot(y_real_range,y_sq_eff_range_susc,"--r")
+
+    figure(2)
+    y_birth_range = 1./y_real_range.*(y_eff_range_susc + alpha*y_sq_eff_range_susc)
+    y_death_range = 1./(1-y_real_range).*(1 - y_eff_range_inf)*(1 + beta)
+    plot(y_real_range,y_birth_range,"-r")
+    plot(y_real_range,y_death_range,"-b")
+    plot(y_real_range,y_birth_range-y_death_range,"-k")
+    plot(y_real_range,(y_real_range*alpha-beta),"--k")
+
     return y_inf_interp,y_sq_inf_interp,y_susc_interp,y_sq_susc_interp
 end
 
@@ -685,29 +793,36 @@ end
 
 
 function get_s_effective_two_level(y,y_susc,y_sq_susc,y_inf,y_sq_inf,alpha::Float64,beta::Float64)
-    return get_s_birth_effective_two_level(y,y_susc,y_sq_susc,alpha) - get_s_death_effective_two_level(y_inf,beta)
+    return get_s_birth_effective_two_level(y,y_susc,y_sq_susc,alpha) - get_s_death_effective_two_level(y,y_inf,beta)
 end
 
 function get_splus_effective_two_level(y,y_susc,y_sq_susc,y_inf,y_sq_inf,alpha::Float64,beta::Float64)
-    return get_s_birth_effective_two_level(y,y_susc,y_sq_susc,alpha) + get_s_death_effective_two_level(y_inf,beta)
+    return get_s_birth_effective_two_level(y,y_susc,y_sq_susc,alpha) + get_s_death_effective_two_level(y,y_inf,beta)
 end
 
 function get_s_birth_effective_two_level(y::Array,y_susc,y_sq_susc,alpha::Float64)
-    ret = (1-y)./y.*(y_susc + alpha .* y_sq_susc)
-    ret[y .== 0] = 0.0
+    ret = 1./y.*(y_susc + alpha .* y_sq_susc)
+    ret[y .== 0] = 1.0
     return ret
 end
 
 function get_s_birth_effective_two_level(y::Number,y_susc,y_sq_susc,alpha::Float64)
-    if y == 0 return 0.0 end
-    ret = (1-y)./y.*(y_susc + alpha .* y_sq_susc)
-#     ret[y .== 0] = 0
-    return ret
+    if y == 0 return 1.0 end
+    return 1./y.*(y_susc + alpha .* y_sq_susc)
 end
 
-function get_s_death_effective_two_level(y_inf,beta::Float64)
-    return (1 - y_inf).*(1 + beta)
+function get_s_death_effective_two_level(y::Array,y_inf,beta::Float64)
+  ret = 1.0 ./ (1-y).*(1 - y_inf).*(1 + beta)
+  ret[y .== 1.0] = (1 + beta)
+  return ret
 end
+
+function get_s_death_effective_two_level(y::Number,y_inf,beta::Float64)
+  if y == 1.0 return (1 + beta) end
+  return 1.0 ./ (1-y).*(1 - y_inf).*(1 + beta)
+end
+
+
     
 function get_splus_effective_two_level_interp(yy,alpha::Float64,beta::Float64,y_inf_interp,y_sq_inf_interp,y_susc_interp,y_sq_susc_interp)
     y_inf = evaluate(y_inf_interp,yy)
@@ -735,7 +850,7 @@ end
 
 function get_s_death_effective_two_level_interp(yy,beta::Float64,y_inf_interp)
     y_inf = evaluate(y_inf_interp,yy)
-    return get_s_death_effective_two_level(y_inf,beta)
+    return get_s_death_effective_two_level(yy,y_inf,beta)
 end
 
 
