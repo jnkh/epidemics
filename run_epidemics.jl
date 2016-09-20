@@ -6,13 +6,7 @@
 using SlurmNodes,JLD
 addprocs(get_list_of_nodes())
 
-
-@everywhere begin
-
-using SIS,IM,PayloadGraph, Epidemics, TwoLevelGraphs
-
-
-function save_epidemics_results(params)
+@everywhere function save_epidemics_results(params)
 	data_dir_path = "../data/"  #"/mnt/D/windows/MIT/classes/6/338/project/data/"
 
 	# @everywhere begin
@@ -78,6 +72,11 @@ function save_epidemics_results(params)
 	end
 
 end
+
+
+@everywhere begin
+
+using SIS,IM,PayloadGraph, Epidemics, TwoLevelGraphs
 
 
 
