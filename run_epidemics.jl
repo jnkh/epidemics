@@ -5,10 +5,9 @@
 # Pkg.add("JLD")
 using SlurmNodes,JLD
 addprocs(get_list_of_nodes())
+using EpidemicsSimulations
 
 @everywhere begin
-
-using EpidemicsSimulations
 
 TWO_LEVEL = 3
 REGULAR = 2
