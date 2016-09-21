@@ -3,10 +3,12 @@
 # Pkg.add("Cubature")
 # Pkg.add("Distributions")
 # Pkg.add("JLD")
+using TwoLevelGraphs
 using SlurmNodes,JLD
 addprocs(get_list_of_nodes())
-@everywhere using TwoLevelGraphs,SIS,IM,Epidemics
 using EpidemicsSimulations
+@everywhere using TwoLevelGraphs
+@everywhere using SIS,IM,Epidemics
 
 
 TWO_LEVEL = 3
