@@ -139,7 +139,12 @@ in_parallel = true
 
 		graph_information = GraphInformation(graph_fn,LightGraphs.Graph(),carry_by_node_information,graph_data)
 
-		params = Dict{AbstractString,Any}("N" => N, "alpha" => alpha, "beta" => beta, "fixation_threshold" => fixation_threshold,"in_parallel" => in_parallel, "num_trials" => num_trials, "num_trials_mixed" => num_trials_mixed,"graph_information"=>graph_information,"verbose"=>verbose,"graph_type"=>graph_type)
+		params = Dict{AbstractString,Any}("N" => N, "alpha" => alpha,
+		"beta" => beta, "fixation_threshold" => fixation_threshold,
+		"in_parallel" => in_parallel, "num_trials" => num_trials,
+		"num_trials_mixed" => num_trials_mixed,
+		"graph_information"=>graph_information,"verbose"=>verbose,
+		"graph_type"=>graph_type)
 
 
 	    println("k = $k, graph_model = $graph_model")
