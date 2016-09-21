@@ -55,7 +55,6 @@ for graph_model in graph_model_range
 
 	@eval @everywhere N = $N
 	@eval @everywhere k = $k
-	@eval @everywhere t = $t
 	graph_data = nothing
 	if graph_type == REGULAR
 	    graph_fn = () -> LightGraphs.random_regular_graph(N,k)
@@ -65,6 +64,7 @@ for graph_model in graph_model_range
 
 
 	    t = TwoLevel(N,m,l,r)
+		@eval @everywhere t = $t
 	    graph_data = TwoLevelGraph(LightGraphs.Graph(),t,get_clusters(t))
 	    graph_fn = () -> make_two_level_random_graph(t)[1]
 	end
