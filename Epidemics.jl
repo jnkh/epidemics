@@ -249,7 +249,7 @@ end
 function run_epidemics_parallel(num_runs::Int,run_epidemic_fn,parallel=true)
 
     mapfn = parallel ? pmap : map
-    runs::Array{EpidemicRun,1} = mapfn(@catch(run_epidemic_fn),1:num_runs)
+    runs::Array{EpidemicRun,1} = mapfn(x -> try run_epidemic_fn() catch ex  throw(ex) end ,1:num_runs)
 
     return runs
 end
