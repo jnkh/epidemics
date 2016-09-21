@@ -53,6 +53,9 @@ for k in k_range
 for graph_type in graph_type_range
 for graph_model in graph_model_range
 
+	@eval @everywhere N = $N
+	@eval @everywhere k = $k
+	@eval @everywhere t = $t
 	graph_data = nothing
 	if graph_type == REGULAR
 	    graph_fn = () -> LightGraphs.random_regular_graph(N,k)
@@ -76,7 +79,7 @@ for graph_model in graph_model_range
 	"graph_type"=>graph_type)
 
 
-    println("k = $k, graph_model = $graph_model")
+    println("k = $k, graph_model = $graph_model, graph_type = $(graph_type)")
     params["k"] = k
     params["graph_model"] = graph_model
     params["graph_type"] = graph_type
