@@ -41,14 +41,14 @@ function save_epidemics_results(params)
 		tic()
 		if graph_model
 		@time runs =
-	        run_epidemics_parallel(num_trials, () -> run_epidemic_graph(N,im_normal,graph_information,fixation_threshold),in_parallel);
+		run_epidemics_parallel(num_trials, () -> run_epidemic_graph(N,im_normal,graph_information,fixation_threshold=fixation_threshold),parallel=in_parallel);
 		else
 			if k < N-1
 				@time runs =
-				run_epidemics_parallel(num_trials_mixed, () -> run_epidemic_well_mixed(N,im_effective,fixation_threshold),in_parallel);
+				run_epidemics_parallel(num_trials_mixed, () -> run_epidemic_well_mixed(N,im_effective,fixation_threshold=fixation_threshold),parallel=in_parallel);
 			else
 				@time runs =
-				run_epidemics_parallel(num_trials_mixed, () -> run_epidemic_well_mixed(N,im_normal,fixation_threshold),in_parallel);
+				run_epidemics_parallel(num_trials_mixed, () -> run_epidemic_well_mixed(N,im_normal,fixation_threshold=fixation_threshold),parallel=in_parallel);
 			end
 		end
 		elapsed = toc()
