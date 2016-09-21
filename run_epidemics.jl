@@ -6,7 +6,7 @@
 using SlurmNodes,JLD
 addprocs(get_list_of_nodes())
 using EpidemicsSimulations
-@everywhere using SIS,IM,Epidemics, TwoLevelGraphs
+@everywhere using TwoLevelGraphs,SIS,IM,Epidemics
 
 
 TWO_LEVEL = 3
