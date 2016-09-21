@@ -249,7 +249,7 @@ end
 function run_epidemics_parallel(num_runs::Int,run_epidemic_fn,parallel=true)
 
     mapfn = parallel ? pmap : map
-    ret = mapfn( () -> run_epidemic_fn() ,1:num_runs)
+    ret = mapfn( _ -> run_epidemic_fn() ,1:num_runs)
     for val in ret
         if isa(val,RemoteException)
             throw(val)
