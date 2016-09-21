@@ -1,6 +1,6 @@
 module EpidemicsSimulations
 
-using SIS,IM,PayloadGraph, Epidemics, TwoLevelGraphs
+using IM,Epidemics
 
 export save_epidemics_results
 
