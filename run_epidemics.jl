@@ -5,7 +5,7 @@
 # Pkg.add("JLD")
 using SlurmNodes,JLD
 addprocs(get_list_of_nodes())
-using EpidemicsSimulations
+using EpidemicsSimulations,SIS,IM,PayloadGraph, Epidemics, TwoLevelGraphs
 
 
 TWO_LEVEL = 3
