@@ -1,6 +1,6 @@
 module EpidemicsSimulations
 
-using IM,Epidemics,SIS
+using IM,Epidemics,SIS,JLD
 
 export save_epidemics_results
 
