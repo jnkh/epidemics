@@ -1,6 +1,6 @@
 module TwoLevelGraphs
 
-using LightGraphs, Distributions, StatsBase, PyPlot
+using LightGraphs, Distributions, StatsBase#, PyPlot
 
 export TwoLevel, is_valid, get_num_infected, distribute_randomly, make_consistent, TwoLevelGraph, get_clusters, make_two_level_random_graph,
 birth_fn,death_fn,adjust_infecteds,get_stationary_distribution,p_j_plus,p_j_minus,
