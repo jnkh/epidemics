@@ -1015,10 +1015,10 @@ end
 function num_internal_edges(cluster::Array{Int,1},t::TwoLevel)
     num_desired = Int(length(cluster)*t.l/2)
     num_trials = Int(length(cluster)*(length(cluster) - 1)/2)
-    total_edges = rand(Binomial(num_trials,num_desired/num_trials))
     if num_trials == 0 || num_desired == 0
       return 0
     end
+    total_edges = rand(Binomial(num_trials,num_desired/num_trials))
     #total_edges = num_desired #size of cluster times number of internal edges per node
     return total_edges
 end
@@ -1026,10 +1026,10 @@ end
 function num_external_edges(clusters::Array{Array{Int,1},1},t::TwoLevel)
     num_desired = Int(t.N*t.r/2)
     num_trials = Int(t.N*(t.N-1)/2)
-    total_edges = rand(Binomial(num_trials,num_desired/num_trials))
     if num_trials == 0 || num_desired == 0
       return 0
     end
+    total_edges = rand(Binomial(num_trials,num_desired/num_trials))
     #total_edges = num_desired
     return total_edges
 end
