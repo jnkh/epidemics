@@ -1,6 +1,6 @@
 module TwoLevelGraphs
 
-using LightGraphs, Distributions, StatsBase#, PyPlot
+using LightGraphs, Distributions, StatsBase, PyPlot
 
 export TwoLevel, is_valid, get_num_infected, distribute_randomly, make_consistent, TwoLevelGraph, get_clusters, make_two_level_random_graph,
 birth_fn,death_fn,adjust_infecteds,get_stationary_distribution,p_j_plus,p_j_minus,
@@ -64,6 +64,13 @@ end
 function make_consistent(t::TwoLevel)
     t.n = Int(round(sum(t.a)))
     t.i = Int(round(get_num_infected(t)))
+    if t.m == 1
+      println("Only one node per subgraph, setting l = 0.")
+      t.l = 0
+    elseif t.m == t.N
+      println("Only one subgraph, setting r = 0.")
+      t.r = 0
+    end
 end
 
 function set_y(t::TwoLevel,y_desired::AbstractFloat)
@@ -116,6 +123,13 @@ end
 
 function get_y_external(t::TwoLevel,j::Int)
   y_ext = (t.i - j)/(t.N - t.m)
+  if t.N == t.m
+    y_ext = 0.0
+  end
+
+  # if j > t.i
+  #   y_ext = 0.0
+  # end
   return y_ext
 
 end
@@ -127,21 +141,41 @@ function get_y_internal(t::TwoLevel,j::Int,susceptible::Bool)
   else
     y_int = (j-1)/(t.m - 1)
   end
+  if t.m == 1
+    y_int = 0.0
+  end
+  # if j > t.i
+  #   y_int =  0.0
+  # end
   return y_int
 end
 
 function get_y_local(t::TwoLevel,j::Int,susceptible::Bool)
     y_ext = get_y_external(t,j)
     y_int = get_y_internal(t,j,susceptible)
-    y_local = (t.l*y_int + t.r*y_ext)/(t.r + t.l)
+    l = t.l
+    r = t.r
+    if t.m == 1
+      l = 0
+    elseif t.m == t.N
+      r = 0
+    end
+    y_local = (l*y_int + r*y_ext)/(r + l)
   return y_local
 end
 
 function get_y_squared_local(t::TwoLevel,j::Int,susceptible::Bool)
   y_ext = get_y_external(t,j)
   y_int = get_y_internal(t,j,susceptible)
-  y_squared_local = (t.r*y_ext*((t.r - 1)* y_ext + 1) +
-t.l*y_int*((t.l - 1)*y_int + 1) + 2*t.l* t.r* y_ext*y_int)/(t.r + t.l)^2
+  l = t.l
+  r = t.r
+  if t.m == 1
+    l = 0
+  elseif t.m == t.N
+    r = 0
+  end
+  y_squared_local = (r*y_ext*((r - 1)* y_ext + 1) +
+l*y_int*((l - 1)*y_int + 1) + 2*l* r* y_ext*y_int)/(r + l)^2
 
   return y_squared_local
 end
@@ -184,14 +218,31 @@ function compute_mean_y_local(t::TwoLevel,susceptible::Bool)
   y_local = 0.
   weight = 0.
 
+  weights = zeros(t.a)
+  y_locals = zeros(t.a)
+
   for j = 0:t.m
     curr_weight = get_number_weight(t,j,susceptible)
     weight += curr_weight
     y_local += curr_weight*get_y_local(t,j,susceptible)
 
+    weights[j+1] = curr_weight
+    y_locals[j+1] = get_y_local(t,j,susceptible)
+
   end
   if weight == 0.0 return 0.0 end
 
+
+  # if susceptible
+  #  pygui(true)
+  #  ion()
+  #  figure(1)
+  #  semilogy(t.a)
+  #  figure(2)
+  #  semilogy(weights)
+  #  figure(3)
+  #  plot(y_locals)
+  # end
   return y_local/weight
 end
 
@@ -323,15 +374,7 @@ function get_stationary_distribution_theory(N::Int,m::Int,l::Int,r::Int,y_desire
     return get_stationary_distribution_theory(t,alpha,beta)
 end
 
-function get_stationary_distribution_nonlinear_theory(N::Int,m::Int,l::Int,r::Int,y_desired::AbstractFloat,alpha::AbstractFloat,beta::AbstractFloat)
-    t = TwoLevel(N,m,l,r)
-    #distribute_randomly(t,n)
-    adjust_infecteds(t,y_desired)
-    t.i = y_desired 
-    # make_consistent(t)
-    # assert(is_valid(t))
-    return get_stationary_distribution_nonlinear_theory(t,alpha,beta,y_desired)
-end
+
 
 function get_stationary_distribution_theory(t::TwoLevel,alpha::AbstractFloat,beta::AbstractFloat)
   transition_matrix = generate_transition_matrix(t,alpha,beta)
@@ -403,6 +446,7 @@ function generate_transition_matrix(t::TwoLevel,alpha,beta,gamma)
             end
         end
     end
+    # println(transition_matrix)
     return transition_matrix
 end
 
@@ -497,10 +541,49 @@ function compute_gamma(transition,arr)
     return get_flow_down(transition,arr)/get_flow_up(transition,arr)
 end
 
+#This function produces a mask that is true only if the value of j in
+#question is actually "allowed". For example, if t.i = 10 (i.e. there
+#are 10 total infecteds), but j = 11, then that value of j is not allowed.
+#Similarly, if t.N - t.i = 10 and t.m - j = 11 (i.e. there are only
+# 10 susceptibles on the graph but a subgraph would have 11, this is
+# also not allowed)
+function get_sparse_j_mask(t)
+  eps = 1e-6
+  js = collect(0:t.m)
+  mask = falses(js)
+  for j in js
+    mask[j+1] = (j <= t.i+eps) && ((t.m - j) <= (t.N - t.i))
+  end
+  # if !any(mask[2:end])
+  #   mask[2] = true
+  # elseif !any(mask[1:end-1])
+  #   mask[end-1] = true
+  # end
+  return mask
+end
+
+
+
+function apply_finite_size_effects(t,equilibrium_distribution)
+  mask = get_sparse_j_mask(t)
+  # if sum(mask) < length(mask)
+    # println("reducing solution space from $(length(mask)) to $(sum(mask))")
+    # println("infecteds: $(t.i), susceptibles: $(t.N - t.i)")
+    # println("j: $j t.i: $(t.i), $(t.m -j)")
+  # end
+  equilibrium_distribution[~mask] = 0.0
+  return equilibrium_distribution 
+end
+
+
+
+
 function get_stationary_distribution_from_matrix(t::TwoLevel,transition_matrix)
   success = true
   eps = 1e-16
   equilibrium_distribution = nullspace(transition_matrix)
+  # equilibrium_distribution = transition_matrix \ zeros(size(transition_matrix)[1])
+  # equilibrium_distribution = reshape(equilibrium_distribution,(length(equilibrium_distribution),1))
   nsolutions = size(equilibrium_distribution)[2]
   for i = 1:nsolutions
     equilibrium_distribution[:,i] *= t.n/sum(equilibrium_distribution[:,i])
@@ -569,7 +652,7 @@ function binary_search_transition_matrix(f_out,y_target,x_initial=1.0)
     if iter >= max_iter
         println("WARNING: no convergence in transition matrix method. Aborting binary search with error $(y_upper - y_lower).")
     end
-    println("$(iter) binary search iterations.")
+    # println("$(iter) binary search iterations.")
     return (x_upper+x_lower)/2
 end
 
@@ -610,9 +693,9 @@ function find_valid_initial_value(f_out,y_desired)
     success_range[i] = success && y >= 0
   end
 
-  # figure(1)
   # pygui(true)
   # ion()
+  # figure(1)
   # loglog(x_range[success_range],y_range[success_range])
   # loglog(x_range[~success_range],y_range[~success_range],"o")
   # axhline(y_desired,linestyle="--",color="k")
@@ -635,9 +718,9 @@ function find_valid_initial_value(f_out,y_desired)
   x_lower = x_range[x_low_ind]
   x_higher = x_range[x_high_ind]
 
-  println("Lower: $(x_lower) upper: $(x_higher). Mid: $((x_lower + x_higher)/2)")
-  println("f_out(x_mid): $(f_out((x_higher + x_lower)/2))")
-  println("success: $(sum(success_range))/$(length(success_range))")
+  # println("Lower: $(x_lower) upper: $(x_higher). Mid: $((x_lower + x_higher)/2)")
+  # println("f_out(x_mid): $(f_out((x_higher + x_lower)/2))")
+  # println("success: $(sum(success_range))/$(length(success_range))")
   return x_lower,x_higher 
 end
 
@@ -673,19 +756,37 @@ function get_stationary_distribution_nonlinear_theory(t,alpha,beta,y_desired)
     gamma = binary_search_transition_matrix(f_out,y_desired,gamma_init)
     transition = generate_transition_matrix(t,alpha,beta,gamma)
     arr,success = get_stationary_distribution_from_matrix(t,transition)
+    arr = apply_finite_size_effects(t,arr)
     # pygui(true)
     # ion()
     # figure(2)
     # semilogy(arr)
+    # for j in 0:t.m
+    #   if j > t.i
+    #     arr[j] = 0.0
+    #   end
+    # end
     arr
 end
+
+function get_stationary_distribution_nonlinear_theory(N::Int,m::Int,l::Int,r::Int,y_desired::AbstractFloat,alpha::AbstractFloat,beta::AbstractFloat)
+    t = TwoLevel(N,m,l,r)
+    #distribute_randomly(t,n)
+    adjust_infecteds(t,y_desired)
+    t.i = y_desired*N
+    # make_consistent(t)
+    # assert(is_valid(t))
+    return get_stationary_distribution_nonlinear_theory(t,alpha,beta,y_desired)
+end
+
+
 
 ##################### Develop Effective y and y squred ####################
 using Dierckx
 
 function get_interpolations(t::TwoLevel,alpha,beta)
     dy = 1.0/t.N
-    y_min = dy/2
+    y_min = dy#/2
 
 
 
@@ -701,7 +802,6 @@ function get_interpolations(t::TwoLevel,alpha,beta)
 
     y_eff_range_susc = zeros(y_range)
     y_sq_eff_range_susc = zeros(y_range)
-
 
     for (i,y_desired) in enumerate(y_range)
       # set_y(t,y_desired)
@@ -742,27 +842,27 @@ function get_interpolations(t::TwoLevel,alpha,beta)
     y_sq_inf_interp = Spline1D(y_real_range,y_sq_eff_range_inf,k=interpolation_order,bc="extrapolate")
     y_sq_susc_interp = Spline1D(y_real_range,y_sq_eff_range_susc,k=interpolation_order,bc="extrapolate")
 
-    # pygui(true)
-    # ion()
-    # figure(1)
-    # plot(y_real_range,y_real_range,"-k")
-    # plot(y_real_range,y_real_range.^2,"--k")
-    # # #plot(yy,y_susc_interp[yy])semilogx
-    # # println(y_range)
-    # # println(y_eff_range_susc)
-    # # println(y_sq_eff_range_susc)
-    # plot(y_real_range,y_eff_range_inf,"b")
-    # plot(y_real_range,y_eff_range_susc,"r")
-    # plot(y_real_range,y_sq_eff_range_inf,"--b")
-    # plot(y_real_range,y_sq_eff_range_susc,"--r")
+    pygui(true)
+    ion()
+    figure(1)
+    plot(y_real_range,y_real_range,"-k")
+    plot(y_real_range,y_real_range.^2,"--k")
+    # #plot(yy,y_susc_interp[yy])semilogx
+    # println(y_range)
+    # println(y_eff_range_susc)
+    # println(y_sq_eff_range_susc)
+    plot(y_real_range,y_eff_range_inf,"b")
+    plot(y_real_range,y_eff_range_susc,"r")
+    plot(y_real_range,y_sq_eff_range_inf,"--b")
+    plot(y_real_range,y_sq_eff_range_susc,"--r")
 
-    # figure(2)
-    # y_birth_range = 1./y_real_range.*(y_eff_range_susc + alpha*y_sq_eff_range_susc)
-    # y_death_range = 1./(1-y_real_range).*(1 - y_eff_range_inf)*(1 + beta)
-    # plot(y_real_range,y_birth_range,"-r")
-    # plot(y_real_range,y_death_range,"-b")
-    # plot(y_real_range,y_birth_range-y_death_range,"-k")
-    # plot(y_real_range,(y_real_range*alpha-beta),"--k")
+    figure(2)
+    y_birth_range = 1./y_real_range.*(y_eff_range_susc + alpha*y_sq_eff_range_susc)
+    y_death_range = 1./(1-y_real_range).*(1 - y_eff_range_inf)*(1 + beta)
+    plot(y_real_range,y_birth_range,"-r")
+    plot(y_real_range,y_death_range,"-b")
+    plot(y_real_range,y_birth_range-y_death_range,"-k")
+    plot(y_real_range,(y_real_range*alpha-beta),"--k")
 
     return y_inf_interp,y_sq_inf_interp,y_susc_interp,y_sq_susc_interp
 end
@@ -916,6 +1016,9 @@ function num_internal_edges(cluster::Array{Int,1},t::TwoLevel)
     num_desired = Int(length(cluster)*t.l/2)
     num_trials = Int(length(cluster)*(length(cluster) - 1)/2)
     total_edges = rand(Binomial(num_trials,num_desired/num_trials))
+    if num_trials == 0 || num_desired == 0
+      return 0
+    end
     #total_edges = num_desired #size of cluster times number of internal edges per node
     return total_edges
 end
@@ -924,6 +1027,9 @@ function num_external_edges(clusters::Array{Array{Int,1},1},t::TwoLevel)
     num_desired = Int(t.N*t.r/2)
     num_trials = Int(t.N*(t.N-1)/2)
     total_edges = rand(Binomial(num_trials,num_desired/num_trials))
+    if num_trials == 0 || num_desired == 0
+      return 0
+    end
     #total_edges = num_desired
     return total_edges
 end
