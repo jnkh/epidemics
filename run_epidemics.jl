@@ -20,18 +20,18 @@ verbose = false
 ########## Set up model ###############
 
 #y_n = 0.1
-c_r = 0.8
+c_r = 0.2
 N = 400
-n_n = 100#y_n*N
+n_n = 200#y_n*N
 beta = 4.0/(c_r*n_n)
 alpha = (N*beta)/n_n
-k_range = [12]
+k_range = [20]
 
 ####only for two-level graphs####
-m = 20 #nodes per subnode
+m = 40 #nodes per subnode
 n = Int(N/m)
-l = Int(m/2)#internal
-r = 2# Int(m/2)#2 #external
+l = 2#Int(m/2)#internal
+r = 18# Int(m/2)#2 #external
 #################################
 
 
