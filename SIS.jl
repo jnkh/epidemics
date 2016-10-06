@@ -45,6 +45,10 @@ function get_neighbor_fraction_of_type{P}(g::Graph{P},v::Int,thistype::P)
     return count/length(neighbors)
 end
 
+function get_degree{P}(g::Graph{P},v::Int)
+    return length(PayloadGraph.neighbors(g,v))
+end
+
 function get_fraction_of_type{P}(g::Graph{P},thistype::P)
     count = 0
     vs = vertices(g)
@@ -92,13 +96,14 @@ end
 
 function update_node{P}(g::Graph{P},v::Int,im::InfectionModel,new_types::Union{Array{P,1},SharedArray{P,1}})
     if get_payload(g,v) == INFECTED
-        k = get_average_degree(g) 
+        # k = get_average_degree(g) 
         #infect neighbors
         neighbors::Array{Int,1} = PayloadGraph.neighbors(g,v)
         p = 0.0
         for w in neighbors
             if get_payload(g,w) == SUSCEPTIBLE
                 x = get_neighbor_fraction_of_type(g,w,INFECTED)
+                k = get_degree(g,w)
                 p::Float64 = p_birth(im,x)/k
                 if rand() < p
                     new_types[w] = INFECTED

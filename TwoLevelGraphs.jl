@@ -7,7 +7,7 @@ birth_fn,death_fn,adjust_infecteds,get_stationary_distribution,p_j_plus,p_j_minu
 compute_mean_y_local,compute_mean_y_squared_local,set_y, get_interpolations, get_stationary_distribution_nonlinear_theory,
 generate_transition_matrix, get_frac_infected,get_s_effective_two_level,get_splus_effective_two_level,
 get_s_birth_effective_two_level,get_s_death_effective_two_level, get_s_effective_two_level_interp,
-get_splus_effective_two_level_interp
+get_splus_effective_two_level_interp, generate_regular_two_level_graph,same_cluster
 
 type TwoLevel
     a::Array{Number,1} #number communities with [idx] infected nodes
@@ -1100,6 +1100,200 @@ function sample_in_edges(clusters::Array{Array{Int,1},1},node::Int,num::Int)
     to_sample = get_in_nodes(clusters,node)
     return sample(to_sample,num,replace=false)
 end
+
+
+##############Create Regular Two-Level Graph############
+
+function generate_single_regular_two_level_graph(t::TwoLevel)
+    sub_edges = get_regular_edges_for_subgraph(t)
+    super_edges = get_regular_edges_for_supergraph(t)
+    all_edges = vcat(sub_edges,super_edges)
+
+    assert(length(sub_edges) == t.N*t.l/2)
+    assert(length(super_edges) == t.N*t.r/2)
+    clusters = get_clusters(t)
+
+    nodes = vcat(clusters...)
+    N = length(nodes)
+    G = LightGraphs.Graph(N)
+    for e in all_edges
+        add_edge!(G,e)
+    end
+    return G
+end
+
+function generate_regular_two_level_graph(t::TwoLevel)
+    max_resample = 100
+    resample = 0
+    while true
+        G = generate_single_regular_two_level_graph(t)
+        if (length(collect(LightGraphs.edges(G))) == t.N*(t.l+t.r)/2)
+            if resample > 0
+                println("resampled graph $resample times.")
+            end
+            return G
+        end
+        resample += 1
+    end
+end
+
+function remove_duplicate_superedges(edges,clusters)
+    duplicates = get_duplicates(edges)
+    println("removing $(length(duplicates)) duplicate edges")
+    unique_edges = unique(edges)
+    for dup_edge in duplicates
+        unique_edges = rewire_edges(unique_edges,dup_edge,clusters)
+    end
+    assert(length(get_duplicates(unique_edges))==0)
+    return unique_edges
+end
+
+function rewire_edges(unique_edges,dup_edge,clusters)
+    edge = dup_edge
+    rand_idx = 0
+    while true
+        rand_idx = rand(1:length(unique_edges))
+        edge = unique_edges[rand_idx]
+        if valid_swap(dup_edge,edge,unique_edges,clusters)
+            break
+        end
+    end
+    e1,e2 = swap_edges(edge,dup_edge)
+    unique_edges[rand_idx] = e1
+    push!(unique_edges,e2)
+    return unique_edges
+end
+
+function swap_edges(e1,e2)
+    e3 = Pair(e1[1],e2[2])
+    e4 = Pair(e2[1],e1[2])
+    return e3,e4
+end
+
+
+function valid_swap(e1,e2,unique_edges,clusters)
+    if e1[1] == e2[1] || e1[2] == e2[2] return false end
+    if e1[1] == e2[2] || e1[2] == e2[1] return false end
+    if same_cluster(e1[1],e2[2],clusters) || same_cluster(e1[2],e2[1],clusters) return false end
+    e3,e4 = swap_edges(e1,e2)
+    if e3 in unique_edges || e4 in unique_edges return false end
+    return true
+end
+
+
+function get_duplicates(arr)
+    duplicates = []
+    arr = sort(arr)
+    for i in 1:length(arr)-1
+        curr = arr[i]
+        next = arr[i+1]
+        if next == curr
+            push!(duplicates,next)
+        end
+    end
+    duplicates
+end   
+
+function get_regular_edges_for_subgraph(t)
+    clusters = get_clusters(t)
+    edges = []
+    for cluster in clusters
+        edges = vcat(edges,get_regular_edges_for_subgraph(cluster,t.l))
+    end
+    return edges
+end
+
+function get_regular_edges_for_subgraph(cluster,l)
+    N = length(cluster)
+    temp_edges = get_regular_edges(N,l)
+    return remap_edges(temp_edges,cluster)
+end
+
+function remap_edges(edges,cluster)
+    new_edges = copy(edges)
+    for (i,e) in enumerate(edges)
+        new_edges[i] = Pair(cluster[e[1]],cluster[e[2]])
+    end
+    return new_edges
+end
+
+#There are N total nodes, divided onto n communities. Each community as m = N/m nodes. Each node has exactly r edges.
+#Thus each community has exactly m*r edges incoming. 
+function get_regular_super_edges_for_supergraph(t::TwoLevel)
+    N = t.N
+    m = t.m
+    n = t.n
+    r = t.r
+    assert(n*m == N)
+    max_increment = min(n-1,m*r)
+    tot_neighbors = m*r
+    curr_neighbors = 0
+    edges = []
+    while true
+        new_curr_neighbors = curr_neighbors + max_increment
+        if new_curr_neighbors > tot_neighbors
+            break
+        end
+        edges = vcat(edges,get_regular_edges(n,max_increment))
+        curr_neighbors = new_curr_neighbors
+    end
+    if curr_neighbors < tot_neighbors
+        edges = vcat(edges,get_regular_edges(n,tot_neighbors - curr_neighbors))
+    end
+    assert(length(edges) == N*r/2)
+    return edges
+end
+
+function get_regular_edges_for_supergraph(t::TwoLevel)
+    super_edges = get_regular_super_edges_for_supergraph(t)
+    clusters = get_clusters(t)
+    edges = distribute_super_edges(super_edges,clusters,t.r)
+end
+
+function get_regular_edges(N,k)
+    temp_graph = LightGraphs.random_regular_graph(N,k)
+    temp_edges = collect(LightGraphs.edges(temp_graph))
+    return temp_edges
+end
+
+
+#each cluster should have exactly m*r edges incoming. The idea is to distribute the subnodes randomly among these edges
+#duplicate the indeces of the subnodes r times. shuffle them. Then replace each cluster index with the next available subnode from that cluster
+function distribute_super_edges(super_edges,clusters,r)
+    super_edges = shuffle(super_edges)
+    new_edges = copy(super_edges)
+    for (clust_idx,cluster) in enumerate(clusters)
+        cluster_indeces = shuffle(repmat(cluster,r))
+        for (edge_idx,edge) in enumerate(super_edges)
+            if edge[1] == clust_idx
+                new_edge = Pair(pop!(cluster_indeces),new_edges[edge_idx][2])
+                new_edges[edge_idx] = new_edge
+            elseif edge[2] == clust_idx
+                new_edge = Pair(new_edges[edge_idx][1],pop!(cluster_indeces))
+                new_edges[edge_idx] = new_edge
+            end
+        end
+        assert(length(cluster_indeces) == 0)
+    end
+    new_edges = remove_duplicate_superedges(new_edges,clusters)
+    return new_edges
+end
+        
+        
+function same_cluster(n1,n2,clusters)
+    for cluster in clusters
+        if n1 in cluster
+            if n2 in cluster
+                return true
+            else
+                return false
+            end
+        end
+    end
+end 
+
+
+
 
 
 end

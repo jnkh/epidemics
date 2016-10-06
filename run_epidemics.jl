@@ -66,7 +66,8 @@ for graph_model in graph_model_range
 	    t = TwoLevel(N,m,l,r)
 		@eval @everywhere t = $t
 	    graph_data = TwoLevelGraph(LightGraphs.Graph(),t,get_clusters(t))
-	    graph_fn = () -> make_two_level_random_graph(t)[1]
+	    # graph_fn = () -> make_two_level_random_graph(t)[1]
+	    graph_fn = () -> generate_regular_two_level_graph(t)
 	end
 
 	graph_information = GraphInformation(graph_fn,LightGraphs.Graph(),carry_by_node_information,graph_data)
