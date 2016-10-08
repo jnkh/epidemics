@@ -15,6 +15,7 @@ function save_epidemics_results(params)
 	verbose = params["verbose"]
 	fixation_threshold = params["fixation_threshold"]
 	in_parallel = params["in_parallel"]
+	compact = params["compact"]
 	num_trials = params["num_trials"]
 	num_trials_mixed = params["num_trials_mixed"]
 	graph_model = params["graph_model"]
@@ -52,16 +53,20 @@ function save_epidemics_results(params)
 			end
 		end
 		elapsed = toc()
+		if compact
+			runs = CompactEpidemicRuns(runs,N)
+		end
 		println("done after $elapsed seconds.")
 
 
 		structure = graph_model ? "graph" : "mixed"
-		filename = "epidemics_$(structure)_$(now()).jld"
+		compactness = compact ? "_compact" : ""
+		filename = "epidemics_$(structure)$(compactness)_$(now()).jld"
 		save(data_dir_path * filename,"params",params,"runs",runs)
 
 
-		timing_filename = "timing_$(structure)_$(now()).jld"
-		save(data_dir_path * timing_filename,"params",params,"elapsed",elapsed)
+		# timing_filename = "timing_$(structure)_$(now()).jld"
+		# save(data_dir_path * timing_filename,"params",params,"elapsed",elapsed)
 
 		timing_log_filename = "timing_log.out"
 		f = open(timing_log_filename,"a")

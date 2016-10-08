@@ -1,8 +1,9 @@
-push!(LOAD_PATH, pwd())
+module Plotting
+
 using SIS,IM,PayloadGraph,PyPlot, Epidemics,JLD, TwoLevelGraphs,Dierckx
 import LightGraphs
 
-#export plot_schematic,plot_schematics
+export plot_schematic,plot_schematics,plot_w,plot_two_level_schematic
 
 function get_c_r(N,alpha,beta)
     return 4*alpha/(beta^2*N)
@@ -172,81 +173,6 @@ function plot_w(sizes,N,alpha,beta,s_eff_fn::Function, word = "two level")
 
 end
 
-# s(x) = get_s_effective_two_level_interp(x,alpha,beta,y_inf_interp,y_sq_inf_interp,y_susc_interp,y_sq_susc_interp)
-# splus(x) = get_splus_effective_two_level_interp(x,alpha,beta,y_inf_interp,y_sq_inf_interp,y_susc_interp,y_sq_susc_interp)
-
-# s1(x) = alpha*x - beta
-# splus1(x) = 2 + beta + alpha*x
-
-
-# s2(x) = p_birth(im_effective,x) - p_death(im_effective,x)
-# splus2(x) =  p_birth(im_effective,x) + p_death(im_effective,x)
-
-# max_evals = 1000
-
-# function P_fix(s::Function,splus::Function,N::Int,x0::Real)
-#     eps = 1e-5
-#     a(x) = s(x)
-#     b(x) = 1/N*(splus(x))
-    
-#     psi(x,a,b) = exp( -2* quadgk(y -> a(y)/b(y),eps,x,maxevals=max_evals)[1])
-    
-#     return quadgk(y -> psi(y,a,b),eps,x0,maxevals=max_evals)[1]/quadgk(y -> psi(y,a,b),eps,1,maxevals=max_evals)[1]
-# end
-# import IM.P_reach
-# function P_reach(s::Function,splus::Function,N::Int,x0::Real,x1::Real)
-#     eps = 1e-5
-#     a(x) = s(x)
-#     b(x) = 1/N*(splus(x))
-    
-#     psi(x,a,b) = exp( -2* quadgk(y -> a(y)/b(y),eps,x,maxevals=max_evals)[1])
-    
-#     return quadgk(y -> psi(y,a,b),eps,x0,maxevals=max_evals)[1]/quadgk(y -> psi(y,a,b),eps,x1,maxevals=max_evals)[1]
-# end
-
-# function P_reach(s::Function,splus::Function,N::Int,x0::Real,x1::Array)
-#     return [P_reach(s,splus,N,x0,xind) for xind in x1]
-# end
-
-# function P_reach(im::InfectionModel,N::Int,x0::Real,x1::Real)
-#     eps = 1e-6
-#     s(x) = (1-x)*(p_birth(im,x) - p_death(im,x))
-#     a(x) = x*s(x)
-#     b(x) = 1/N*(1-x)*x*(p_birth(im,x) + p_death(im,x))
-    
-#     psi(x,a,b) = exp( -2* quadgk(y -> a(y)/b(y),0,x,maxevals=max_evals)[1])
-    
-#     return quadgk(y -> psi(y,a,b),eps,x0,maxevals=max_evals)[1]/quadgk(y -> psi(y,a,b),eps,x1,maxevals=max_evals)[1]
-# end
-
-# function P_reach(im::InfectionModel,N::Int,x0::Real,x1::Array)
-#     return [P_reach(im,N,x0,xind) for xind in x1]
-# end
-
-# using Dierckx
-# function P_reach_fast(s::Function,splus::Function,N::Int,x0::Real,x1::Real)
-#     eps = 1e-5
-#     a(x) = s(x)
-#     b(x) = 1/N*(splus(x))
-    
-#     psi(x,a,b) = exp( -2* quadgk(y -> a(y)/b(y),eps,x,maxevals=max_evals)[1])
-#     xx = logspace(log10(1/N)-1,0,1000)
-#     yy = zeros(xx)
-#     for i in 1:length(xx)
-#         yy[i] = psi(xx[i],a,b)
-#     end
-#     psi_spline = Spline1D(xx,yy,k=1,bc="extrapolate")
-#     psi_interp(x) = evaluate(psi_spline,x)
-    
-#     return quadgk(y -> psi_interp(y),eps,x0,maxevals=max_evals)[1]/quadgk(y -> psi_interp(y),eps,x1,maxevals=max_evals)[1]
-# end
-
-# function P_reach_fast(s::Function,splus::Function,N::Int,x0::Real,x1::Array)
-#     return [P_reach_fast(s,splus,N,x0,xind) for xind in x1]
-# end
-
-
-
 function plot_two_level_schematic(t,alpha,beta,N)
     y_inf_interp,y_sq_inf_interp,y_susc_interp,y_sq_susc_interp = get_interpolations(t,alpha,beta)
     println("computed interpolations")
@@ -261,34 +187,4 @@ function plot_two_level_schematic(t,alpha,beta,N)
     return xx,pp,s
 end
 
-k = 12
-#y_n = 0.1
-c_r = 0.2 #0.18
-N = 400#100000#400
-n_n = 100#10#80#y_n*N
-beta = 4.0/(c_r*n_n)
-alpha = (N*beta)/n_n
-println("N=$N, alpha = $alpha, beta = $beta")
-
-#Generate a random startin vector
-m = 20#20 number of nodes in a community
-n = Int(N/m) 
-l = 11#Int(m/2)#10#internal
-r = 1#2#Int(m/2)#2 #external
-
-im = InfectionModel(x -> 1 + alpha*x , x -> 1 + beta);
-imk = InfectionModel(x -> 1 + beta + get_s_eff(x,alpha,beta,k) , x -> 1 + beta);
-
-
-y_desired = 0.003
-
-t = TwoLevel(N,m,l,r)
-#distribute_randomly(t,n)
-adjust_infecteds(t,y_desired)
-make_consistent(t)
-assert(is_valid(t))
-println(t.i/t.N)
-ioff()
-pygui(false)
-xx,yy,s_eff_two_level = plot_two_level_schematic(t,alpha,beta,N)
-show()
+end

@@ -48,6 +48,7 @@ carry_by_node_information = false
 graph_model_range = [true]
 
 in_parallel = true
+compact = true
 
 for k in k_range
 for graph_type in graph_type_range
@@ -77,7 +78,7 @@ for graph_model in graph_model_range
 	"in_parallel" => in_parallel, "num_trials" => num_trials,
 	"num_trials_mixed" => num_trials_mixed,
 	"graph_information"=>graph_information,"verbose"=>verbose,
-	"graph_type"=>graph_type)
+	"graph_type"=>graph_type,"compact"=>compact)
 
 
     println("k = $k, graph_model = $graph_model, graph_type = $(graph_type)")
