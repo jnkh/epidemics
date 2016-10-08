@@ -28,10 +28,10 @@ alpha = (N*beta)/n_n
 k_range = [20]
 
 ####only for two-level graphs####
-m = 40 #nodes per subnode
+m = 20 #nodes per subnode
 n = Int(N/m)
-l = 2#Int(m/2)#internal
-r = 18# Int(m/2)#2 #external
+l = 19#Int(m/2)#internal
+r = 1# Int(m/2)#2 #external
 #################################
 
 
