@@ -1,13 +1,16 @@
 module TwoLevelGraphs
 
-using LightGraphs, Distributions, StatsBase#, PyPlot
+using LightGraphs, Distributions, StatsBase, PyPlot, IM
 
-export TwoLevel, is_valid, get_num_infected, distribute_randomly, make_consistent, TwoLevelGraph, get_clusters, make_two_level_random_graph,
-birth_fn,death_fn,adjust_infecteds,get_stationary_distribution,p_j_plus,p_j_minus,
-compute_mean_y_local,compute_mean_y_squared_local,set_y, get_interpolations, get_stationary_distribution_nonlinear_theory,
-generate_transition_matrix, get_frac_infected,get_s_effective_two_level,get_splus_effective_two_level,
-get_s_birth_effective_two_level,get_s_death_effective_two_level, get_s_effective_two_level_interp,
-get_splus_effective_two_level_interp, generate_regular_two_level_graph,same_cluster
+export TwoLevel, is_valid, get_num_infected, distribute_randomly, make_consistent,
+TwoLevelGraph, get_clusters, make_two_level_random_graph,birth_fn,death_fn,
+adjust_infecteds,get_stationary_distribution,p_j_plus,p_j_minus,
+compute_mean_y_local,compute_mean_y_squared_local,set_y, get_interpolations,
+get_stationary_distribution_nonlinear_theory,generate_transition_matrix,
+get_frac_infected,get_s_effective_two_level,get_splus_effective_two_level,
+get_s_birth_effective_two_level,get_s_death_effective_two_level,
+get_s_effective_two_level_interp,get_splus_effective_two_level_interp,
+generate_regular_two_level_graph,same_cluster,get_p_reach_theory
 
 type TwoLevel
     a::Array{Number,1} #number communities with [idx] infected nodes
@@ -793,7 +796,7 @@ function get_interpolations(t::TwoLevel,alpha,beta)
     # dy0 = clamp(y_min,1e-5,0.01)
     # dy2 = clamp(y_min,0.01,0.1)
     # y_range = vcat( collect(y_min:y_min:4*dy),collect(5*dy:dy:0.1) , collect(0.1+dy:dy2:(1.0-dy)) )
-    y_range = logspace(log10(y_min),log10(1-y_min),100)
+    y_range = logspace(log10(y_min),log10(1-y_min),500)
     interpolation_order = 1
     y_real_range = zeros(y_range)
 
@@ -955,6 +958,17 @@ function get_s_death_effective_two_level_interp(yy,beta::Float64,y_inf_interp)
     return get_s_death_effective_two_level(yy,y_inf,beta)
 end
 
+
+function get_p_reach_theory(t,alpha,beta,N)
+    y_inf_interp,y_sq_inf_interp,y_susc_interp,y_sq_susc_interp = get_interpolations(t,alpha,beta)
+
+    s(x) = get_s_effective_two_level_interp(x,alpha,beta,y_inf_interp,y_sq_inf_interp,y_susc_interp,y_sq_susc_interp)
+    splus(x) = get_splus_effective_two_level_interp(x,alpha,beta,y_inf_interp,y_sq_inf_interp,y_susc_interp,y_sq_susc_interp)
+
+    xx = logspace(log10(1/N),0,100) 
+    pp = P_reach_fast(s,splus,N,1/N,xx)
+    return xx,pp,s
+end
 
 
 ################    GRAPH CONSTRUCTION   ####################

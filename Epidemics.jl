@@ -2,8 +2,11 @@ module Epidemics
 
 using SIS,Distributions, IM, LightGraphs,PayloadGraph, Dierckx
 
-export run_epidemic_graph,run_epidemic_well_mixed,run_epidemics_parallel,run_epidemics,s,get_s_eff,normed_distribution, P_w_th,get_y_eff, EpidemicRun, get_sizes, get_num_fixed,GraphInformation,
-get_dt_two_level,run_epidemic_well_mixed_two_level, update_n_two_level, get_p_reach
+export run_epidemic_graph,run_epidemic_well_mixed,run_epidemics_parallel,
+run_epidemics,s,get_s_eff,normed_distribution, P_w_th,get_y_eff,
+EpidemicRun, get_sizes, get_num_fixed,GraphInformation,
+get_dt_two_level,run_epidemic_well_mixed_two_level, update_n_two_level,
+get_p_reach, CompactEpidemicRuns
 
 function graph_is_connected(g::LightGraphs.Graph)
     parents = LightGraphs.dijkstra_shortest_paths(g,1).parents[2:end]
@@ -42,7 +45,17 @@ type EpidemicRun
     graph_information::GraphInformation
 end
 
+type CompactEpidemicRuns
+    sizes::Array{Float64,1}
+    y_reach::Array{Float64,1}
+    p_reach::Array{Float64,1}
+end
 
+function CompactEpidemicRuns(runs::Array{EpidemicRun,1},N::Int)
+    sizes = get_sizes(runs)
+    y_reach,p_reach = get_p_reach(runs,N)
+    return CompactEpidemicRuns(sizes,y_reach,p_reach)
+end
 
 function EpidemicRun(infecteds_vs_time::Array{Float64,1},size::Float64,fixed::Bool)
     return EpidemicRun(infecteds_vs_time,size,fixed,[],GraphInformation())
