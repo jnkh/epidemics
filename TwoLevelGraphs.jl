@@ -1153,7 +1153,7 @@ end
 
 function remove_duplicate_superedges(edges,clusters)
     duplicates = get_duplicates(edges)
-    println("removing $(length(duplicates)) duplicate edges")
+    # println("removing $(length(duplicates)) duplicate edges")
     unique_edges = unique(edges)
     for dup_edge in duplicates
         unique_edges = rewire_edges(unique_edges,dup_edge,clusters)
