@@ -126,7 +126,7 @@ function run_epidemic_graph(N::Int,im::InfectionModel,graph_information::GraphIn
         push!(infecteds_by_nodes,copy(get_payload(p)))
     end
 
-    new_types = convert(SharedArray,fill(SUSCEPTIBLE,N))
+    new_types = fill(SUSCEPTIBLE,N)# convert(SharedArray,fill(SUSCEPTIBLE,N))
 
     while frac > 0
         if !(frac < 1 && frac < fixation_threshold)
