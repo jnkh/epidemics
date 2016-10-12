@@ -746,7 +746,7 @@ function get_y_out(t,alpha,beta,gamma)
     y_out,success
 end
 
-function get_stationary_distribution_nonlinear_theory(t,alpha,beta,y_desired)
+function get_stationary_distribution_nonlinear_theory(t,alpha,beta,y_desired,apply_finite_size=true)
     if y_desired == 0.0 #|| t.i == 0
       arr = zeros(t.a)
       arr[1] = t.n
@@ -759,7 +759,9 @@ function get_stationary_distribution_nonlinear_theory(t,alpha,beta,y_desired)
     gamma = binary_search_transition_matrix(f_out,y_desired,gamma_init)
     transition = generate_transition_matrix(t,alpha,beta,gamma)
     arr,success = get_stationary_distribution_from_matrix(t,transition)
-    arr = apply_finite_size_effects(t,arr)
+    if apply_finite_size
+      arr = apply_finite_size_effects(t,arr)
+    end
     # pygui(true)
     # ion()
     # figure(2)
@@ -772,14 +774,14 @@ function get_stationary_distribution_nonlinear_theory(t,alpha,beta,y_desired)
     arr
 end
 
-function get_stationary_distribution_nonlinear_theory(N::Int,m::Int,l::Int,r::Int,y_desired::AbstractFloat,alpha::AbstractFloat,beta::AbstractFloat)
+function get_stationary_distribution_nonlinear_theory(N::Int,m::Int,l::Int,r::Int,y_desired::AbstractFloat,alpha::AbstractFloat,beta::AbstractFloat,apply_finite_size=true)
     t = TwoLevel(N,m,l,r)
     #distribute_randomly(t,n)
     adjust_infecteds(t,y_desired)
     t.i = y_desired*N
     # make_consistent(t)
     # assert(is_valid(t))
-    return get_stationary_distribution_nonlinear_theory(t,alpha,beta,y_desired)
+    return get_stationary_distribution_nonlinear_theory(t,alpha,beta,y_desired,apply_finite_size)
 end
 
 
@@ -787,7 +789,7 @@ end
 ##################### Develop Effective y and y squred ####################
 using Dierckx
 
-function get_interpolations(t::TwoLevel,alpha,beta)
+function get_interpolations(t::TwoLevel,alpha,beta,apply_finite_size=true)
     dy = 1.0/t.N
     y_min = dy#/2
 
@@ -796,7 +798,7 @@ function get_interpolations(t::TwoLevel,alpha,beta)
     # dy0 = clamp(y_min,1e-5,0.01)
     # dy2 = clamp(y_min,0.01,0.1)
     # y_range = vcat( collect(y_min:y_min:4*dy),collect(5*dy:dy:0.1) , collect(0.1+dy:dy2:(1.0-dy)) )
-    y_range = logspace(log10(y_min),log10(1-y_min),500)
+    y_range = logspace(log10(y_min),log10(1-y_min),100)
     interpolation_order = 1
     y_real_range = zeros(y_range)
 
@@ -809,7 +811,7 @@ function get_interpolations(t::TwoLevel,alpha,beta)
     for (i,y_desired) in enumerate(y_range)
       # set_y(t,y_desired)
       #accum = get_stationary_distribution(t.N,t.m,t.l,t.r,y_desired,((x,y) -> death_fn(x,y,beta)),((x,y) -> birth_fn(x,y,alpha)),500_000)
-      accum = get_stationary_distribution_nonlinear_theory(t.N,t.m,t.l,t.r,y_desired,alpha,beta)
+      accum = get_stationary_distribution_nonlinear_theory(t.N,t.m,t.l,t.r,y_desired,alpha,beta,apply_finite_size)
       t.a = accum
       y_real = get_frac_infected(t)
       t.i = y_real*t.N
@@ -959,8 +961,8 @@ function get_s_death_effective_two_level_interp(yy,beta::Float64,y_inf_interp)
 end
 
 
-function get_p_reach_theory(t,alpha,beta,N)
-    y_inf_interp,y_sq_inf_interp,y_susc_interp,y_sq_susc_interp = get_interpolations(t,alpha,beta)
+function get_p_reach_theory(t,alpha,beta,N,apply_finite_size=true)
+    y_inf_interp,y_sq_inf_interp,y_susc_interp,y_sq_susc_interp = get_interpolations(t,alpha,beta,apply_finite_size)
 
     s(x) = get_s_effective_two_level_interp(x,alpha,beta,y_inf_interp,y_sq_inf_interp,y_susc_interp,y_sq_susc_interp)
     splus(x) = get_splus_effective_two_level_interp(x,alpha,beta,y_inf_interp,y_sq_inf_interp,y_susc_interp,y_sq_susc_interp)
@@ -1190,7 +1192,9 @@ function valid_swap(e1,e2,unique_edges,clusters)
     if e1[1] == e2[2] || e1[2] == e2[1] return false end
     if same_cluster(e1[1],e2[2],clusters) || same_cluster(e1[2],e2[1],clusters) return false end
     e3,e4 = swap_edges(e1,e2)
-    if e3 in unique_edges || e4 in unique_edges return false end
+    if e3 in unique_edges || e4 in unique_edges || reverse(e3) in unique_edges || reverse(e4) in unique_edges
+      return false
+    end
     return true
 end
 
