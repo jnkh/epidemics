@@ -6,7 +6,8 @@ import LightGraphs
 
 export Graph,create_graph_from_value,fill_graph,set_payload,
 get_payload,num_vertices,num_edges,get_average_degree,out_edges,
-neighbors,vertices,add_edge!,add_vertex!,is_connected,set_array_with_payload
+neighbors,vertices,add_edge!,add_vertex!,is_connected,set_array_with_payload,
+shuffle_payload
 
 type Graph{P}
     g::LightGraphs.Graph
@@ -17,6 +18,10 @@ end
 
 Graph{P}(a::LightGraphs.Graph,b::Array{P,1}) = Graph{P}(a,b) 
 
+
+function shuffle_payload{P}(g::PayloadGraph.Graph{P})
+    shuffle!(g.payload)
+end
 
 function create_graph_from_value{P}(g::LightGraphs.Graph,val::P)
     payload = fill(val,LightGraphs.nv(g)) 
