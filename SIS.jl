@@ -8,12 +8,38 @@ module SIS
 using PayloadGraph,IM,Distributions
 
 export INFECTED,SUSCEPTIBLE,get_average_degree,
-get_fraction_of_type,print_graph,update_graph,set_all_types,get_neighbor_fraction_of_type,get_neighbor_fraction_of_type_new,get_parameters,update_graph_threads
+get_fraction_of_type,print_graph,update_graph,set_all_types,
+get_neighbor_fraction_of_type,get_neighbor_fraction_of_type_new,
+get_parameters,update_graph_threads,get_c_r,get_n_n,get_alpha_beta
 
 
 
 const INFECTED = 1
 const SUSCEPTIBLE = 0
+
+
+function get_c_r(N,alpha,beta)
+    return 4*alpha/(beta^2*N)
+end
+
+function get_n_n(N,alpha,beta)
+    return beta/alpha*N
+end
+
+function get_alpha_beta(N,c_r,n_n)
+    beta = 4.0/(c_r*n_n)
+    alpha = (N*beta)/n_n
+    return alpha,beta
+end
+
+
+f(y,alpha) = alpha.*y.^2
+s(y,alpha,beta) = f(y,alpha)./y - beta
+#get_y_eff(y,k) = y.*(1 + (1-y)./(y.*k))
+#get_s_eff(y::Array,alpha,beta,k) = alpha*get_y_eff(y,k) - beta
+
+
+
 
 function get_parameters(N,alpha,beta,verbose=false)
     critical_determinant = 4*alpha/(N*beta^2)

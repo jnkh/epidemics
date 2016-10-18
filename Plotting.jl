@@ -5,36 +5,16 @@ import LightGraphs
 
 export plot_schematic,plot_schematics,plot_w,plot_two_level_schematic
 
-function get_c_r(N,alpha,beta)
-    return 4*alpha/(beta^2*N)
-end
 
-function get_n_n(N,alpha,beta)
-    return beta/alpha*N
-end
-
-function get_alpha_beta(N,c_r,n_n)
-    beta = 4.0/(c_r*n_n)
-    alpha = (N*beta)/n_n
-    return alpha,beta
-end
-
-
-f(y,alpha) = alpha.*y.^2
-s(y,alpha,beta) = f(y,alpha)./y - beta
-#get_y_eff(y,k) = y.*(1 + (1-y)./(y.*k))
-#get_s_eff(y::Array,alpha,beta,k) = alpha*get_y_eff(y,k) - beta
-
-
-function plot_schematics(N,n_n,alpha,beta,im,imk,k)
+function plot_schematics(N,n_n,c_r,alpha,beta,im,imk,k)
     plot_reach = true
     #pygui(true)
 #     close("all")
-    dx = 2*n_n/N/200
+    dx = 2*n_n/N/100
     x = collect(1/N:dx:2*n_n/N)
     if plot_reach
-        y = IM.P_reach(im,N,1.0/N,x)
-        yk = IM.P_reach(imk,N,1.0/N,x)
+        y = P_reach_fast(im,N,1.0/N,x)
+        yk = P_reach_fast(imk,N,1.0/N,x)
         plotfn = loglog
         plotstr = "reach"
     else
@@ -173,18 +153,21 @@ function plot_w(sizes,N,alpha,beta,s_eff_fn::Function, word = "two level")
 
 end
 
-function plot_two_level_schematic(t,alpha,beta,N)
-    y_inf_interp,y_sq_inf_interp,y_susc_interp,y_sq_susc_interp = get_interpolations(t,alpha,beta)
+function plot_two_level_schematic(t,alpha,beta,N,apply_finite_size=true)
+    y_inf_fn,y_sq_inf_fn,y_susc_fn,y_sq_susc_fn = get_interpolations(t,alpha,beta,apply_finite_size)
     println("computed interpolations")
+    # dt = get_dt_two_level(alpha,beta)
+    # runs_well_mixed_tl = run_epidemics(100000, () -> run_epidemic_well_mixed_two_level(dt,N,y_susc_fn,y_sq_susc_fn,y_inf_fn,y_sq_inf_fn,alpha,beta,1.0));
+	# yvals_well_mixed_tl,pvals_well_mixed_tl = get_p_reach(runs_well_mixed_tl,N)
 
-    s(x) = get_s_effective_two_level_interp(x,alpha,beta,y_inf_interp,y_sq_inf_interp,y_susc_interp,y_sq_susc_interp)
-    splus(x) = get_splus_effective_two_level_interp(x,alpha,beta,y_inf_interp,y_sq_inf_interp,y_susc_interp,y_sq_susc_interp)
+    s(x) = get_s_effective_two_level_interp(x,alpha,beta,y_inf_fn,y_sq_inf_fn,y_susc_fn,y_sq_susc_fn)
+    splus(x) = get_splus_effective_two_level_interp(x,alpha,beta,y_inf_fn,y_sq_inf_fn,y_susc_fn,y_sq_susc_fn)
 
     xx = logspace(log10(1/N),0,100) 
     pp = P_reach_fast(s,splus,N,1/N,xx)
 #     loglog(xx,pp)
 #     xlim([1/N,1])
-    return xx,pp,s
+    return xx,pp,s,splus
 end
 
 end

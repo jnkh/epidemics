@@ -182,6 +182,8 @@ function update_n(n::Int,N::Int,im::InfectionModel)
     return n + delta_n_plus - delta_n_minus
 end
 
+
+
 ### Well Mixed Case Two Level###
 ### Well Mixed Case Two Level###
 function run_epidemic_well_mixed_two_level(dt::AbstractFloat,N::Int,y_susc_fn,y_sq_susc_fn,y_inf_fn,y_sq_inf_fn,alpha::AbstractFloat,beta::AbstractFloat,fixation_threshold=1.0)
@@ -224,6 +226,13 @@ function update_n_two_level(dt::AbstractFloat,n::Int,N::Int,y_susc_fn,y_sq_susc_
     prob_birth = (y_susc + y_sq_susc*alpha)*dt
     prob_death = (1 - y_inf)*(1 + beta)*dt
 
+    if prob_death < 0
+        prob_death = 0
+    end
+
+    if prob_birth < 0
+        prob_birth = 0
+    end
 
     if prob_birth == 0
         delta_n_plus = 0

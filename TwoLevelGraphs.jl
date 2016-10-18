@@ -791,14 +791,14 @@ using Dierckx
 
 function get_interpolations(t::TwoLevel,alpha,beta,apply_finite_size=true)
     dy = 1.0/t.N
-    y_min = dy#/2
+    y_min = dy/100
 
 
 
     # dy0 = clamp(y_min,1e-5,0.01)
     # dy2 = clamp(y_min,0.01,0.1)
     # y_range = vcat( collect(y_min:y_min:4*dy),collect(5*dy:dy:0.1) , collect(0.1+dy:dy2:(1.0-dy)) )
-    y_range = logspace(log10(y_min),log10(1-y_min),100)
+    y_range = logspace(log10(y_min),log10(1-y_min),200)
     interpolation_order = 1
     y_real_range = zeros(y_range)
 
