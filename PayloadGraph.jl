@@ -7,7 +7,7 @@ import LightGraphs
 export Graph,create_graph_from_value,fill_graph,set_payload,
 get_payload,num_vertices,num_edges,get_average_degree,out_edges,
 neighbors,vertices,add_edge!,add_vertex!,is_connected,set_array_with_payload,
-shuffle_payload
+shuffle_payload,shuffle_payload_by_cluster
 
 type Graph{P}
     g::LightGraphs.Graph
@@ -21,6 +21,12 @@ Graph{P}(a::LightGraphs.Graph,b::Array{P,1}) = Graph{P}(a,b)
 
 function shuffle_payload{P}(g::PayloadGraph.Graph{P})
     shuffle!(g.payload)
+end
+
+function shuffle_payload_by_cluster{P}(g::PayloadGraph.Graph{P},clusters::Array{Array{Int,1},1})
+    for cluster in clusters
+        g.payload[cluster] = shuffle(g.payload[cluster])
+    end
 end
 
 function create_graph_from_value{P}(g::LightGraphs.Graph,val::P)

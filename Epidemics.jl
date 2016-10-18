@@ -141,7 +141,11 @@ function run_epidemic_graph(N::Int,im::InfectionModel,graph_information::GraphIn
             push!(infecteds_by_nodes,copy(get_payload(p)))
         end
         if shuffle_nodes
-            shuffle_payload(p)
+            if graph_information.data == nothing
+                shuffle_payload(p)
+            else
+                shuffle_payload_by_cluster(p,graph_information.data.clusters)
+            end
         end
     end
 
