@@ -108,6 +108,7 @@ end
 ### Epidemic on a Graph ###
 function run_epidemic_graph(N::Int,im::InfectionModel,graph_information::GraphInformation,fixation_threshold=1.0)
     fixed=false
+    shuffle_nodes = true
     #construct graph
     g = guarantee_connected(graph_information.graph_fn)
 #     graph_information.graph = g
@@ -138,6 +139,9 @@ function run_epidemic_graph(N::Int,im::InfectionModel,graph_information::GraphIn
         push!(infecteds,N*frac)
         if carry_by_node_info
             push!(infecteds_by_nodes,copy(get_payload(p)))
+        end
+        if shuffle_nodes
+            shuffle_payload(p)
         end
     end
 
