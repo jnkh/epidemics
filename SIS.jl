@@ -129,20 +129,24 @@ end
 
 
 function update_node_experimental{P}(g::Graph{P},v::Int,im::InfectionModel,new_types::Union{Array{P,1},SharedArray{P,1}})
+    y = get_fraction_of_type(g,INFECTED)
+    k = length(neighbors(g,v))
+    y_sample = rand(Binomial(k,y))/k
     if get_payload(g,v) == SUSCEPTIBLE
+        p = y_sample*p_birth(im,y_sample)
         # k = get_average_degree(g) 
         #infect neighbors
-        x = get_neighbor_fraction_of_type_experimental(g,v,INFECTED)
-        p = x*p_birth(im,x)
+        # x = get_neighbor_fraction_of_type_experimental(g,v,INFECTED)
+        # p = x*p_birth(im,x)
         if rand() < p
             new_types[v] = INFECTED
         end
     elseif get_payload(g,v) == INFECTED 
         #recover self
-        x =get_neighbor_fraction_of_type_experimental(g,v,INFECTED)
-        p = p_death(im,x)
+        # x =get_neighbor_fraction_of_type_experimental(g,v,INFECTED)
+        p = (1-y_sample)*p_death(im,y_sample)
         if rand() < p
-            new_types[v] = get_sample_of_types_from_neighbors_experimental(g,v)
+            new_types[v] = SUSCEPTIBLE#get_sample_of_types_from_neighbors_experimental(g,v)
         end
     end
 
