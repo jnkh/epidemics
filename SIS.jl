@@ -72,7 +72,8 @@ end
 
 function get_neighbor_fraction_of_type_experimental{P}(g::Graph{P},v::Int,thistype::P)
     neighbors = PayloadGraph.neighbors(g,v)
-    # k = length(neighbors)
+    k = length(neighbors)
+    neighbors = shuffle(g.payload)[1:k]
     # return rand(Binomial(k,get_fraction_of_type(g,thistype)))/k
     if length(neighbors) == 0 return 0.0 end
     count = 0
@@ -132,7 +133,7 @@ function update_node_experimental{P}(g::Graph{P},v::Int,im::InfectionModel,new_t
     y = get_fraction_of_type(g,INFECTED)
     k = length(neighbors(g,v))
     # y_sample = rand(Binomial(k,y))/k
-    y_sample = get_neighbor_fraction_of_type(g,rand(1:length(vertices(g))),INFECTED)
+    y_sample = get_neighbor_fraction_of_type_experimental(g,v,INFECTED)
     if get_payload(g,v) == SUSCEPTIBLE
         p = y_sample*p_birth(im,y_sample)
         # k = get_average_degree(g) 
