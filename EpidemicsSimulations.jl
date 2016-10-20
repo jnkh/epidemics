@@ -42,7 +42,7 @@ function save_epidemics_results(params)
 		tic()
 		if graph_model
 		@time runs =
-		run_epidemics_parallel(num_trials, () -> run_epidemic_graph(N,im_normal,graph_information,fixation_threshold),in_parallel);
+		run_epidemics_parallel(num_trials, () -> run_epidemic_graph_experimental(N,im_normal,graph_information,fixation_threshold),in_parallel);
 		else
 			if k < N-1
 				@time runs =

@@ -59,6 +59,108 @@ function get_parameters(N,alpha,beta,verbose=false)
     return y_n, y_minus, y_plus, y_p,critical_determinant
 end
 
+
+
+#####################################################
+##################Begin Experimental###################
+#####################################################
+
+
+
+
+
+function get_neighbor_fraction_of_type_experimental{P}(g::Graph{P},v::Int,thistype::P)
+    neighbors = PayloadGraph.neighbors(g,v)
+    k = length(neighbors)
+    return rand(Binomial(k,get_fraction_of_type(g,thistype)))/k
+    # if length(neighbors) == 0 return 0.0 end
+    # count = 0
+    # for n in neighbors
+    #     if get_payload(g,n) == thistype
+    #         count += 1
+    #     end
+    # end
+    # return count/length(neighbors)
+end
+
+function get_degree_experimental{P}(g::Graph{P},v::Int)
+    return length(PayloadGraph.neighbors(g,v))
+end
+
+function get_fraction_of_type_experimental{P}(g::Graph{P},thistype::P)
+    count = 0
+    vs = vertices(g)
+    for v in vs
+        if get_payload(g,v) == thistype
+            count += 1
+        end
+    end
+    return count/length(vs)
+end
+
+
+
+function get_sample_of_types_from_neighbors_experimental{P}(g::Graph{P},v::P)
+    neighbors = PayloadGraph.neighbors(g,v)
+    neighbor_types = sample(g.payload)
+    # if length(neighbors) == 0
+    #     error("Disconnected Graph")
+    #     return get_payload(g,v)
+    # end
+    # neighbor_types = Array(P,length(neighbors))
+    # for (i,w) in enumerate(neighbors)
+    #     neighbor_types[i] = get_payload(g,w)
+    # end
+    # return sample(neighbor_types)
+end
+
+
+function update_graph_experimental{P}(g::Graph{P},im::InfectionModel,new_types::Union{Array{P,1},SharedArray{P,1}})
+
+    set_array_with_payload(g,new_types)
+    # @sync @parallel for v in vertices(g)
+    for v in vertices(g)
+        update_node_experimental(g,v,im,new_types)
+    end
+    set_payload(g,new_types)
+end
+
+
+
+function update_node_experimental{P}(g::Graph{P},v::Int,im::InfectionModel,new_types::Union{Array{P,1},SharedArray{P,1}})
+    if get_payload(g,v) == INFECTED
+        # k = get_average_degree(g) 
+        #infect neighbors
+        neighbors::Array{Int,1} = PayloadGraph.neighbors(g,v)
+        p = 0.0
+        for w in neighbors
+            if get_payload(g,w) == SUSCEPTIBLE
+                x = get_neighbor_fraction_of_type_experimental(g,w,INFECTED)
+                k = get_degree(g,w)
+                p::Float64 = p_birth(im,x)/k
+                if rand() < p
+                    new_types[w] = INFECTED
+                end
+            end
+        end
+        
+        #recover self
+        x =get_neighbor_fraction_of_type_experimental(g,v,INFECTED)
+        p = p_death(im,x)
+        if rand() < p
+            new_types[v] = get_sample_of_types_from_neighbors_experimental(g,v)
+        end
+    end
+
+end
+
+
+#####################################################
+##################END Experimental###################
+#####################################################
+
+
+
 function get_neighbor_fraction_of_type{P}(g::Graph{P},v::Int,thistype::P)
     neighbors = PayloadGraph.neighbors(g,v)
     if length(neighbors) == 0 return 0.0 end
