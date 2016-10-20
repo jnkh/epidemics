@@ -132,7 +132,7 @@ function update_node_experimental{P}(g::Graph{P},v::Int,im::InfectionModel,new_t
     y = get_fraction_of_type(g,INFECTED)
     k = length(neighbors(g,v))
     # y_sample = rand(Binomial(k,y))/k
-    y_sample = get_neighbor_fraction_of_type(g,v,INFECTED)
+    y_sample = get_neighbor_fraction_of_type(g,rand(1:length(vertices(g))),INFECTED)
     if get_payload(g,v) == SUSCEPTIBLE
         p = y_sample*p_birth(im,y_sample)
         # k = get_average_degree(g) 
