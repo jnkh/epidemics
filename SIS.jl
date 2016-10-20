@@ -129,22 +129,15 @@ end
 
 
 function update_node_experimental{P}(g::Graph{P},v::Int,im::InfectionModel,new_types::Union{Array{P,1},SharedArray{P,1}})
-    if get_payload(g,v) == INFECTED
+    if get_payload(g,v) == SUSCEPTIBLE
         # k = get_average_degree(g) 
         #infect neighbors
-        neighbors::Array{Int,1} = PayloadGraph.neighbors(g,v)
-        p = 0.0
-        for w in neighbors
-            if get_payload(g,w) == SUSCEPTIBLE
-                x = get_neighbor_fraction_of_type_experimental(g,w,INFECTED)
-                k = get_degree(g,w)
-                p::Float64 = p_birth(im,x)/k
-                if rand() < p
-                    new_types[w] = INFECTED
-                end
-            end
+        x = get_neighbor_fraction_of_type_experimental(g,v,INFECTED)
+        p = p_birth(im,x)
+        if rand() < p
+            new_types[v] = INFECTED
         end
-        
+    elseif get_payload(g,v) == INFECTED 
         #recover self
         x =get_neighbor_fraction_of_type_experimental(g,v,INFECTED)
         p = p_death(im,x)
