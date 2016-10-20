@@ -20,7 +20,7 @@ eps = 1e-5
 maxevals = 100
 
 function InfectionModel(birth_rate::Function,death_rate::Function)
-    desired_rate = 0.02
+    desired_rate = 0.01
     max_rate = maximum([birth_rate(1.0),death_rate(1.0),birth_rate(0.0),death_rate(0.0)])
     dt = desired_rate/max_rate
     InfectionModel(birth_rate,death_rate,dt)
