@@ -133,7 +133,7 @@ function update_node_experimental{P}(g::Graph{P},v::Int,im::InfectionModel,new_t
         # k = get_average_degree(g) 
         #infect neighbors
         x = get_neighbor_fraction_of_type_experimental(g,v,INFECTED)
-        p = p_birth(im,x)
+        p = x*p_birth(im,x)
         if rand() < p
             new_types[v] = INFECTED
         end
