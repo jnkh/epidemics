@@ -238,7 +238,7 @@ end
 
 function update_n(n::Int,N::Int,im::InfectionModel)
     y = n/N
-    delta_n_plus = rand(Binomial(N*(1-y),y*p_birth(im,y)))
+    delta_n_plus = rand(Binomial(N-n,y*p_birth(im,y)))
     delta_n_minus = rand(Binomial(n,(1-y)*p_death(im,y)))
     return n + delta_n_plus - delta_n_minus
 end
