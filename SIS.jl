@@ -73,7 +73,7 @@ end
 function get_neighbor_fraction_of_type_experimental{P}(g::Graph{P},v::Int,thistype::P)
     neighbors = PayloadGraph.neighbors(g,v)
     k = length(neighbors)
-    neighbors = shuffle(collect(1:length(g.payload)))[1:k]
+    neighbors = sample(collect(1:length(g.payload)),k)
     # return rand(Binomial(k,get_fraction_of_type(g,thistype)))/k
     if length(neighbors) == 0 return 0.0 end
     count = 0
