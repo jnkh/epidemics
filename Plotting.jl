@@ -45,8 +45,8 @@ function plot_schematics(N,n_n,c_r,alpha,beta,im,imk,k)
     
     x = collect(1/N:0.01:1)
     figure(3)
-    plot(x,get_s_eff(x,alpha,beta,k),"-b",label=L"$s_{eff}(y)$")
-    plot(x,get_s_eff(x,alpha,beta,N-1),"-r",label=L"$s(y)$")
+    plot(x,get_s_eff_exact(x,alpha,beta,k,N),"-b",label=L"$s_{eff}(y)$")
+    plot(x,get_s_eff_exact(x,alpha,beta,N-1,N),"-r",label=L"$s(y)$")
     grid(1)
 
 end

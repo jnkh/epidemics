@@ -3,10 +3,10 @@ module Epidemics
 using SIS,Distributions, IM, LightGraphs,PayloadGraph, Dierckx
 
 export run_epidemic_graph,run_epidemic_well_mixed,run_epidemics_parallel,
-run_epidemics,s,get_s_eff,normed_distribution, P_w_th,get_y_eff,
+run_epidemics,s,get_s_eff,get_s_eff_exact,normed_distribution, P_w_th,get_y_eff,
 EpidemicRun, get_sizes, get_num_fixed,GraphInformation,
 get_dt_two_level,run_epidemic_well_mixed_two_level, update_n_two_level,
-get_p_reach, CompactEpidemicRuns
+get_p_reach, CompactEpidemicRuns, get_n_plus, get_n_minus
 
 function graph_is_connected(g::LightGraphs.Graph)
     parents = LightGraphs.dijkstra_shortest_paths(g,1).parents[2:end]
@@ -104,11 +104,63 @@ end
 
 
 
+### Epidemic on a Graph ###
+function run_epidemic_graph_experimental(N::Int,im::InfectionModel,graph_information::GraphInformation,fixation_threshold=1.0)
+    fixed=false
+    shuffle_nodes = false
+    #construct graph
+    g = guarantee_connected(graph_information.graph_fn)
+#     graph_information.graph = g
+    carry_by_node_info::Bool = graph_information.carry_by_node_info
+
+    #create payload graph
+    p = create_graph_from_value(g,SUSCEPTIBLE)
+    infecteds::Array{Float64,1} = []
+    infecteds_by_nodes::Array{Array{Int,1},1} = []
+
+
+    set_payload(p,1,INFECTED)
+    frac = get_fraction_of_type(p,INFECTED)
+    push!(infecteds,N*frac)
+    if carry_by_node_info
+        push!(infecteds_by_nodes,copy(get_payload(p)))
+    end
+
+    new_types = fill(SUSCEPTIBLE,N)# convert(SharedArray,fill(SUSCEPTIBLE,N))
+
+    while frac > 0
+        if !(frac < 1 && frac < fixation_threshold)
+            fixed = true
+            break
+        end
+        update_graph(p,im,new_types)
+        frac = get_fraction_of_type(p,INFECTED)
+        push!(infecteds,N*frac)
+        if carry_by_node_info
+            push!(infecteds_by_nodes,copy(get_payload(p)))
+        end
+        if shuffle_nodes
+            if graph_information.data == nothing
+                shuffle_payload(p)
+            else
+                shuffle_payload_by_cluster(p,graph_information.data.clusters)
+            end
+        end
+    end
+
+    size = im.dt*sum(infecteds)
+    if fixed
+        size = Inf
+    end
+
+    return EpidemicRun(infecteds,size,fixed,infecteds_by_nodes,graph_information)
+end
+
 
 ### Epidemic on a Graph ###
 function run_epidemic_graph(N::Int,im::InfectionModel,graph_information::GraphInformation,fixation_threshold=1.0)
     fixed=false
-    shuffle_nodes = true
+    shuffle_nodes = false
     #construct graph
     g = guarantee_connected(graph_information.graph_fn)
 #     graph_information.graph = g
@@ -336,6 +388,27 @@ end
 
 function get_s_eff(y,alpha::Float64,beta::Float64,k::Int)
     return alpha*get_y_eff(y,k) - beta
+end
+
+function get_s_eff_exact(y,alpha,beta,k,N)
+    eps = 1e-6 #for numerical stability
+    delta_plus = N/(N-1)
+    delta_minus = 1 + 1./(eps + N.*(1-y))
+    y_plus = y.*delta_plus
+    return delta_plus - delta_minus + alpha*delta_plus*(y_plus + (1-y_plus)/k) - beta*delta_minus
+end
+
+function get_n_plus(y,alpha,beta,k,N)
+    eps = 1e-6 #for numerical stability
+    delta_plus = N/(N-1)
+    y_plus = y.*delta_plus
+    return delta_plus*(1 + alpha*(y_plus + (1-y_plus)/k))
+end
+
+function get_n_minus(y,alpha,beta,k,N)
+    eps = 1e-6 #for numerical stability
+    delta_minus = 1 + 1./(eps + N.*(1-y))
+    return delta_minus.*(1 + beta)
 end
 
 function get_c_r(N,alpha,beta)
