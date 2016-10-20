@@ -133,7 +133,7 @@ function run_epidemic_graph_experimental(N::Int,im::InfectionModel,graph_informa
             fixed = true
             break
         end
-        update_graph(p,im,new_types)
+        update_graph_experimental(p,im,new_types)
         frac = get_fraction_of_type(p,INFECTED)
         push!(infecteds,N*frac)
         if carry_by_node_info
@@ -237,8 +237,8 @@ end
 
 function update_n(n::Int,N::Int,im::InfectionModel)
     y = n/N
-    delta_n_plus = rand(Binomial(n,(1-y)*p_birth(im,n/N)))
-    delta_n_minus = rand(Binomial(n,(1-y)*p_death(im,n/N)))
+    delta_n_plus = rand(Binomial(N*(1-y),y*p_birth(im,y)))
+    delta_n_minus = rand(Binomial(n,(1-y)*p_death(im,y)))
     return n + delta_n_plus - delta_n_minus
 end
 
