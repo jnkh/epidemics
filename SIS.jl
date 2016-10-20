@@ -10,7 +10,8 @@ using PayloadGraph,IM,Distributions
 export INFECTED,SUSCEPTIBLE,get_average_degree,
 get_fraction_of_type,print_graph,update_graph,set_all_types,
 get_neighbor_fraction_of_type,get_neighbor_fraction_of_type_new,
-get_parameters,update_graph_threads,get_c_r,get_n_n,get_alpha_beta
+get_parameters,update_graph_threads,get_c_r,get_n_n,get_alpha_beta,
+update_graph_experimental
 
 
 

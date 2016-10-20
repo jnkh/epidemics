@@ -6,7 +6,8 @@ export run_epidemic_graph,run_epidemic_well_mixed,run_epidemics_parallel,
 run_epidemics,s,get_s_eff,get_s_eff_exact,normed_distribution, P_w_th,get_y_eff,
 EpidemicRun, get_sizes, get_num_fixed,GraphInformation,
 get_dt_two_level,run_epidemic_well_mixed_two_level, update_n_two_level,
-get_p_reach, CompactEpidemicRuns, get_n_plus, get_n_minus
+get_p_reach, CompactEpidemicRuns, get_n_plus, get_n_minus,
+run_epidemic_graph_experimental
 
 function graph_is_connected(g::LightGraphs.Graph)
     parents = LightGraphs.dijkstra_shortest_paths(g,1).parents[2:end]
