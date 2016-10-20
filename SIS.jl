@@ -103,16 +103,16 @@ end
 
 function get_sample_of_types_from_neighbors_experimental{P}(g::Graph{P},v::P)
     neighbors = PayloadGraph.neighbors(g,v)
-    neighbor_types = sample(g.payload)
-    # if length(neighbors) == 0
-    #     error("Disconnected Graph")
-    #     return get_payload(g,v)
-    # end
-    # neighbor_types = Array(P,length(neighbors))
-    # for (i,w) in enumerate(neighbors)
-    #     neighbor_types[i] = get_payload(g,w)
-    # end
-    # return sample(neighbor_types)
+    # neighbor_types = sample(g.payload)
+    if length(neighbors) == 0
+        error("Disconnected Graph")
+        return get_payload(g,v)
+    end
+    neighbor_types = Array(P,length(neighbors))
+    for (i,w) in enumerate(neighbors)
+        neighbor_types[i] = get_payload(g,w)
+    end
+    return sample(neighbor_types)
 end
 
 
