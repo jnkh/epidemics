@@ -391,12 +391,17 @@ function get_s_eff(y,alpha::Float64,beta::Float64,k::Int)
     return alpha*get_y_eff(y,k) - beta
 end
 
+function get_y_eff_exact(y,k::Int,N::Int)
+    return y.*(1 + ((1-y)*(N-k))./(y*k*N))
+end
+
 function get_s_eff_exact(y,alpha,beta,k,N)
-    eps = 1e-6 #for numerical stability
-    delta_plus = N/(N-1)
-    delta_minus = 1 + 1./(eps + N.*(1-y))
-    y_plus = y.*delta_plus
-    return delta_plus - delta_minus + alpha*delta_plus*(y_plus + (1-y_plus)/k) - beta*delta_minus
+    return alpha*get_y_eff_exact(y,k,N) - beta
+    # eps = 1e-6 #for numerical stability
+    # delta_plus = N/(N-1)
+    # delta_minus = 1 + 1./(eps + N.*(1-y))
+    # y_plus = y.*delta_plus
+    # return delta_plus - delta_minus + alpha*delta_plus*(y_plus + (1-y_plus)/k) - beta*delta_minus
 end
 
 function get_n_plus(y,alpha,beta,k,N)

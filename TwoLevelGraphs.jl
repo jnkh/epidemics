@@ -124,38 +124,70 @@ end
 
 
 
-function get_y_external(t::TwoLevel,j::Int)
-  y_ext = (t.i - j)/(t.N - t.m)
-  if t.N == t.m
-    y_ext = 0.0
-  end
-
-  # if j > t.i
-  #   y_ext = 0.0
-  # end
-  return y_ext
-
+function hypergeometric_mean(N,n,k)
+  #N = population size, n = successes, k = trials
+  return k * n/N
 end
 
-function get_y_internal(t::TwoLevel,j::Int,susceptible::Bool)
-  #-1 in the denominator because we can't count ourself in the average!
-  if susceptible
-    y_int = j/(t.m - 1)
-  else
-    y_int = (j-1)/(t.m - 1)
-  end
-  if t.m == 1
-    y_int = 0.0
-  end
-  # if j > t.i
-  #   y_int =  0.0
-  # end
-  return y_int
+function hypergeometric_variance(N,n,k)
+  return k*n*(N-n)*(N-k)/(N*N*(N-1))
 end
+
+function hypergeometric_second_moment(N,n,k)
+  return hypergeometric_variance(N,n,k) + hypergeometric_mean(N,n,k)^2
+end
+
+function get_internal_infecteds_mean(t::TwoLevel,j::Int,susceptible::Bool)
+  if ~susceptible
+    j = j-1
+  end
+  l = t.l
+  m = t.m
+  if m == 1
+    return 0
+  end
+  return hypergeometric_mean(m-1,j,l)
+end
+
+function get_external_infecteds_mean(t::TwoLevel,j::Int,susceptible::Bool)
+  i = t.i
+  m = t.m
+  r = t.r
+  N = t.N
+  if N == m
+    return 0
+  end
+  return hypergeometric_mean(N-m,i-j,r)
+end
+
+function get_internal_infecteds_second_moment(t::TwoLevel,j::Int,susceptible::Bool)
+  if ~susceptible
+    j = j-1
+  end
+  l = t.l
+  m = t.m
+  if m == 1
+    return 0
+  end
+  return hypergeometric_second_moment(m-1,j,l)
+end
+
+function get_external_infecteds_second_moment(t::TwoLevel,j::Int,susceptible::Bool)
+  i = t.i
+  m = t.m
+  r = t.r
+  N = t.N
+  if N == m
+    return 0
+  end
+  return hypergeometric_second_moment(N-m,i-j,r)
+end
+
+
 
 function get_y_local(t::TwoLevel,j::Int,susceptible::Bool)
-    y_ext = get_y_external(t,j)
-    y_int = get_y_internal(t,j,susceptible)
+    i_int_mean = get_internal_infecteds_mean(t,j,susceptible)
+    i_ext_mean = get_external_infecteds_mean(t,j,susceptible)
     l = t.l
     r = t.r
     if t.m == 1
@@ -163,13 +195,15 @@ function get_y_local(t::TwoLevel,j::Int,susceptible::Bool)
     elseif t.m == t.N
       r = 0
     end
-    y_local = (l*y_int + r*y_ext)/(r + l)
+    y_local = (i_int_mean + i_ext_mean)/(r + l)
   return y_local
 end
 
 function get_y_squared_local(t::TwoLevel,j::Int,susceptible::Bool)
-  y_ext = get_y_external(t,j)
-  y_int = get_y_internal(t,j,susceptible)
+  i_int_mean = get_internal_infecteds_mean(t,j,susceptible)
+  i_ext_mean = get_external_infecteds_mean(t,j,susceptible)
+  i_int_second_moment = get_internal_infecteds_second_moment(t,j,susceptible)
+  i_ext_second_moment = get_external_infecteds_second_moment(t,j,susceptible)
   l = t.l
   r = t.r
   if t.m == 1
@@ -177,11 +211,69 @@ function get_y_squared_local(t::TwoLevel,j::Int,susceptible::Bool)
   elseif t.m == t.N
     r = 0
   end
-  y_squared_local = (r*y_ext*((r - 1)* y_ext + 1) +
-l*y_int*((l - 1)*y_int + 1) + 2*l* r* y_ext*y_int)/(r + l)^2
-
+  y_squared_local = (i_int_second_moment + i_ext_second_moment + i_int_mean*i_ext_mean)/(r + l)^2
   return y_squared_local
 end
+
+
+# function get_y_external(t::TwoLevel,j::Int)
+#   y_ext = (t.i - j)/(t.N - t.m)
+#   if t.N == t.m
+#     y_ext = 0.0
+#   end
+
+#   # if j > t.i
+#   #   y_ext = 0.0
+#   # end
+#   return y_ext
+
+# end
+
+# function get_y_internal(t::TwoLevel,j::Int,susceptible::Bool)
+#   #-1 in the denominator because we can't count ourself in the average!
+#   if susceptible
+#     y_int = j/(t.m - 1)
+#   else
+#     y_int = (j-1)/(t.m - 1)
+#   end
+#   if t.m == 1
+#     y_int = 0.0
+#   end
+#   # if j > t.i
+#   #   y_int =  0.0
+#   # end
+#   return y_int
+# end
+
+# function get_y_local(t::TwoLevel,j::Int,susceptible::Bool)
+#     y_ext = get_y_external(t,j)
+#     y_int = get_y_internal(t,j,susceptible)
+#     l = t.l
+#     r = t.r
+#     if t.m == 1
+#       l = 0
+#     elseif t.m == t.N
+#       r = 0
+#     end
+#     y_local = (l*y_int + r*y_ext)/(r + l)
+#   return y_local
+# end
+
+# function get_y_squared_local(t::TwoLevel,j::Int,susceptible::Bool)
+#   y_ext = get_y_external(t,j)
+#   y_int = get_y_internal(t,j,susceptible)
+#   l = t.l
+#   r = t.r
+#   if t.m == 1
+#     l = 0
+#   elseif t.m == t.N
+#     r = 0
+#   end
+#   y_squared_local = (r*y_ext*((r - 1)* y_ext + 1) +
+# l*y_int*((l - 1)*y_int + 1) + 2*l* r* y_ext*y_int)/(r + l)^2
+
+#   return y_squared_local
+# end
 
 
 function birth_fn(t::TwoLevel,j::Int,alpha=1.0)
