@@ -72,16 +72,16 @@ end
 
 function get_neighbor_fraction_of_type_experimental{P}(g::Graph{P},v::Int,thistype::P)
     neighbors = PayloadGraph.neighbors(g,v)
-    k = length(neighbors)
-    return rand(Binomial(k,get_fraction_of_type(g,thistype)))/k
-    # if length(neighbors) == 0 return 0.0 end
-    # count = 0
-    # for n in neighbors
-    #     if get_payload(g,n) == thistype
-    #         count += 1
-    #     end
-    # end
-    # return count/length(neighbors)
+    # k = length(neighbors)
+    # return rand(Binomial(k,get_fraction_of_type(g,thistype)))/k
+    if length(neighbors) == 0 return 0.0 end
+    count = 0
+    for n in neighbors
+        if get_payload(g,n) == thistype
+            count += 1
+        end
+    end
+    return count/length(neighbors)
 end
 
 function get_degree_experimental{P}(g::Graph{P},v::Int)
