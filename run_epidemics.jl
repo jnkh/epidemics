@@ -20,19 +20,22 @@ verbose = false
 
 ########## Set up model ###############
 
-#y_n = 0.1
+
 c_r = 0.2
 N = 2000
-n_n = 400#y_n*N
+y_n = 0.2
+
+n_n = Int(N*y_n)#y_n*N
 beta = 4.0/(c_r*n_n)
 alpha = (N*beta)/n_n
-k_range = [12]
+
+k_range = [20]
 
 ####only for two-level graphs####
 m = 20 #nodes per subnode
 n = Int(N/m)
-l = Int(m/2)#internal
-r = 2# Int(m/2)#2 #external
+l = 19#Int(m/2)#internal
+r = 1 #Int(m/2)#2 #external
 #################################
 
 
@@ -40,9 +43,9 @@ graph_type_range = [TWO_LEVEL,REGULAR]
 
 if verbose println(N, ' ' ,alpha, ' ',beta) end
 
-num_trials_mixed = 10_000
-num_trials = 10_000
-fixation_threshold = 1.0#8*n_n/N
+num_trials_mixed = 100_000
+num_trials = 100_000
+fixation_threshold = 1.0
 ###Set to true if we want by-node information on infecteds (much more data!)
 carry_by_node_information = false
 ###Set to false only if we want to simulate in a well-mixedm model
