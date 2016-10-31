@@ -66,8 +66,7 @@ for graph_model in graph_model_range
 	elseif graph_type == RANDOM
 	    graph_fn = () -> LightGraphs.erdos_renyi(N,1.0*k/(N-1))
 	elseif graph_type == SCALE_FREE 
-		m = Int(round(k/2))
-	    graph_fn = () -> LightGraphs.barabasi_albert(N,m,m)
+	    graph_fn = () -> LightGraphs.barabasi_albert(N,Int(round(k/2)),Int(round(k/2)))
 	elseif graph_type == TWO_LEVEL
 
 
