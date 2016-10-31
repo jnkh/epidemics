@@ -7,7 +7,7 @@ run_epidemics,s,get_s_eff,get_s_eff_exact,normed_distribution, P_w_th,get_y_eff,
 EpidemicRun, get_sizes, get_num_fixed,GraphInformation,
 get_dt_two_level,run_epidemic_well_mixed_two_level, update_n_two_level,
 get_p_reach, CompactEpidemicRuns, get_n_plus, get_n_minus,
-run_epidemic_graph_experimental
+run_epidemic_graph_experimental,get_s_eff_degree_distribution,get_p_k_barabasi_albert
 
 function graph_is_connected(g::LightGraphs.Graph)
     parents = LightGraphs.dijkstra_shortest_paths(g,1).parents[2:end]
@@ -173,7 +173,7 @@ function run_epidemic_graph(N::Int,im::InfectionModel,graph_information::GraphIn
     infecteds_by_nodes::Array{Array{Int,1},1} = []
 
 
-    set_payload(p,1,INFECTED)
+    set_payload(p,rand(1:length(get_payload(p))),INFECTED)
     frac = get_fraction_of_type(p,INFECTED)
     push!(infecteds,N*frac)
     if carry_by_node_info
@@ -403,6 +403,34 @@ function get_s_eff_exact(y,alpha,beta,k,N)
     # y_plus = y.*delta_plus
     # return delta_plus - delta_minus + alpha*delta_plus*(y_plus + (1-y_plus)/k) - beta*delta_minus
 end
+
+function get_s_eff_degree_distribution(y,alpha,beta,p_k::Function,N::Int)
+    s_eff_tot = 0
+    for k = 1:N-1
+        if k == 1
+            s_eff_tot = p_k(k)*get_s_eff_exact(y,alpha,beta,k,N)
+        else
+            s_eff_tot += p_k(k)*get_s_eff_exact(y,alpha,beta,k,N)
+        end
+    end
+    return s_eff_tot
+end
+
+function get_s_eff_degree_distribution(y,alpha,beta,k::Int,N::Int)
+    p_k = get_p_k_barabasi_albert(k)
+    return get_s_eff_degree_distribution(y,alpha,beta,p_k,N)
+end
+
+function get_p_k_barabasi_albert(k)
+    m = Int(k/2)
+    normalizer = zeta(3) - sum((1.0*collect(1:m-1)).^(-3))
+    function p_k(x)
+        if x < m return 0 end
+        return (1.0*x)^(-3)/normalizer
+    end
+    return p_k
+end
+
 
 function get_n_plus(y,alpha,beta,k,N)
     eps = 1e-6 #for numerical stability
