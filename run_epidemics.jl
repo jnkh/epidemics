@@ -11,6 +11,7 @@ using EpidemicsSimulations
 @everywhere using SIS,IM,Epidemics
 
 
+SCALE_FREE = 4
 TWO_LEVEL = 3
 REGULAR = 2
 RANDOM = 1
@@ -20,9 +21,9 @@ verbose = false
 ########## Set up model ###############
 
 #y_n = 0.1
-c_r = 0.8
-N = 400
-n_n = 100#y_n*N
+c_r = 0.2
+N = 2000
+n_n = 400#y_n*N
 beta = 4.0/(c_r*n_n)
 alpha = (N*beta)/n_n
 k_range = [12]
@@ -61,6 +62,9 @@ for graph_model in graph_model_range
 	    graph_fn = () -> LightGraphs.random_regular_graph(N,k)
 	elseif graph_type == RANDOM
 	    graph_fn = () -> LightGraphs.erdos_renyi(N,1.0*k/(N-1))
+	elseif graph_type == SCALE_FREE 
+		m = Int(round(k/2))
+	    graph_fn = () -> LightGraphs.barabasi_albert(N,m,m)
 	elseif graph_type == TWO_LEVEL
 
 
