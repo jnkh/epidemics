@@ -1,6 +1,6 @@
 module Epidemics
 
-using SIS,Distributions, IM, LightGraphs,PayloadGraph, Dierckx
+using SIS,Distributions, IM, LightGraphs,PayloadGraph, Dierckx,GraphGeneration
 
 export run_epidemic_graph,run_epidemic_well_mixed,run_epidemics_parallel,
 run_epidemics,s,get_s_eff,get_s_eff_exact,normed_distribution, P_w_th,get_y_eff,
@@ -423,11 +423,25 @@ function get_s_eff_degree_distribution_scale_free(y,alpha,beta,k::Int,N::Int)
     return get_s_eff_degree_distribution(y,alpha,beta,p_k,N)
 end
 
-function get_s_eff_degree_distribution_gamma(y,alpha,beta,k::Real,sigma_k::Real,N::Int)
+function get_s_eff_degree_distribution_gamma(y,alpha,beta,k::Real,sigma_k::Real,N::Int,min_degree=3)
+    p_k = get_p_k_gamma(sigma_k,k,min_degree)
+    return get_s_eff_degree_distribution(y,alpha,beta,p_k,N)
+end
+
+function get_p_k_gamma(sigma_k,k,min_degree=1)
     k,alpha = get_gamma_params(k,sigma_k)
     d = Gamma(k,alpha)
-    p_k(x) = pdf(d,x)
-    return get_s_eff_degree_distribution(y,alpha,beta,p_k,N)
+    function p_k(x)
+        pdf_fn(y) = pdf(d,y)
+        if x < 0.5
+            return 0
+        elseif x < min_degree + 0.5
+            return quadgk(pdf_fn,0,min_degree+0.5)[1]
+        else
+            return quadgk(pdf_fn,x-0.5,x+0.5)[1]
+        end
+    end
+    return p_k
 end
 
 function get_p_k_barabasi_albert(k)

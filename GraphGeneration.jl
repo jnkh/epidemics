@@ -11,10 +11,10 @@ function get_gamma_params(mu,sigma)
     return k,theta
 end
 
-function graph_from_gamma_distribution(N::Int,mu_k,sigma_k)
+function graph_from_gamma_distribution(N::Int,mu_k,sigma_k,min_degree=3)
 	k,theta = get_gamma_params(mu_k,sigma_k)
 	d = Gamma(k,theta)
-	return graph_from_degree_distribution(d,N)
+	return graph_from_degree_distribution(d,N,min_degree)
 end
 
 
