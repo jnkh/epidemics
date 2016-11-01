@@ -29,12 +29,12 @@ n_n = Int(N*y_n)#y_n*N
 beta = 4.0/(c_r*n_n)
 alpha = (N*beta)/n_n
 
-k_range = [6]
+k_range = [20]
 
 ####only for two-level graphs####
 m = 20 #nodes per subnode
 n = Int(N/m)
-l = 5#Int(m/2)#internal
+l = 19#Int(m/2)#internal
 r = 1 #Int(m/2)#2 #external
 #################################
 
@@ -43,8 +43,8 @@ graph_type_range = [SCALE_FREE,REGULAR]
 
 if verbose println(N, ' ' ,alpha, ' ',beta) end
 
-num_trials_mixed = 100_000
-num_trials = 100_000
+num_trials_mixed = 40_000
+num_trials = 40_000
 fixation_threshold = 1.0
 ###Set to true if we want by-node information on infecteds (much more data!)
 carry_by_node_information = false
