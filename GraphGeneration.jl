@@ -144,7 +144,7 @@ function sample_degrees(d::UnivariateDistribution,N::Int,min_degree=1)
     degrees = sample_integers(d,N,min_degree)
     #make sure sum is even
     while sum(degrees) % 2 != 0
-        degrees = sample_integers(d,N)
+        degrees = sample_integers(d,N,min_degree)
     end
     degrees
 end
