@@ -112,10 +112,14 @@ end
 
 
 
-function P_reach_fast(im::InfectionModel,N::Int,x0::Real,x1::Array)
+function P_reach_fast(im::InfectionModel,N::Int,x0::Real,x1::Array,slow_im=false)
     s(x) = (1-x)*(p_birth(im,x) - p_death(im,x))
     a(x) = x*s(x)
     b(x) = 1/N*(1-x)*x*(p_birth(im,x) + p_death(im,x))  
+    if slow_im
+        a = get_interp_function(a,eps,1)
+        b = get_interp_function(b,eps,1)
+    end
     psi_interp = get_psi_interp(a,b,eps,N)
     
     numerator = quadgk(y -> psi_interp(y),eps,x0,maxevals=maxevals)[1]
@@ -147,16 +151,41 @@ function P_reach_raw_fast(a::Function,b::Function,N::Int,x0::Real,x1::Array)
 end
     
 using Dierckx
+# function get_psi_interp(a::Function,b::Function,eps::Real,N::Int)
+#     psi(x,a,b) = exp( -2* quadgk(y -> a(y)/b(y),eps,x)[1])
+#     xx = logspace(log10(eps),0,100)
+#     yy = zeros(xx)
+#     for i in 1:length(xx)
+#         yy[i] = psi(xx[i],a,b)
+#     end
+#     psi_spline = Spline1D(xx,yy,k=1,bc="extrapolate")
+#     psi_interp(x) = evaluate(psi_spline,x)
+#     return psi_interp
+# end
+
 function get_psi_interp(a::Function,b::Function,eps::Real,N::Int)
-    psi(x,a,b) = exp( -2* quadgk(y -> a(y)/b(y),eps,x)[1])
+    psi(x0,x1) = quadgk(y -> a(y)/b(y),x0,x1,maxevals=maxevals)[1]
     xx = logspace(log10(eps),0,100)
     yy = zeros(xx)
-    for i in 1:length(xx)
-        yy[i] = psi(xx[i],a,b)
+    yy[1] = psi(eps,xx[1])
+    for i in 2:length(xx)
+        yy[i] = yy[i-1] + psi(xx[i-1],xx[i])
     end
+    yy = exp( - 2.* yy)
     psi_spline = Spline1D(xx,yy,k=1,bc="extrapolate")
     psi_interp(x) = evaluate(psi_spline,x)
     return psi_interp
+end
+
+function get_interp_function(f::Function,x0,x1)
+    xx = logspace(log10(x0),log10(x1),100)
+    yy = zeros(xx)
+    for i in 1:length(xx)
+        yy[i] = f(xx[i]) 
+    end
+    f_spline = Spline1D(xx,yy,k=1,bc="extrapolate")
+    f_interp(x) = evaluate(f_spline,x)
+    return f_interp
 end
 
 
