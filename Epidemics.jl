@@ -422,7 +422,7 @@ function get_s_eff_degree_distribution(y,alpha,beta,k::Int,N::Int)
 end
 
 function get_p_k_barabasi_albert(k)
-    m = Int(k/2)
+    m = Int(round(k/2))
     normalizer = zeta(3) - sum((1.0*collect(1:m-1)).^(-3))
     function p_k(x)
         if x < m return 0 end
