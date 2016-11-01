@@ -416,8 +416,15 @@ function get_s_eff_degree_distribution(y,alpha,beta,p_k::Function,N::Int)
     return s_eff_tot
 end
 
-function get_s_eff_degree_distribution(y,alpha,beta,k::Int,N::Int)
+function get_s_eff_degree_distribution_scale_free(y,alpha,beta,k::Int,N::Int)
     p_k = get_p_k_barabasi_albert(k)
+    return get_s_eff_degree_distribution(y,alpha,beta,p_k,N)
+end
+
+function get_s_eff_degree_distribution_gamma(y,alpha,beta,k::Real,sigma_k::Real,N::Int)
+    k,alpha = get_gamma_params(k,sigma_k)
+    d = Gamma(k,alpha)
+    p_k(x) = pdf(d,x)
     return get_s_eff_degree_distribution(y,alpha,beta,p_k,N)
 end
 

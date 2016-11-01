@@ -24,10 +24,10 @@ end
 #############Creates a graph from a prescribed degree distribution using 
 #############The stub-connect algorithm with random rewiring to remove
 #############Random edges (such as self-edges and duplicate edges).
-function graph_from_degree_distribution(d::UnivariateDistribution,N::Int)
+function graph_from_degree_distribution(d::UnivariateDistribution,N::Int,min_degree=1)
     g = Graph(N)
     
-    degrees = sample_degrees(d,N)
+    degrees = sample_degrees(d,N,min_degree)
     stubs = get_stubs(degrees)
     edges = make_edges(stubs)
     edges = remove_invalid_edges(edges)
@@ -136,12 +136,12 @@ function valid_swap(e_invalid,e_valid,unique_edges)
 end
 
 
-function sample_integers(d::UnivariateDistribution,N::Int)
+function sample_integers(d::UnivariateDistribution,N::Int,min_degree=1)
     samples = rand(d,N)
-    return [Int(el) for el in round(samples)]
+    return [Int(max(el,min_degree)) for el in round(samples)]
 end
 
-function sample_degrees(d::UnivariateDistribution,N::Int)
+function sample_degrees(d::UnivariateDistribution,N::Int,min_degree=1)
     degrees = sample_integers(d,N)
     #make sure sum is even
     while sum(degrees) % 2 != 0
