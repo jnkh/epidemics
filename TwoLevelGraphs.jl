@@ -125,11 +125,15 @@ end
 
 
 function hypergeometric_mean(N,n,k)
+  n = max(n,0.0)
+  k = max(k,0.0)
   #N = population size, n = successes, k = trials
   return k * n/N
 end
 
 function hypergeometric_variance(N,n,k)
+  n = max(n,0.0)
+  k = max(k,0.0)
   return k*n*(N-n)*(N-k)/(N*N*(N-1))
 end
 
@@ -211,7 +215,7 @@ function get_y_squared_local(t::TwoLevel,j::Int,susceptible::Bool)
   elseif t.m == t.N
     r = 0
   end
-  y_squared_local = (i_int_second_moment + i_ext_second_moment + i_int_mean*i_ext_mean)/(r + l)^2
+  y_squared_local = (i_int_second_moment + i_ext_second_moment + 2*i_int_mean*i_ext_mean)/(r + l)^2
   return y_squared_local
 end
 
@@ -308,6 +312,61 @@ function get_number_weight(t::TwoLevel,j::Int,susceptible::Bool)
     return t.a[get_a_index(j)]*(j)
   end
 end
+
+#i_ext ~Hypergeometric(population=N-m,successes=yN-j,trials=r)
+#i_int ~Hypergeometric(population=m-1,successes=j,trials=l) (j-1 if infected)
+
+function get_y_times_theta_local(t::TwoLevel,j::Int,susceptible::Bool,y_n::Real)
+  l = t.l
+  r = t.r
+  i = t.i
+  if t.m == 1
+    l = 0
+  elseif t.m == t.N
+    r = 0
+  end
+  d_i_ext = Hypergeometric(i - j,(N-m) - (i-j),r)#successes,failures,trials
+  if susceptible
+    d_i_int = Hypergeometric(j,m-1-j,l)
+  else
+    d_i_int = Hypergeometric((j-1),m-1-(j-1),l)
+  end
+  accum = 0
+  p_i_ext = pdf(d_i_ext)
+  p_i_int = pdf(d_i_int)
+  for (i_r_idx,i_r) in enumerate(minimum(d_i_ext):maximum(d_i_ext))
+    for (i_l_idx,i_l) in enumerate(minimum(d_i_int):maximum(d_i_int))
+      y_curr = get_y_from_ir_il(i_r,i_l,r,l)
+      if y_curr >= y_n
+        accum += p_i_ext(i_r_idx)*p_i_int(i_l_idx)*y_curr
+      end
+    end
+  end
+  return accum
+end
+
+
+function get_y_from_ir_il(i_r,i_l,r,l)
+  return (i_r + i_l)/(r + l)
+end
+
+
+
+function compute_mean_quantity_local(t::TwoLevel,susceptible::Bool,get_quantity::Function)
+  y_local = 0.
+  weight = 0.
+
+  for j = 0:t.m
+    curr_weight = get_number_weight(t,j,susceptible)
+    weight += curr_weight
+    y_local += curr_weight*get_quantity(t,j,susceptible)
+  end
+  if weight == 0.0 return 0.0 end
+  return y_local/weight
+end
+
+
+
 
 function compute_mean_y_local(t::TwoLevel,susceptible::Bool)
   y_local = 0.
@@ -643,11 +702,11 @@ end
 # 10 susceptibles on the graph but a subgraph would have 11, this is
 # also not allowed)
 function get_sparse_j_mask(t)
-  eps = 1e-6
+  eps = 1+1e-6
   js = collect(0:t.m)
   mask = falses(js)
   for j in js
-    mask[j+1] = (j <= t.i+eps) && ((t.m - j) <= (t.N - t.i))
+    mask[j+1] = (j <= t.i+eps) && ((t.m - j) <= (t.N - t.i) + eps)
   end
   # if !any(mask[2:end])
   #   mask[2] = true
@@ -667,6 +726,7 @@ function apply_finite_size_effects(t,equilibrium_distribution)
     # println("j: $j t.i: $(t.i), $(t.m -j)")
   # end
   equilibrium_distribution[~mask] = 0.0
+  equilibrium_distribution *= t.n/sum(equilibrium_distribution)
   return equilibrium_distribution 
 end
 
@@ -709,6 +769,7 @@ function get_stationary_distribution_from_matrix(t::TwoLevel,transition_matrix)
 
   end
   equilibrium_distribution = equilibrium_distribution[:,1]
+
   equilibrium_distribution *= t.n/sum(equilibrium_distribution)
   return equilibrium_distribution,success
 end

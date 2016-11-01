@@ -17,7 +17,7 @@ type InfectionModel
 end
 
 eps = 1e-5
-maxevals = 100
+maxevals = 200
 
 function InfectionModel(birth_rate::Function,death_rate::Function)
     desired_rate = 0.01
