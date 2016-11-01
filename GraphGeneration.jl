@@ -44,7 +44,6 @@ end
 function get_invalid_edges(edges)
     duplicates = get_duplicates(edges)
     self_edges = get_self_edges(edges)
-    println("duplicates: $(length(duplicates)), self: $(length(self_edges))")
     return vcat(duplicates,self_edges)
 end
 
@@ -91,7 +90,7 @@ end
 function remove_invalid_edges(edges)
     invalid_edges = get_invalid_edges(edges)
     unique_edges = get_valid_edges(edges)
-    println("invalid: $(length(invalid_edges)), unique: $(length(unique_edges)), total: $(length(edges))")
+    # println("invalid: $(length(invalid_edges)), unique: $(length(unique_edges)), total: $(length(edges))")
 #     println("removing $(length(invalid_edges)) / $(length(unique_edges)) invalid edges")
     for dup_edge in invalid_edges
         unique_edges = rewire_edges(unique_edges,dup_edge)
@@ -146,7 +145,6 @@ function sample_degrees(d::UnivariateDistribution,N::Int,min_degree=1)
     #make sure sum is even
     while sum(degrees) % 2 != 0
         degrees = sample_integers(d,N)
-        println("resampled because odd")
     end
     degrees
 end
