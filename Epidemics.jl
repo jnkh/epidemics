@@ -3,13 +3,13 @@ module Epidemics
 using SIS,Distributions, IM, LightGraphs,PayloadGraph, Dierckx,GraphGeneration
 
 export run_epidemic_graph,run_epidemic_well_mixed,run_epidemics_parallel,
-run_epidemics,s,get_s_eff,get_s_eff_exact,normed_distribution, P_w_th,get_y_eff,
+run_epidemics,s,get_s_eff,get_s_eff_exact,normed_distribution, P_w_th,get_y_eff,get_y_eff_exact,
 EpidemicRun, get_sizes, get_num_fixed,GraphInformation,
 get_dt_two_level,run_epidemic_well_mixed_two_level, update_n_two_level,
 get_p_reach, CompactEpidemicRuns, get_n_plus, get_n_minus,
 run_epidemic_graph_experimental,get_s_eff_degree_distribution,
 get_s_eff_degree_distribution_gamma,get_s_eff_degree_distribution_scale_free,
-get_p_k_barabasi_albert
+get_p_k_barabasi_albert,get_p_k_gamma
 
 function graph_is_connected(g::LightGraphs.Graph)
     parents = LightGraphs.dijkstra_shortest_paths(g,1).parents[2:end]
@@ -393,7 +393,7 @@ function get_s_eff(y,alpha::Float64,beta::Float64,k::Int)
     return alpha*get_y_eff(y,k) - beta
 end
 
-function get_y_eff_exact(y,k::Int,N::Int)
+function get_y_eff_exact(y,k::Real,N::Int)
     return y.*(1 + ((1-y)*(N-k))./(y*k*N))
 end
 
@@ -433,7 +433,7 @@ function get_p_k_gamma(sigma_k,k,min_degree=1)
     d = Gamma(k,alpha)
     function p_k(x)
         pdf_fn(y) = pdf(d,y)
-        if x < 0.5
+        if x < min_degree - 0.5
             return 0
         elseif x < min_degree + 0.5
             return quadgk(pdf_fn,0,min_degree+0.5)[1]
