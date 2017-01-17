@@ -68,12 +68,13 @@ type CompactEpidemicRuns
     sizes::Array{Float64,1}
     y_reach::Array{Float64,1}
     p_reach::Array{Float64,1}
+    num_trials::Int
 end
 
 function CompactEpidemicRuns(runs::Array{EpidemicRun,1},N::Int)
     sizes = get_sizes(runs)
     y_reach,p_reach = get_p_reach(runs,N)
-    return CompactEpidemicRuns(sizes,y_reach,p_reach)
+    return CompactEpidemicRuns(sizes,y_reach,p_reach,length(runs))
 end
 
 function EpidemicRun(infecteds_vs_time::Array{Float64,1},size::Float64,fixed::Bool)
