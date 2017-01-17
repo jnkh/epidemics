@@ -1,8 +1,8 @@
 #!/bin/bash
 #SBATCH -p general
-#SBATCH -n 64
-#SBATCH -t 0-05:00
-#SBATCH --mem-per-cpu 8000
+#SBATCH -n 128
+#SBATCH -t 0-8:00
+#SBATCH --mem-per-cpu 4000
 #SBATCH -o log.out
 #SBATCH -e log.err
 
