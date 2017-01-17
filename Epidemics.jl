@@ -2,14 +2,30 @@ module Epidemics
 
 using SIS,Distributions, IM, LightGraphs,PayloadGraph, Dierckx,GraphGeneration
 
-export run_epidemic_graph,run_epidemic_well_mixed,run_epidemics_parallel,
-run_epidemics,s,get_s_eff,get_s_eff_exact,normed_distribution, P_w_th,get_y_eff,get_y_eff_exact,
-EpidemicRun, get_sizes, get_num_fixed,GraphInformation,
-get_dt_two_level,run_epidemic_well_mixed_two_level, update_n_two_level,
+export
+
+RandomGraphType,random_rg,regular_rg,two_level_rg,scale_free_rg,gamma_rg,
+
+run_epidemic_graph,run_epidemic_well_mixed,run_epidemics_parallel,run_epidemics,
+run_epidemic_well_mixed_two_level,
+EpidemicRun, 
+
+s,get_s_eff,get_s_eff_exact,normed_distribution, P_w_th,get_y_eff,get_y_eff_exact,
+
+get_sizes, get_num_fixed,GraphInformation,
+get_dt_two_level, update_n_two_level,
 get_p_reach, CompactEpidemicRuns, get_n_plus, get_n_minus,
 run_epidemic_graph_experimental,get_s_eff_degree_distribution,
 get_s_eff_degree_distribution_gamma,get_s_eff_degree_distribution_scale_free,
-get_p_k_barabasi_albert,get_p_k_gamma
+get_p_k_barabasi_albert,get_p_k_gamma,
+
+get_alpha,get_beta,get_c_r,get_n_n,QuadraticEpidemicParams,get_QuadraticEpidemicParams
+
+
+
+#Content
+
+@enum RandomGraphType random_rg=1 regular_rg=2 two_level_rg=3 scale_free_rg=4 gamma_rg=5 
 
 function graph_is_connected(g::LightGraphs.Graph)
     parents = LightGraphs.dijkstra_shortest_paths(g,1).parents[2:end]
@@ -468,6 +484,22 @@ function get_n_minus(y,alpha,beta,k,N)
     return delta_minus.*(1 + beta)
 end
 
+type QuadraticEpidemicParams
+    N::Int
+    alpha::Float64
+    beta::Float64
+    c_r::Float64
+    n_n::Float64
+end
+
+function QuadraticEpidemicParams(N,alpha,beta)
+    return QuadraticEpidemicParams(N,alpha,beta,get_c_r(N,alpha,beta),get_n_n(N,alpha,beta))
+end
+
+function get_QuadraticEpidemicParams(N,c_r,n_n)
+    return QuadraticEpidemicParams(N,get_alpha(N,c_r,n_n),get_beta(N,c_r,n_n),c_r,n_n)
+end
+
 function get_c_r(N,alpha,beta)
     return 4*alpha/(beta^2*N)
 end
@@ -475,5 +507,14 @@ end
 function get_n_n(N,alpha,beta)
     return beta/alpha*N
 end
+
+function get_beta(N,c_r,n_n)
+    return 4.0/(c_r*n_n)
+end
+
+function get_alpha(N,c_r,n_n)
+    return (N*get_beta(N,c_r,n_n))/n_n
+end
+
 
 end

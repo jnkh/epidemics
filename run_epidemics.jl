@@ -27,8 +27,8 @@ N = 400
 y_n = 0.2
 
 n_n = Int(N*y_n)#y_n*N
-beta = 4.0/(c_r*n_n)
-alpha = (N*beta)/n_n
+beta = get_beta(N,c_r,n_n)#4.0/(c_r*n_n)
+alpha = get_alpha(N,c_r,n_n)#(N*beta)/n_n
 
 k_range = [20]
 sigma_k_range = [0.2]#[0.2,1,3,5,10,15,20]
