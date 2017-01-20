@@ -3,15 +3,17 @@ module Plotting
 using SIS,IM,PayloadGraph,PyPlot, Epidemics,JLD, TwoLevelGraphs,Dierckx
 import LightGraphs
 
-export plot_schematic,plot_schematics,plot_w,plot_two_level_schematic
+export plot_schematic,plot_schematics,
+
+plot_w,plot_two_level_schematic
 
 
-function plot_schematics(N,n_n,c_r,alpha,beta,im,imk,k)
+function plot_schematics(N,n_n,c_r,alpha,beta,im,imk,k,exact=false)
     plot_reach = true
     #pygui(true)
 #     close("all")
-    dx = 2*n_n/N/100
-    x = collect(1/N:dx:2*n_n/N)
+    dx = 1/(2*N)
+    x = collect(1/N:dx:1)
     if plot_reach
         y = P_reach_fast(im,N,1.0/N,x)
         yk = P_reach_fast(imk,N,1.0/N,x)
@@ -27,8 +29,8 @@ function plot_schematics(N,n_n,c_r,alpha,beta,im,imk,k)
     plotfn(x,y,"-r",label=latexstring("P_{$(plotstr)}(y)"))
     plotfn(x,yk,"-b",label=latexstring("P_{$(plotstr)}(y_{eff})"))
     plotfn(x,1/N./x,"--k",label=latexstring("P_{$(plotstr),neutral}"))
-    xlim([1/N,2*n_n/N])
-    y_n, y_minus, y_plus, y_p,critical_determinant = get_parameters(N,alpha,beta)
+    xlim([1/N,1.0])
+    y_n, y_minus, y_plus, y_p,critical_determinant = get_parameters(N,alpha,beta,exact=exact)
     axvline(y_n,linestyle="--",color="b",label=L"y_n")
     axvline(y_minus,linestyle="-.",color="r",label=L"y_1")
     axvline(y_plus,linestyle="-.",color="r",label=L"y_2")
@@ -40,7 +42,7 @@ function plot_schematics(N,n_n,c_r,alpha,beta,im,imk,k)
     #savefig("p_fix_y_n = $(n_n/N), c_r = $c_r, N = $N.png")
 
     figure(1)#,figsize=(8,5))
-    plot_schematic(n_n,c_r,N,k,true)
+    plot_schematic(n_n,c_r,N,k,true,exact)
     title(latexstring("\$y_n = $(n_n/N), c_r = $c_r, N = $N\$"))
     
     x = collect(1/N:0.01:1)
@@ -51,20 +53,19 @@ function plot_schematics(N,n_n,c_r,alpha,beta,im,imk,k)
 
 end
 
-
-function plot_schematic(n_n,c_r,N,k=N-1,plot_k=false)
+function plot_schematic(n_n,c_r,N,k=N-1,plot_k=false,exact=false)
     beta = 4.0/(c_r*n_n)
     alpha = (N*beta)/n_n
 #     println(N,alpha,beta)
 
-    y_n, y_minus,y_plus,y_p,critical_determinant = get_parameters(N,alpha,beta)
+    y_n, y_minus,y_plus,y_p,critical_determinant = get_parameters(N,alpha,beta,exact=exact)
     f(y) = alpha.*y.^2
     s(y) = f(y)./y - beta
     get_y_eff(y,k) = y.*(1 + (1-y)./(y.*k))
     get_s_eff(y,alpha,beta,k) = alpha*get_y_eff(y,k) - beta
 
 
-    y_range = collect(0:y_p/1000:1.9*y_p)
+    y_range = collect(0:1/(2*N):1)
     plot(y_range,1.0./abs(N*s(y_range)),"-r",label=L"$\frac{1}{N|s(y)|}$")
     if plot_k
         plot(y_range,1.0./abs(N*get_s_eff(y_range,alpha,beta,k)),"-b",label=L"$\frac{1}{N|s(y_{eff})|}$")
@@ -76,7 +77,7 @@ function plot_schematic(n_n,c_r,N,k=N-1,plot_k=false)
         axvline(y_minus,linestyle="-.",label=L"$y_1$")
         axvline(y_plus,linestyle="-.",label=L"$y_2$")
     end
-    ylim([0,1.9*y_p])
+    ylim([0,1])
     legend(prop=Dict{Any,Any}("size"=>15),loc="upper right")
     xlabel(L"$y$",size=20)
     if plot_k

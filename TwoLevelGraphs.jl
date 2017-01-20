@@ -125,15 +125,15 @@ end
 
 
 function hypergeometric_mean(N,n,k)
-  n = max(n,0.0)
-  k = max(k,0.0)
+  # n = max(n,0.0)
+  # k = max(k,0.0)
   #N = population size, n = successes, k = trials
   return k * n/N
 end
 
 function hypergeometric_variance(N,n,k)
-  n = max(n,0.0)
-  k = max(k,0.0)
+  # n = max(n,0.0)
+  # k = max(k,0.0)
   return k*n*(N-n)*(N-k)/(N*N*(N-1))
 end
 
@@ -390,11 +390,11 @@ function compute_mean_y_local(t::TwoLevel,susceptible::Bool)
   # if susceptible
   #  pygui(true)
   #  ion()
-  #  figure(1)
+  #  figure(7)
   #  semilogy(t.a)
-  #  figure(2)
+  #  figure(8)
   #  semilogy(weights)
-  #  figure(3)
+  #  figure(9)
   #  plot(y_locals)
   # end
   return y_local/weight
@@ -775,8 +775,8 @@ function get_stationary_distribution_from_matrix(t::TwoLevel,transition_matrix)
 end
 
 function binary_search_transition_matrix(f_out,y_target,x_initial=1.0)
-    tol = 1e-6
-    max_iter = 100
+    tol = 1e-8
+    max_iter = 1000
     # x_upper = guarantee_upper_bound(f_out,y_target,x_initial)
     # x_lower = guarantee_lower_bound(f_out,y_target,x_initial)
 
@@ -944,14 +944,15 @@ using Dierckx
 
 function get_interpolations(t::TwoLevel,alpha,beta,apply_finite_size=true)
     dy = 1.0/t.N
-    y_min = dy/100
+    y_min = dy/10
 
 
 
     # dy0 = clamp(y_min,1e-5,0.01)
     # dy2 = clamp(y_min,0.01,0.1)
     # y_range = vcat( collect(y_min:y_min:4*dy),collect(5*dy:dy:0.1) , collect(0.1+dy:dy2:(1.0-dy)) )
-    y_range = logspace(log10(y_min),log10(1-y_min),200)
+    # y_range = logspace(log10(y_min),log10(1-y_min),200)
+    y_range = linspace(y_min,1-y_min,200)
     interpolation_order = 1
     y_real_range = zeros(y_range)
 
@@ -967,6 +968,7 @@ function get_interpolations(t::TwoLevel,alpha,beta,apply_finite_size=true)
       accum = get_stationary_distribution_nonlinear_theory(t.N,t.m,t.l,t.r,y_desired,alpha,beta,apply_finite_size)
       t.a = accum
       y_real = get_frac_infected(t)
+      # y_real = y_desired
       t.i = y_real*t.N
       y_eff_range_inf[i] = compute_mean_y_local(t,false)
       y_sq_eff_range_inf[i] = compute_mean_y_squared_local(t,false)
@@ -989,40 +991,47 @@ function get_interpolations(t::TwoLevel,alpha,beta,apply_finite_size=true)
       #   y_real_range[i] =0.0 
       end
 
-  
     end
     
 
+    s_eff_range = get_s_effective_two_level(y_real_range,y_eff_range_susc,y_sq_eff_range_susc,y_eff_range_inf,y_sq_eff_range_inf,alpha,beta)
+    splus_eff_range = get_splus_effective_two_level(y_real_range,y_eff_range_susc,y_sq_eff_range_susc,y_eff_range_inf,y_sq_eff_range_inf,alpha,beta)
     #yy = collect(0:0.01:1)
 
     y_inf_interp = Spline1D(y_real_range,y_eff_range_inf,k=interpolation_order,bc="extrapolate")
     y_susc_interp = Spline1D(y_real_range,y_eff_range_susc,k=interpolation_order,bc="extrapolate")
     y_sq_inf_interp = Spline1D(y_real_range,y_sq_eff_range_inf,k=interpolation_order,bc="extrapolate")
     y_sq_susc_interp = Spline1D(y_real_range,y_sq_eff_range_susc,k=interpolation_order,bc="extrapolate")
+    s_interp = Spline1D(y_real_range,s_eff_range,k=interpolation_order,bc="extrapolate")
+    splus_interp = Spline1D(y_real_range,splus_eff_range,k=interpolation_order,bc="extrapolate")
 
-    pygui(true)
-    ion()
-    figure(1)
-    plot(y_real_range,y_real_range,"-k")
-    plot(y_real_range,y_real_range.^2,"--k")
-    # #plot(yy,y_susc_interp[yy])semilogx
-    # println(y_range)
-    # println(y_eff_range_susc)
-    # println(y_sq_eff_range_susc)
-    plot(y_real_range,y_eff_range_inf,"b")
-    plot(y_real_range,y_eff_range_susc,"r")
-    plot(y_real_range,y_sq_eff_range_inf,"--b")
-    plot(y_real_range,y_sq_eff_range_susc,"--r")
 
-    figure(2)
-    y_birth_range = 1./y_real_range.*(y_eff_range_susc + alpha*y_sq_eff_range_susc)
-    y_death_range = 1./(1-y_real_range).*(1 - y_eff_range_inf)*(1 + beta)
-    plot(y_real_range,y_birth_range,"-r")
-    plot(y_real_range,y_death_range,"-b")
-    plot(y_real_range,y_birth_range-y_death_range,"-k")
-    plot(y_real_range,(y_real_range*alpha-beta),"--k")
+    # pygui(true)
+    # ion()
+    # figure(4)
+    # plot(y_real_range,y_real_range,"-k")
+    # plot(y_real_range,y_real_range.^2,"--k")
+    # plot(y_real_range,y_eff_range_inf,"b")
+    # plot(y_real_range,y_eff_range_susc,"r")
+    # plot(y_real_range,y_sq_eff_range_inf,"--b")
+    # plot(y_real_range,y_sq_eff_range_susc,"--r")
 
-    return y_inf_interp,y_sq_inf_interp,y_susc_interp,y_sq_susc_interp
+    # figure(5)
+    # y_birth_range = 1./y_real_range.*(y_eff_range_susc + alpha*y_sq_eff_range_susc)
+    # y_death_range = 1./(1-y_real_range).*(1 - y_eff_range_inf)*(1 + beta)
+
+    # plot(y_real_range,y_birth_range-y_death_range,"-k")
+    # plot(y_real_range,(y_real_range*alpha-beta),"--k")
+
+    # figure(6)
+    # plot(y_real_range,y_birth_range,"-r")
+    # plot(y_real_range,y_death_range,"-b")
+    # # #plot(yy,y_susc_interp[yy])semilogx
+    # # println(y_range)
+    # # println(y_eff_range_susc)
+    # # println(y_sq_eff_range_susc)
+
+    return y_inf_interp,y_sq_inf_interp,y_susc_interp,y_sq_susc_interp,s_interp,splus_interp
 end
 
 
@@ -1115,14 +1124,19 @@ end
 
 
 function get_p_reach_theory(t,alpha,beta,N,apply_finite_size=true)
-    y_inf_interp,y_sq_inf_interp,y_susc_interp,y_sq_susc_interp = get_interpolations(t,alpha,beta,apply_finite_size)
+    y_inf_interp,y_sq_inf_interp,y_susc_interp,y_sq_susc_interp,s_interp,splus_interp = get_interpolations(t,alpha,beta,apply_finite_size)
 
-    s(x) = get_s_effective_two_level_interp(x,alpha,beta,y_inf_interp,y_sq_inf_interp,y_susc_interp,y_sq_susc_interp)
-    splus(x) = get_splus_effective_two_level_interp(x,alpha,beta,y_inf_interp,y_sq_inf_interp,y_susc_interp,y_sq_susc_interp)
+    # s(x) = get_s_effective_two_level_interp(x,alpha,beta,y_inf_interp,y_sq_inf_interp,y_susc_interp,y_sq_susc_interp)
+    # splus(x) = get_splus_effective_two_level_interp(x,alpha,beta,y_inf_interp,y_sq_inf_interp,y_susc_interp,y_sq_susc_interp)
+
+    s(x) = evaluate(s_interp,x) 
+    splus(x) = evaluate(splus_interp,x) 
+
+    s_actual(x) = 2*s(x)./splus(x)
 
     xx = logspace(log10(1/N),0,100) 
     pp = P_reach_fast(s,splus,N,1/N,xx)
-    return xx,pp,s
+    return xx,pp,s_actual
 end
 
 

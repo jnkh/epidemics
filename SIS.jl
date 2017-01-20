@@ -10,7 +10,10 @@ using PayloadGraph,IM,Distributions
 export INFECTED,SUSCEPTIBLE,get_average_degree,
 get_fraction_of_type,print_graph,update_graph,set_all_types,
 get_neighbor_fraction_of_type,get_neighbor_fraction_of_type_new,
-get_parameters,update_graph_threads,get_c_r,get_n_n,get_alpha_beta,
+
+get_parameters,
+
+update_graph_threads,get_c_r,get_n_n,get_alpha_beta,
 update_graph_experimental
 
 
@@ -40,19 +43,43 @@ s(y,alpha,beta) = f(y,alpha)./y - beta
 #get_s_eff(y::Array,alpha,beta,k) = alpha*get_y_eff(y,k) - beta
 
 
-
-
-function get_parameters(N,alpha,beta,verbose=false)
-    critical_determinant = 4*alpha/(N*beta^2)
-    y_n = beta/alpha
+#function according to when P_reach is neutral and when it is not
+function get_parameters_exact(N,alpha,beta,verbose=false)
+    critical_determinant = 2*alpha/(N*beta^2)
+    y_n = 2*beta/alpha
     if critical_determinant < 1
-        y_minus = beta/(2*alpha)*(1 -  sqrt(1 - critical_determinant))
-        y_plus = beta/(2*alpha)*(1 +  sqrt(1 - critical_determinant))
+        y_minus = beta/(alpha)*(1 -  sqrt(1 - critical_determinant))
+        y_plus = beta/(alpha)*(1 +  sqrt(1 - critical_determinant))
     else
         y_minus = -1
         y_plus = -1
     end
-    y_p = beta/(2*alpha)*(1 +  sqrt(1 + critical_determinant))
+    y_p = beta/(alpha)*(1 +  sqrt(1 + critical_determinant))
+    if verbose
+        println("y_n = $y_n, y_- = $y_minus, y_+ = $y_plus, y_p = $y_p, critical determinant = $critical_determinant")
+        println("'n_n = $(y_n*N)")
+    end
+    return y_n, y_minus, y_plus, y_p,critical_determinant
+end
+
+
+#function according to a theory where s is assumed constant
+function get_parameters(N,alpha,beta,verbose=false;exact=false)
+    if exact
+        alpha = alpha/2
+    end
+    critical_determinant = 4*alpha/(N*beta^2)
+    y_n = beta/alpha
+    pre_fac = beta/(2*alpha)
+
+    if critical_determinant < 1
+        y_minus = pre_fac*(1 -  sqrt(1 - critical_determinant))
+        y_plus = pre_fac*(1 +  sqrt(1 - critical_determinant))
+    else
+        y_minus = -1
+        y_plus = -1
+    end
+    y_p = pre_fac*(1 +  sqrt(1 + critical_determinant))
     if verbose
         println("y_n = $y_n, y_- = $y_minus, y_+ = $y_plus, y_p = $y_p, critical determinant = $critical_determinant")
         println("'n_n = $(y_n*N)")
