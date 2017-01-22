@@ -155,14 +155,13 @@ function plot_w(sizes,N,alpha,beta,s_eff_fn::Function, word = "two level")
 end
 
 function plot_two_level_schematic(t,alpha,beta,N,apply_finite_size=true)
-    y_inf_fn,y_sq_inf_fn,y_susc_fn,y_sq_susc_fn = get_interpolations(t,alpha,beta,apply_finite_size)
+    y_inf_fn,y_sq_inf_fn,y_susc_fn,y_sq_susc_fn,s_interp,splus_interp = get_interpolations(t,alpha,beta,apply_finite_size)
     println("computed interpolations")
+    s(x) = evaluate(s_interp,x)
+    splus(x) = evaluate(splus_interp,x)
     # dt = get_dt_two_level(alpha,beta)
     # runs_well_mixed_tl = run_epidemics(100000, () -> run_epidemic_well_mixed_two_level(dt,N,y_susc_fn,y_sq_susc_fn,y_inf_fn,y_sq_inf_fn,alpha,beta,1.0));
 	# yvals_well_mixed_tl,pvals_well_mixed_tl = get_p_reach(runs_well_mixed_tl,N)
-
-    s(x) = get_s_effective_two_level_interp(x,alpha,beta,y_inf_fn,y_sq_inf_fn,y_susc_fn,y_sq_susc_fn)
-    splus(x) = get_splus_effective_two_level_interp(x,alpha,beta,y_inf_fn,y_sq_inf_fn,y_susc_fn,y_sq_susc_fn)
 
     xx = logspace(log10(1/N),0,100) 
     pp = P_reach_fast(s,splus,N,1/N,xx)

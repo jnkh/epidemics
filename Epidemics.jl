@@ -266,7 +266,7 @@ end
 
 ### Well Mixed Case Two Level###
 ### Well Mixed Case Two Level###
-function run_epidemic_well_mixed_two_level(dt::AbstractFloat,N::Int,y_susc_fn,y_sq_susc_fn,y_inf_fn,y_sq_inf_fn,alpha::AbstractFloat,beta::AbstractFloat,fixation_threshold=1.0)
+function run_epidemic_well_mixed_two_level(dt::AbstractFloat,N::Int,p_birth_fn,p_death_fn,fixation_threshold=1.0)
     infecteds::Array{Float64,1} = []
     n = 1
     fixed=false
@@ -277,7 +277,7 @@ function run_epidemic_well_mixed_two_level(dt::AbstractFloat,N::Int,y_susc_fn,y_
             fixed = true
             break
         end
-        n = update_n_two_level(dt,n,N,y_susc_fn,y_sq_susc_fn,y_inf_fn,y_sq_inf_fn,alpha,beta)
+        n = update_n_two_level(dt,n,N,p_birth_fn,p_death_fn)
         push!(infecteds,n)
     end
 
@@ -290,40 +290,27 @@ function run_epidemic_well_mixed_two_level(dt::AbstractFloat,N::Int,y_susc_fn,y_
 end
 
 function get_dt_two_level(alpha::AbstractFloat,beta::AbstractFloat)
-    desired_rate = 0.1
+    desired_rate = 0.01
     max_rate = maximum([(1 + alpha),(1 + beta)])
     dt = desired_rate/max_rate
     return float(dt)
 end
 
-function update_n_two_level(dt::AbstractFloat,n::Int,N::Int,y_susc_fn,y_sq_susc_fn,y_inf_fn,y_sq_inf_fn,alpha::AbstractFloat,beta::AbstractFloat)
+function update_n_two_level(dt::AbstractFloat,n::Int,N::Int,p_birth_interp,p_death_interp)
     y = n/N
-    y_susc = evaluate(y_susc_fn,y)
-    y_inf = evaluate(y_inf_fn,y)
-    y_sq_susc = evaluate(y_sq_susc_fn,y)
-    y_sq_inf = evaluate(y_sq_inf_fn,y)
+    p_birth = y*evaluate(p_birth_interp,y)*dt
+    p_death = (1-y)*evaluate(p_death_interp,y)*dt
 
-    prob_birth = (y_susc + y_sq_susc*alpha)*dt
-    prob_death = (1 - y_inf)*(1 + beta)*dt
-
-    if prob_death < 0
-        prob_death = 0
-    end
-
-    if prob_birth < 0
-        prob_birth = 0
-    end
-
-    if prob_birth == 0
+    if p_birth <= 0
         delta_n_plus = 0
     else
-       delta_n_plus = rand(Binomial(N-n,prob_birth))
+       delta_n_plus = rand(Binomial(N-n,p_birth))
     end
 
-    if prob_death == 0
+    if p_death <= 0
         delta_n_minus = 0
     else
-        delta_n_minus = rand(Binomial(n,prob_death))
+        delta_n_minus = rand(Binomial(n,p_death))
     end
 
     return n + delta_n_plus - delta_n_minus

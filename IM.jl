@@ -184,8 +184,16 @@ end
 
 
 function get_s_integral_interp(s::Function)
-    S(x) = quadgk(y -> s(y),eps,x,maxevals=1000)[1]
-    return get_interp_function(S,eps,1,1000)
+    S(x0,x1) = quadgk(s,x0,x1,maxevals=1000)[1]
+    xx = linspace(eps,1,1000)
+    yy = zeros(xx)
+    yy[1] = S(eps,xx[1])
+    for i in 2:length(xx)
+        yy[i] = yy[i-1] + S(xx[i-1],xx[i])
+    end
+    S_spline = Spline1D(xx,yy,k=1,bc="extrapolate")
+    S_interp(x) = evaluate(S_spline,x)
+    return S_interp 
 end
 
 

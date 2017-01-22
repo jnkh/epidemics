@@ -1,6 +1,6 @@
 module TwoLevelGraphs
 
-using LightGraphs, Distributions, StatsBase, PyPlot, IM
+using LightGraphs, Distributions, StatsBase, PyPlot, IM, NLsolve
 
 export TwoLevel, is_valid, get_num_infected, distribute_randomly, make_consistent,
 TwoLevelGraph, get_clusters, make_two_level_random_graph,birth_fn,death_fn,
@@ -10,7 +10,7 @@ get_stationary_distribution_nonlinear_theory,generate_transition_matrix,
 get_frac_infected,get_s_effective_two_level,get_splus_effective_two_level,
 get_s_birth_effective_two_level,get_s_death_effective_two_level,
 get_s_effective_two_level_interp,get_splus_effective_two_level_interp,
-generate_regular_two_level_graph,same_cluster,get_p_reach_theory
+generate_regular_two_level_graph,same_cluster,get_p_reach_theory,get_sparse_j_mask
 
 type TwoLevel
     a::Array{Number,1} #number communities with [idx] infected nodes
@@ -573,6 +573,8 @@ function generate_transition_matrix(t::TwoLevel,alpha,beta)
     return transition_matrix
 end
 
+
+
 function generate_transition_matrix(t::TwoLevel,alpha,beta,gamma)
     p_plus_arr = zeros(t.m+1)
     p_minus_arr = zeros(t.m+1)
@@ -849,12 +851,12 @@ function find_valid_initial_value(f_out,y_desired)
     success_range[i] = success && y >= 0
   end
 
-  # pygui(true)
-  # ion()
-  # figure(1)
-  # loglog(x_range[success_range],y_range[success_range])
-  # loglog(x_range[~success_range],y_range[~success_range],"o")
-  # axhline(y_desired,linestyle="--",color="k")
+  pygui(true)
+  ion()
+  figure(1)
+  loglog(x_range[success_range],y_range[success_range])
+  loglog(x_range[~success_range],y_range[~success_range],"o")
+  axhline(y_desired,linestyle="--",color="k")
   lower = (y_range .< y_desired) & success_range
   higher = (y_range .> y_desired) & success_range
   if !any(lower) || !any(higher)
@@ -937,12 +939,93 @@ function get_stationary_distribution_nonlinear_theory(N::Int,m::Int,l::Int,r::In
     return get_stationary_distribution_nonlinear_theory(t,alpha,beta,y_desired,apply_finite_size)
 end
 
+function f_finite_size!(x,fvec,t,alpha,beta)
+    mask = get_sparse_j_mask(t) 
+    gamma = x[end-1]
+    a = x[1:end-2]
+    m = generate_transition_matrix_finite_size(t,alpha,beta,gamma)
+    fvec[1:end-2] = m*a
+    arr = zeros(length(mask))
+    arr[mask] = a
+    fvec[end-1] = get_frac_infected(arr,t)-t.i/t.N
+    fvec[end] = sum(a) - t.n
+end
+
+function get_stationary_distribution_nlsolve_finite_size(N::Int,m::Int,l::Int,r::Int,y_desired::AbstractFloat,alpha::AbstractFloat,beta::AbstractFloat,apply_finite_size=true)
+    t = TwoLevel(N,m,l,r)
+    #distribute_randomly(t,n)
+    adjust_infecteds(t,y_desired)
+    t.i = y_desired*N
+    return get_stationary_distribution_nlsolve_finite_size(t,alpha,beta)
+end
+
+
+function get_stationary_distribution_nlsolve_finite_size(t,alpha,beta)
+    mask = get_sparse_j_mask(t) 
+    dim = sum(mask)
+    fn(x,y) = f_finite_size!(x,y,t,alpha,beta)
+    res = nlsolve(fn,ones(dim+2))
+    
+    if ~res.f_converged
+        println(res)
+        println("Problem, didn't converge")
+    end
+    answer = zeros(length(mask))
+    answer[mask] = res.zero[1:end-2]
+    return answer#,res.zero[end-1] #this is gamma
+end
+
+function generate_transition_matrix_finite_size(t::TwoLevel,alpha,beta,gamma)
+    p_plus_arr = zeros(t.m+1)
+    p_minus_arr = zeros(t.m+1)
+    mask = get_sparse_j_mask(t)
+
+    for idx = 1:(t.m + 1)
+        j = idx-1
+        p_plus_arr[idx] = p_j_plus(t,j,alpha)
+        p_minus_arr[idx] = p_j_minus(t,j,beta)
+    end
+    
+    #can't allow up transitions there
+    if findlast(mask) < length(mask)
+        p_plus_arr[findlast(mask)] = 0
+    end
+   
+    #can't allow down transitions
+    if findfirst(mask) > 1 
+        p_minus_arr[findfirst(mask)] = 0
+    end
+    
+    p_plus_arr = p_plus_arr[mask]
+    p_minus_arr = p_minus_arr[mask]
+    dim = sum(mask)
+
+#     gamma = sum(p_plus_arr)/sum(p_minus_arr)
+#     p_minus_arr *= gamma
+    
+    p_plus_arr *= gamma 
+    
+    transition_matrix = zeros(dim,dim)
+    for row = 1:(dim)
+        for col = 1:(dim)
+            if row == col
+                transition_matrix[row,col] = -p_minus_arr[row] - p_plus_arr[row]
+            elseif row+1 == col
+                transition_matrix[row,col] += p_minus_arr[row+1]
+            elseif row-1 == col
+                transition_matrix[row,col] += p_plus_arr[row-1]
+            end
+        end
+    end
+    # println(transition_matrix)
+    return transition_matrix
+end
 
 
 ##################### Develop Effective y and y squred ####################
 using Dierckx
 
-function get_interpolations(t::TwoLevel,alpha,beta,apply_finite_size=true)
+function get_interpolations(t::TwoLevel,alpha,beta,apply_finite_size=true,num_points=200)
     dy = 1.0/t.N
     y_min = dy/10
 
@@ -952,7 +1035,7 @@ function get_interpolations(t::TwoLevel,alpha,beta,apply_finite_size=true)
     # dy2 = clamp(y_min,0.01,0.1)
     # y_range = vcat( collect(y_min:y_min:4*dy),collect(5*dy:dy:0.1) , collect(0.1+dy:dy2:(1.0-dy)) )
     # y_range = logspace(log10(y_min),log10(1-y_min),200)
-    y_range = linspace(y_min,1-y_min,200)
+    y_range = linspace(y_min,1-y_min,num_points)
     interpolation_order = 1
     y_real_range = zeros(y_range)
 
@@ -965,7 +1048,8 @@ function get_interpolations(t::TwoLevel,alpha,beta,apply_finite_size=true)
     for (i,y_desired) in enumerate(y_range)
       # set_y(t,y_desired)
       #accum = get_stationary_distribution(t.N,t.m,t.l,t.r,y_desired,((x,y) -> death_fn(x,y,beta)),((x,y) -> birth_fn(x,y,alpha)),500_000)
-      accum = get_stationary_distribution_nonlinear_theory(t.N,t.m,t.l,t.r,y_desired,alpha,beta,apply_finite_size)
+      # accum = get_stationary_distribution_nonlinear_theory(t.N,t.m,t.l,t.r,y_desired,alpha,beta,apply_finite_size)
+      accum = get_stationary_distribution_nlsolve_finite_size(t.N,t.m,t.l,t.r,y_desired,alpha,beta,apply_finite_size)
       t.a = accum
       y_real = get_frac_infected(t)
       # y_real = y_desired
@@ -996,12 +1080,18 @@ function get_interpolations(t::TwoLevel,alpha,beta,apply_finite_size=true)
 
     s_eff_range = get_s_effective_two_level(y_real_range,y_eff_range_susc,y_sq_eff_range_susc,y_eff_range_inf,y_sq_eff_range_inf,alpha,beta)
     splus_eff_range = get_splus_effective_two_level(y_real_range,y_eff_range_susc,y_sq_eff_range_susc,y_eff_range_inf,y_sq_eff_range_inf,alpha,beta)
+
+    s_birth_range = get_s_birth_effective_two_level(y_real_range,y_eff_range_susc,y_sq_eff_range_susc,alpha) 
+    s_death_range = get_s_death_effective_two_level(y_real_range,y_eff_range_inf,beta) 
     #yy = collect(0:0.01:1)
 
     y_inf_interp = Spline1D(y_real_range,y_eff_range_inf,k=interpolation_order,bc="extrapolate")
     y_susc_interp = Spline1D(y_real_range,y_eff_range_susc,k=interpolation_order,bc="extrapolate")
     y_sq_inf_interp = Spline1D(y_real_range,y_sq_eff_range_inf,k=interpolation_order,bc="extrapolate")
     y_sq_susc_interp = Spline1D(y_real_range,y_sq_eff_range_susc,k=interpolation_order,bc="extrapolate")
+
+    s_birth_interp = Spline1D(y_real_range,s_birth_range,k=interpolation_order,bc="extrapolate")
+    s_death_interp = Spline1D(y_real_range,s_death_range,k=interpolation_order,bc="extrapolate")
     s_interp = Spline1D(y_real_range,s_eff_range,k=interpolation_order,bc="extrapolate")
     splus_interp = Spline1D(y_real_range,splus_eff_range,k=interpolation_order,bc="extrapolate")
 
@@ -1017,21 +1107,18 @@ function get_interpolations(t::TwoLevel,alpha,beta,apply_finite_size=true)
     # plot(y_real_range,y_sq_eff_range_susc,"--r")
 
     # figure(5)
-    # y_birth_range = 1./y_real_range.*(y_eff_range_susc + alpha*y_sq_eff_range_susc)
-    # y_death_range = 1./(1-y_real_range).*(1 - y_eff_range_inf)*(1 + beta)
-
     # plot(y_real_range,y_birth_range-y_death_range,"-k")
     # plot(y_real_range,(y_real_range*alpha-beta),"--k")
 
     # figure(6)
-    # plot(y_real_range,y_birth_range,"-r")
-    # plot(y_real_range,y_death_range,"-b")
+    # plot(y_real_range,y_real_range.*s_birth_range,"-r")
+    # plot(y_real_range,(1 - y_real_range).*s_death_range,"-b")
     # # #plot(yy,y_susc_interp[yy])semilogx
     # # println(y_range)
     # # println(y_eff_range_susc)
     # # println(y_sq_eff_range_susc)
 
-    return y_inf_interp,y_sq_inf_interp,y_susc_interp,y_sq_susc_interp,s_interp,splus_interp
+    return y_inf_interp,y_sq_inf_interp,y_susc_interp,y_sq_susc_interp,s_birth_interp,s_death_interp,s_interp,splus_interp
 end
 
 
@@ -1123,8 +1210,9 @@ function get_s_death_effective_two_level_interp(yy,beta::Float64,y_inf_interp)
 end
 
 
-function get_p_reach_theory(t,alpha,beta,N,apply_finite_size=true)
-    y_inf_interp,y_sq_inf_interp,y_susc_interp,y_sq_susc_interp,s_interp,splus_interp = get_interpolations(t,alpha,beta,apply_finite_size)
+function get_p_reach_theory(t,alpha,beta,N,apply_finite_size=true,num_points=1000)
+    y_inf_interp,y_sq_inf_interp,y_susc_interp,y_sq_susc_interp,
+    s_birth_interp,s_death_interp,s_interp,splus_interp = get_interpolations(t,alpha,beta,apply_finite_size,num_points)
 
     # s(x) = get_s_effective_two_level_interp(x,alpha,beta,y_inf_interp,y_sq_inf_interp,y_susc_interp,y_sq_susc_interp)
     # splus(x) = get_splus_effective_two_level_interp(x,alpha,beta,y_inf_interp,y_sq_inf_interp,y_susc_interp,y_sq_susc_interp)
@@ -1134,7 +1222,7 @@ function get_p_reach_theory(t,alpha,beta,N,apply_finite_size=true)
 
     s_actual(x) = 2*s(x)./splus(x)
 
-    xx = logspace(log10(1/N),0,100) 
+    xx = logspace(log10(1/N),0,num_points) 
     pp = P_reach_fast(s,splus,N,1/N,xx)
     return xx,pp,s_actual
 end
