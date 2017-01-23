@@ -7,7 +7,9 @@ module IM
 
 #import Cubature
 export p_birth,p_death,InfectionModel, plot_schematic, get_parameters,
-P_reach,P_fix,P_reach_fast
+P_reach,P_fix,P_reach_fast,
+
+get_s_interp, get_s_integral_interp
 
 
 type InfectionModel
@@ -16,7 +18,7 @@ type InfectionModel
     dt
 end
 
-eps = 1e-5
+eps = 1e-6
 maxevals = 200
 
 function InfectionModel(birth_rate::Function,death_rate::Function)
@@ -25,6 +27,8 @@ function InfectionModel(birth_rate::Function,death_rate::Function)
     dt = desired_rate/max_rate
     InfectionModel(birth_rate,death_rate,dt)
 end
+
+
 
 function p_birth(im::InfectionModel,x)
     return im.birth_rate(x)*im.dt
@@ -112,7 +116,7 @@ end
 
 
 
-function P_reach_fast(im::InfectionModel,N::Int,x0::Real,x1::Array,slow_im=false)
+function P_reach_fast(im::InfectionModel,N::Int,x0::Real,x1::Array,slow_im=false;num_points=100)
     s(x) = (1-x)*(p_birth(im,x) - p_death(im,x))
     a(x) = x*s(x)
     b(x) = 1/N*(1-x)*x*(p_birth(im,x) + p_death(im,x))  
@@ -120,11 +124,8 @@ function P_reach_fast(im::InfectionModel,N::Int,x0::Real,x1::Array,slow_im=false
         a = get_interp_function(a,eps,1)
         b = get_interp_function(b,eps,1)
     end
-    psi_interp = get_psi_interp(a,b,eps,N)
-    
-    numerator = quadgk(y -> psi_interp(y),eps,x0,maxevals=maxevals)[1]
-    denominator = [quadgk(y -> psi_interp(y),eps,x1_el,maxevals=maxevals)[1] for x1_el in x1] 
-    return numerator ./ denominator
+
+    return P_reach_raw_fast(a,b,N,x0,x1,num_points)
 end
 
 function P_reach_fast(s::Function,splus::Function,N::Int,x0::Real,x1::Real)
@@ -142,11 +143,17 @@ function P_reach_fast(s::Function,splus::Function,N::Int,x0::Real,x1::Array)
     return P_reach_raw_fast(a,b,N,x0,x1)
 end
 
-function P_reach_raw_fast(a::Function,b::Function,N::Int,x0::Real,x1::Array)
-    psi_interp = get_psi_interp(a,b,eps,N)
+function P_reach_raw_fast(a::Function,b::Function,N::Int,x0::Real,x1::Array,num_points=100)
+    psi_interp = get_psi_interp(a,b,eps,N,num_points)
+
+    integration_fn(x_0,x) = quadgk(y -> psi_interp(y),x_0,x,maxevals=maxevals)[1] 
+    denominator = zeros(x1)
+    denominator[1] = integration_fn(eps,x1[1])
+    for i in 2:length(x1)
+        denominator[i] = denominator[i-1] + integration_fn(x1[i-1],x1[i])
+    end
     
-    numerator = quadgk(y -> psi_interp(y),eps,x0,maxevals=maxevals)[1]
-    denominator = [quadgk(y -> psi_interp(y),eps,x1_el,maxevals=maxevals)[1] for x1_el in x1] 
+    numerator = integration_fn(eps,x0) 
     return numerator ./ denominator
 end
     
@@ -162,10 +169,37 @@ using Dierckx
 #     psi_interp(x) = evaluate(psi_spline,x)
 #     return psi_interp
 # end
+function get_s_interp(im::InfectionModel,N::Int)
+    # a(x) = x*(1-x)*(p_birth(im,x) - p_death(im,x))
+    # b(x) = 1/N*(1-x)*x*(p_birth(im,x) + p_death(im,x))  
+    # s(x) = 2*a(x)/(N*b(x))
+    s(x) = 2*(p_birth(im,x) - p_death(im,x))/(p_birth(im,x) + p_death(im,x))
+    return get_interp_function(s,eps,1,1000)
+end
 
-function get_psi_interp(a::Function,b::Function,eps::Real,N::Int)
+function get_s_integral_interp(im::InfectionModel,N::Int)
+    s = get_s_interp(im,N)
+    get_s_integral_interp(s)
+end
+
+
+function get_s_integral_interp(s::Function)
+    S(x0,x1) = quadgk(s,x0,x1,maxevals=1000)[1]
+    xx = linspace(eps,1,1000)
+    yy = zeros(xx)
+    yy[1] = S(eps,xx[1])
+    for i in 2:length(xx)
+        yy[i] = yy[i-1] + S(xx[i-1],xx[i])
+    end
+    S_spline = Spline1D(xx,yy,k=1,bc="extrapolate")
+    S_interp(x) = evaluate(S_spline,x)
+    return S_interp 
+end
+
+
+function get_psi_interp(a::Function,b::Function,eps::Real,N::Int,num_points=100)
     psi(x0,x1) = quadgk(y -> a(y)/b(y),x0,x1,maxevals=maxevals)[1]
-    xx = logspace(log10(eps),0,100)
+    xx = logspace(log10(eps),0,num_points)
     yy = zeros(xx)
     yy[1] = psi(eps,xx[1])
     for i in 2:length(xx)
@@ -177,8 +211,8 @@ function get_psi_interp(a::Function,b::Function,eps::Real,N::Int)
     return psi_interp
 end
 
-function get_interp_function(f::Function,x0,x1)
-    xx = logspace(log10(x0),log10(x1),100)
+function get_interp_function(f::Function,x0,x1,num_points=100)
+    xx = logspace(log10(x0),log10(x1),num_points)
     yy = zeros(xx)
     for i in 1:length(xx)
         yy[i] = f(xx[i]) 
