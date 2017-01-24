@@ -71,7 +71,7 @@ function save_epidemics_results(params)
 		timing_log_filename = "timing_log.out"
 		f = open(timing_log_filename,"a")
 		nt = graph_model ? num_trials : num_trials_mixed
-		write(f,"$N $k $nt $elapsed $graph_model $(now())\n")
+		write(f,"N: $N, k: $k, nprocs: $(nprocs()-1), trials: $nt, elapsed: $elapsed, graph: $graph_model $(now())\n")
 	end
 
 end
