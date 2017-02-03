@@ -196,6 +196,7 @@ function run_epidemic_graph(N::Int,im::InfectionModel,graph_information::GraphIn
     frac = get_fraction_of_type(p,INFECTED)
     push!(infecteds,N*frac)
     if carry_by_node_info
+        graph_information.graph = g
         push!(infecteds_by_nodes,copy(get_payload(p)))
     end
 
