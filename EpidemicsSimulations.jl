@@ -83,7 +83,7 @@ function consolidate_epidemic_runs(path,outpath)
 	runs = d["runs"]
 	for filename in filenames
 		d = load(path * filename)
-    	runs = d["runs"]
+    	runs = vcat(runs,d["runs"])
     end
     save_epidemic_file(outpath,params,runs)
 end

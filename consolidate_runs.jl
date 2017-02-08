@@ -1,7 +1,7 @@
 using EpidemicsSimulations
 
 path = "/n/regal/desai_lab/juliankh/tmp/"
-outpath = "~/physics/research/desai/epidemics/data/"
+outpath = "/n/home07/juliankh/physics/research/desai/epidemics/data/"
 dirs = split(readall(`ls $path`));
 for (i,curr_dir) in enumerate(dirs)
     consolidate_epidemic_runs(path * curr_dir * "/data/",outpath)
