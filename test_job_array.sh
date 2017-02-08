@@ -10,7 +10,7 @@
 
 DATE_STR = "$(date +%Y%m%d%H%M%S)"
 PREFIX = "/n/regal/desai_lab/juliankh/tmp"
-mkdir "${PREFIX}"/directory_"${SLURM_ARRAY_TASK_ID}"
-cd "${PREFIX}"/directory_"${SLURM_ARRAY_TASK_ID}"
-pwd
-#echo "${SLURM_ARRAY_TASK_ID}" > text.txt
+mkdir "${PREFIX}/directory_${SLURM_ARRAY_TASK_ID}"
+cd "${PREFIX}/directory_${SLURM_ARRAY_TASK_ID}"
+# pwd > test.txt
+echo "${SLURM_ARRAY_TASK_ID}" > t.txt
