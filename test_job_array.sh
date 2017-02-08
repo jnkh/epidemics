@@ -13,6 +13,8 @@ PREFIX="/n/regal/desai_lab/juliankh/tmp"
 mkdir "${PREFIX}/${SLURM_ARRAY_TASK_ID}"
 cd "${PREFIX}/${SLURM_ARRAY_TASK_ID}"
 cp -r ~/juliankh/physics/research/desai/epidemics/src ./src
+mkdir data
+cd src
 julia run_epidemics.jl
 # pwd > test.txt
 # echo "${SLURM_ARRAY_TASK_ID}" > t.txt
