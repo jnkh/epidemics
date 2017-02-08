@@ -68,10 +68,11 @@ function save_epidemics_results(params)
 		# timing_filename = "timing_$(structure)_$(now()).jld"
 		# save(data_dir_path * timing_filename,"params",params,"elapsed",elapsed)
 
-		timing_log_filename = "timing_log.out"
-		f = open(timing_log_filename,"a")
-		nt = graph_model ? num_trials : num_trials_mixed
-		write(f,"N: $N, k: $k, nprocs: $(nprocs()-1), trials: $nt, elapsed: $elapsed, graph: $graph_model $(now())\n")
+		#uncomment for timing log information!
+		# timing_log_filename = "timing_log.out"
+		# f = open(timing_log_filename,"a")
+		# nt = graph_model ? num_trials : num_trials_mixed
+		# write(f,"N: $N, k: $k, nprocs: $(nprocs()-1), trials: $nt, elapsed: $elapsed, graph: $graph_model $(now())\n")
 	end
 
 end
