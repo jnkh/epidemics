@@ -1,6 +1,6 @@
 using EpidemicsSimulations
 
-path = "/n/regal/desai_lab/juliankh/tmp/"
+path = "/n/regal/desai_lab/juliankh/tmp/data/"
 outpath = "~/physics/research/desai/epidemics/data/"
 dirs = split(readall(`ls $path`));
 for (i,curr_dir) in enumerate(dirs)
