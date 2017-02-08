@@ -2,7 +2,7 @@ module EpidemicsSimulations
 
 using IM,Epidemics,SIS,JLD
 
-export save_epidemics_results
+export save_epidemics_results,consolidate_epidemic_runs
 
 function save_epidemics_results(params)
 	data_dir_path = "../data/"  #"/mnt/D/windows/MIT/classes/6/338/project/data/"
