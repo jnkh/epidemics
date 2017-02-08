@@ -77,5 +77,18 @@ function save_epidemics_results(params)
 
 end
 
-
+function consolidate_epidemic_runs(path,outpath)
+	filenames = split(readstring(`ls $path | grep *.jld`));
+	if length(filenames) < 1
+		println("ERROR, no .jld files found")
+		return
+	end
+	d = load(filenames[1])
+	params = d["params"]
+	runs = d["runs"]
+	for filename in filenames
+		d = load(filename)
+    	runs = d["runs"]
+    end
+	save(outpath,"params",params,"runs",runs)
 end
