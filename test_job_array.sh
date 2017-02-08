@@ -8,13 +8,16 @@
 #SBATCH -o test_%A_%a.out        # Standard output
 #SBATCH -e test_%A_%a.err        # Standard error
 
-DATE_STR="$(date +%Y%m%d%H%M%S)"
+#DATE_STR="$(date +%Y%m%d%H%M%S)"
 PREFIX="/n/regal/desai_lab/juliankh/tmp"
-mkdir "${PREFIX}/${SLURM_ARRAY_TASK_ID}"
-cd "${PREFIX}/${SLURM_ARRAY_TASK_ID}"
-cp -r ~/juliankh/physics/research/desai/epidemics/src ./src
+cd "${PREFIX}"
+mkdir "${SLURM_ARRAY_JOB_ID}"
+cd "${SLURM_ARRAY_JOB_ID}"
+mkdir src
 mkdir data
+cp -r ~/physics/research/desai/epidemics/src/*.jl src
 cd src
 julia run_epidemics.jl
+
 # pwd > test.txt
 # echo "${SLURM_ARRAY_TASK_ID}" > t.txt
