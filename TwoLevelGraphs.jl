@@ -10,7 +10,8 @@ get_stationary_distribution_nonlinear_theory,generate_transition_matrix,
 get_frac_infected,get_s_effective_two_level,get_splus_effective_two_level,
 get_s_birth_effective_two_level,get_s_death_effective_two_level,
 get_s_effective_two_level_interp,get_splus_effective_two_level_interp,
-generate_regular_two_level_graph,same_cluster,get_p_reach_theory,get_sparse_j_mask
+generate_regular_two_level_graph,same_cluster,get_p_reach_theory,get_sparse_j_mask,
+get_stationary_distribution_nlsolve_finite_size
 
 type TwoLevel
     a::Array{Number,1} #number communities with [idx] infected nodes
@@ -938,6 +939,11 @@ function get_stationary_distribution_nonlinear_theory(N::Int,m::Int,l::Int,r::In
     # assert(is_valid(t))
     return get_stationary_distribution_nonlinear_theory(t,alpha,beta,y_desired,apply_finite_size)
 end
+
+
+################################
+#######NLSOLVE APPROACH#########
+################################
 
 function f_finite_size!(x,fvec,t,alpha,beta)
     mask = get_sparse_j_mask(t) 

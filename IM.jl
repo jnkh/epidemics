@@ -7,7 +7,7 @@ module IM
 
 #import Cubature
 export p_birth,p_death,InfectionModel, plot_schematic, get_parameters,
-P_reach,P_fix,P_reach_fast,
+P_reach,P_fix,P_reach_fast,P_reach_raw_fast,
 
 get_s_interp, get_s_integral_interp
 
@@ -18,7 +18,7 @@ type InfectionModel
     dt
 end
 
-eps = 1e-6
+eps = 1e-8
 maxevals = 200
 
 function InfectionModel(birth_rate::Function,death_rate::Function)
@@ -144,8 +144,12 @@ function P_reach_fast(s::Function,splus::Function,N::Int,x0::Real,x1::Array)
 end
 
 function P_reach_raw_fast(a::Function,b::Function,N::Int,x0::Real,x1::Array,num_points=100)
-    psi_interp = get_psi_interp(a,b,eps,N,num_points)
+    a_over_b(y) = a(y)/b(y)
+    return P_reach_raw_fast(a_over_b,N,x0,x1,num_points)
+end
 
+function P_reach_raw_fast(a_over_b::Function,N::Int,x0::Real,x1::Array,num_points=100)
+    psi_interp = get_psi_interp(a_over_b,eps,N,num_points)
     integration_fn(x_0,x) = quadgk(y -> psi_interp(y),x_0,x,maxevals=maxevals)[1] 
     denominator = zeros(x1)
     denominator[1] = integration_fn(eps,x1[1])
@@ -197,8 +201,9 @@ function get_s_integral_interp(s::Function)
 end
 
 
-function get_psi_interp(a::Function,b::Function,eps::Real,N::Int,num_points=100)
-    psi(x0,x1) = quadgk(y -> a(y)/b(y),x0,x1,maxevals=maxevals)[1]
+
+function get_psi_interp(a_over_b::Function,eps::Real,N::Int,num_points=100)
+    psi(x0,x1) = quadgk(a_over_b,x0,x1,maxevals=maxevals)[1]
     xx = logspace(log10(eps),0,num_points)
     yy = zeros(xx)
     yy[1] = psi(eps,xx[1])
@@ -209,6 +214,11 @@ function get_psi_interp(a::Function,b::Function,eps::Real,N::Int,num_points=100)
     psi_spline = Spline1D(xx,yy,k=1,bc="extrapolate")
     psi_interp(x) = evaluate(psi_spline,x)
     return psi_interp
+end
+
+function get_psi_interp(a::Function,b::Function,eps::Real,N::Int,num_points=100)
+    a_over_b(y) = a(y)/b(y)
+    return get_psi_interp(a_over_b,eps,N,num_points)
 end
 
 function get_interp_function(f::Function,x0,x1,num_points=100)

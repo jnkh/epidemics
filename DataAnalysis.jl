@@ -3,6 +3,61 @@ module DataAnalysis
 using SIS,IM,PayloadGraph,PyPlot, Epidemics,JLD, TwoLevelGraphs,Dierckx,Plotting
 import LightGraphs
 
+export get_infecteds_by_clusters_vs_time,
+
+summarize_p_reach_data,load_p_reach_data,
+
+get_two_level_states_from_runs,get_mean_distribution_from_states,
+
+get_two_level_states
+
+
+
+function load_p_reach_data(path)
+    d = load(path)
+
+    params = d["params"]
+    compact = params["compact"]
+    runs = d["runs"]
+    if compact
+        sizes = runs.sizes
+        pvals = runs.p_reach
+        yvals = runs.y_reach
+        num_trials = runs.num_trials
+    else
+        num_fixed = get_num_fixed(runs) #d["num_fixed"]
+        sizes = get_sizes(runs) #d["sizes"]
+        yvals,pvals = get_p_reach(runs,params["N"])
+        num_trials = length(runs)
+    end
+    
+    epidemic_params = QuadraticEpidemicParams(params["N"],params["alpha"],params["beta"])
+    
+    k = params["k"]
+    graph_information = params["graph_information"]
+    graph_type = params["graph_type"]
+    return params,yvals,pvals,epidemic_params,k,graph_information,graph_type,runs,num_trials
+end
+
+function summarize_p_reach_data(path)
+    params,yvals,pvals,epidemic_params,k,graph_information,graph_type,runs,num_trials = load_p_reach_data(path)
+    N = epidemic_params.N
+    alpha = epidemic_params.alpha
+    beta = epidemic_params.beta
+    n_n = epidemic_params.n_n
+    c_r = epidemic_params.c_r
+ 
+    println("N = $N, k = $k, y_n = $(n_n/N), c_r = $(c_r)")
+    println("alpha = $(alpha), beta = $(beta)")
+    println("Graph Type: $(graph_type)")
+    if graph_type == Int(two_level_rg)
+        t = graph_information.data.t
+        println("k_i = $(t.l), k_e = $(t.r)")
+    end
+    println("num trials: $(num_trials)")
+        
+end
+
 #figure out which cluster the infecteds are in from the raw data
 function get_infecteds_by_clusters_vs_time(clusters::Array{Array{Int,1},1},infecteds_by_nodes_vs_time::Array{Array{Int,1},1})
     infecteds_by_clusters_vs_time::Array{Array{Int,1},1} = []
@@ -66,7 +121,7 @@ function get_mean_distribution_from_states(two_level_states::Array{TwoLevel,1},y
     t = two_level_states[1]
     accum = zeros(length(t.a))
     for t in two_level_states
-        if y_desired-tolerance< t.i/t.N < y_desired+tolerance
+        if y_desired-tol< t.i/t.N < y_desired+tol
             counter += 1
             accum += t.a
         end
