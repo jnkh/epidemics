@@ -78,7 +78,7 @@ function save_epidemics_results(params)
 end
 
 function consolidate_epidemic_runs(path,outpath)
-	filenames = split(readall(`ls $path | grep *.jld`));
+	filenames = split(readall(pipeline(`ls $path`,`grep *.jld`)));
 	if length(filenames) < 1
 		println("ERROR, no .jld files found")
 		return
