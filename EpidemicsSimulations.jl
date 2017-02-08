@@ -58,12 +58,7 @@ function save_epidemics_results(params)
 		end
 		println("done after $elapsed seconds.")
 
-
-		structure = graph_model ? "graph" : "mixed"
-		compactness = compact ? "_compact" : ""
-		filename = "epidemics_$(structure)$(compactness)_$(now()).jld"
-		save(data_dir_path * filename,"params",params,"runs",runs)
-
+		save_epidemic_file(data_dir_path,params,runs)
 
 		# timing_filename = "timing_$(structure)_$(now()).jld"
 		# save(data_dir_path * timing_filename,"params",params,"elapsed",elapsed)
@@ -83,16 +78,24 @@ function consolidate_epidemic_runs(path,outpath)
 		println("ERROR, no .jld files found")
 		return
 	end
-	d = load(filenames[1])
+	d = load(path * filenames[1])
 	params = d["params"]
 	runs = d["runs"]
 	for filename in filenames
-		d = load(filename)
+		d = load(path * filename)
     	runs = d["runs"]
     end
-	save(outpath,"params",params,"runs",runs)
+    save_epidemic_file(outpath,params,runs)
 end
 
+function save_epidemic_file(path,params,runs)
+    compact = params["compact"]
+	graph_model = params["graph_model"]
+	structure = graph_model ? "graph" : "mixed"
+	compactness = compact ? "_compact" : ""
+	out_filename = "epidemics_$(structure)$(compactness)_$(now()).jld"
+	save(path * out_filename,"params",params,"runs",runs)
+end
 
 
 end
