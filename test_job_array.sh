@@ -1,5 +1,5 @@
 #!/bin/bash
-##SBATCH -J tophat                  # A single job name for the array
+##SBATCH -J test_array                  # A single job name for the array
 #SBATCH -n 1                       # Number of cores
 #SBATCH -N 1                       # All cores on one machine
 #SBATCH -p serial_requeue          # Partition
@@ -12,4 +12,5 @@ DATE_STR = "$(date +%Y%m%d%H%M%S)"
 PREFIX = "/n/regal/desai_lab/juliankh/tmp"
 mkdir "${PREFIX}"/directory_"${SLURM_ARRAY_TASK_ID}"
 cd "${PREFIX}"/directory_"${SLURM_ARRAY_TASK_ID}"
-echo "${SLURM_ARRAY_TASK_ID}" > text.txt
+pwd
+#echo "${SLURM_ARRAY_TASK_ID}" > text.txt
