@@ -93,7 +93,7 @@ function save_epidemic_file(path,params,runs)
 	graph_model = params["graph_model"]
 	structure = graph_model ? "graph" : "mixed"
 	compactness = compact ? "_compact" : ""
-	out_filename = "epidemics_$(structure)$(compactness)_$(now()).jld"
+	out_filename = "epidemics_$(structure)$(compactness)_$(now())_$(basename(tempname())).jld"
 	save(path * out_filename,"params",params,"runs",runs)
 end
 
