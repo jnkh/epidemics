@@ -6,7 +6,10 @@ export get_gamma_params, graph_from_gamma_distribution,
 graph_from_degree_distribution,
 graph_from_two_degree_distribution,
 graph_given_degrees,
-compute_two_degree_params
+compute_two_degree_params,
+compute_k_sigma_k,
+TwoDegreeParams,
+get_p_k_two_degree
 
 function get_gamma_params(mu,sigma)
     k = mu^2/sigma^2
@@ -135,6 +138,16 @@ function TwoDegreeParams(kbar::Int,k1::Int,k2::Int)
     return TwoDegreeParams(k1,k2,p1,p2)
 end
 
+function compute_k_sigma_k(tdp::TwoDegreeParams)
+    p1 = tdp.p1
+    p2 = tdp.p2
+    k1 = tdp.k1
+    k2 = tdp.k2
+    
+    k_bar = p1*k1 + p2*k2
+    sigma_k = (p1*k1^2 + p2*k2^2 - k_bar^2)^(0.5)
+    println("k_bar: $(k_bar), sigma_k: $(sigma_k)")
+end
 
 
 

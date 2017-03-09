@@ -19,7 +19,9 @@ run_epidemic_graph_experimental,get_s_eff_degree_distribution,
 get_s_eff_degree_distribution_gamma,get_s_eff_degree_distribution_scale_free,
 get_p_k_barabasi_albert,get_p_k_gamma,
 
-get_alpha,get_beta,get_c_r,get_n_n,QuadraticEpidemicParams,get_QuadraticEpidemicParams
+get_alpha,get_beta,get_c_r,get_n_n,QuadraticEpidemicParams,get_QuadraticEpidemicParams,
+
+get_p_reach_well_mixed_simulation,get_p_reach_well_mixed_two_level_simulation
 
 
 
@@ -349,6 +351,23 @@ function run_epidemics_parallel(num_runs::Int,run_epidemic_fn,parallel=true)
     return runs
 end
 
+
+function get_p_reach_well_mixed_simulation(im,N,num_runs=10000)
+    runs = run_epidemics(num_runs, () -> run_epidemic_well_mixed(N,im,1.0));
+    yy,pp = get_p_reach(runs,N)
+end
+
+function get_p_reach_well_mixed_two_level_simulation(t,alpha,beta,N,num_runs=10000;num_points=200)
+    _,_,_,_,s_birth,s_death,s,splus = get_interpolations(t,alpha,beta,true,num_points)
+    dt = get_dt_two_level(alpha,beta)
+    run_epidemic_fn = () -> run_epidemic_well_mixed_two_level(dt,N,s_birth,s_death,1.0)
+
+    runs_two_level = run_epidemics(num_runs,run_epidemic_fn);
+    yvals,pvals = get_p_reach(runs_two_level,N)
+    return yvals,pvals
+end
+
+########Two Degree##########
 
 ########### Utility Functions ##################
 
