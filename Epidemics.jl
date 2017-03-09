@@ -4,7 +4,7 @@ using SIS,Distributions, IM, LightGraphs,PayloadGraph, Dierckx,GraphGeneration
 
 export
 
-RandomGraphType,random_rg,regular_rg,two_level_rg,scale_free_rg,gamma_rg,
+RandomGraphType,random_rg,regular_rg,two_level_rg,scale_free_rg,gamma_rg,two_degree_rg,
 
 run_epidemic_graph,run_epidemic_well_mixed,run_epidemics_parallel,run_epidemics,
 run_epidemic_well_mixed_two_level,
@@ -25,7 +25,7 @@ get_alpha,get_beta,get_c_r,get_n_n,QuadraticEpidemicParams,get_QuadraticEpidemic
 
 #Content
 
-@enum RandomGraphType random_rg=1 regular_rg=2 two_level_rg=3 scale_free_rg=4 gamma_rg=5 
+@enum RandomGraphType random_rg=1 regular_rg=2 two_level_rg=3 scale_free_rg=4 gamma_rg=5 two_degree_rg=6
 
 function graph_is_connected(g::LightGraphs.Graph)
     parents = LightGraphs.dijkstra_shortest_paths(g,1).parents[2:end]

@@ -3,14 +3,17 @@
 # Pkg.add("Cubature")
 # Pkg.add("Distributions")
 # Pkg.add("JLD")
+push!(LOAD_PATH, pwd())
 using TwoLevelGraphs
-using SlurmNodes,JLD
-addprocs(get_list_of_nodes())
+# using SlurmNodes
+using JLD
+# addprocs(get_list_of_nodes())
+addprocs(8)
 using EpidemicsSimulations
 @everywhere using TwoLevelGraphs,GraphGeneration
 @everywhere using SIS,IM,Epidemics
 
-
+TWO_DEGREE = 6
 GAMMA = 5
 SCALE_FREE = 4
 TWO_LEVEL = 3
@@ -22,16 +25,16 @@ verbose = false
 ########## Set up model ###############
 
 
-c_r = 0.2
+c_r = 0.3
 N = 400
-y_n = 0.2
+y_n = 0.1
 
 n_n = Int(N*y_n)#y_n*N
 beta = get_beta(N,c_r,n_n)#4.0/(c_r*n_n)
 alpha = get_alpha(N,c_r,n_n)#(N*beta)/n_n
 
-k_range = [20]
-sigma_k_range = [0.2]#[0.2,1,3,5,10,15,20]
+k_range = [10]
+sigma_k_range = [0.1,5,10]#[0.2,1,3,5,10,15,20]
 
 ####only for two-level graphs####
 m = 20 #nodes per subnode
@@ -41,12 +44,12 @@ r = 10 #Int(m/2)#2 #external
 #################################
 
 
-graph_type_range = [TWO_LEVEL, REGULAR]
+graph_type_range = [TWO_DEGREE]
 
 if verbose println(N, ' ' ,alpha, ' ',beta) end
 
-num_trials_mixed = 40_000
-num_trials = 40_000
+num_trials_mixed = 1000
+num_trials = 1000
 fixation_threshold = 1.0
 ###Set to true if we want by-node information on infecteds (much more data!)
 carry_by_node_information = false
@@ -74,6 +77,9 @@ for graph_model in graph_model_range
 	elseif graph_type == GAMMA
 	    graph_fn = () -> graph_from_gamma_distribution(N,k,sigma_k)
 	    graph_data = sigma_k
+    elseif graph_type == TWO_DEGREE
+        graph_fn = () -> graph_from_two_degree_distribution(N,k,sigma_k)
+        graph_data = sigma_k
 	elseif graph_type == TWO_LEVEL
 
 

@@ -88,6 +88,8 @@ function consolidate_epidemic_runs(path,outpath)
     save_epidemic_file(outpath,params,runs)
 end
 
+
+#TODO: how to combine sparse epidemics?
 function save_epidemic_file(path,params,runs)
     compact = params["compact"]
 	graph_model = params["graph_model"]
