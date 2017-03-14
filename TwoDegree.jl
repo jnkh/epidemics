@@ -5,7 +5,8 @@ using SIS,Distributions, IM, LightGraphs,PayloadGraph, Dierckx,GraphGeneration, 
 export 
 
 run_epidemic_well_mixed_two_degree,compute_y1_y2_vs_y,
-get_p_reach_well_mixed_two_degree_simulation
+get_p_reach_well_mixed_two_degree_simulation,
+get_p_neighbor
 
 ### Well Mixed Case ###
 function run_epidemic_well_mixed_two_degree(N,alpha,beta,tdp,fixation_threshold=1.0)
