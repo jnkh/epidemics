@@ -149,6 +149,19 @@ function random_node_of_same_degree(g,v,self_v)
 end
 
 
+function shuffle_graph_by_degrees(g,ks,ks_map,n_k)
+    new_payload = fill(SUSCEPTIBLE,N)
+    k_vec = degree(g)
+    for k in ks
+        this_degree_indices = find(k_vec .== k)
+        this_degree_infecteds = sample(this_degree_indices,n_k[ks_map[k]],replace=false)
+        new_payload[this_degree_infecteds] = INFECTED 
+    end
+    set_payload(g,new_payload)
+end
+
+
+
 
 function get_neighbor_fraction_of_type_experimental{P}(g::Graph{P},v::Int,thistype::P,N::Int,N_k,ks_map,p_k,p_k_n,n_k)
     neighbors = PayloadGraph.neighbors(g,v)
@@ -217,6 +230,7 @@ function update_graph_experimental{P}(g::Graph{P},im::InfectionModel,new_types::
     n_k = calculate_n_k(g,ks,ks_map)
     # p_k,p_k_n,n_k = 0,0,0
     N = length(vertices(g))
+    shuffle_graph_by_degrees(g,ks,ks_map,n_k)
 
     set_array_with_payload(g,new_types)
     # @sync @parallel for v in vertices(g)
@@ -258,8 +272,8 @@ function update_node_experimental{P}(g::Graph{P},v::Int,im::InfectionModel,new_t
 #     k = length(neighbors(g,v))
 #     # y_sample = rand(Binomial(k,y))/k
     if get_payload(g,v) == SUSCEPTIBLE
-        x = get_neighbor_fraction_of_type_experimental(g,v,INFECTED,N,N_k,ks_map,p_k,p_k_n,n_k)
-        # x = get_neighbor_fraction_of_type(g,v,INFECTED)
+        # x = get_neighbor_fraction_of_type_experimental(g,v,INFECTED,N,N_k,ks_map,p_k,p_k_n,n_k)
+        x = get_neighbor_fraction_of_type(g,v,INFECTED)
         p = x*p_birth(im,x)
         #infect neighbors
         if rand() < p
