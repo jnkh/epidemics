@@ -137,12 +137,12 @@ function random_node_of_degree_type(g,k)
     end
 end
 
-function random_node_of_same_degree(g,v)
+function random_node_of_same_degree(g,v,self_v)
     k = LightGraphs.degree(g.g,v)
     N = length(vertices(g))
     while true
         idx = rand(1:N)
-        if idx != v && LightGraphs.degree(g.g,idx) == k
+        if idx != self_v && LightGraphs.degree(g.g,idx) == k
             return idx
         end
     end
@@ -178,7 +178,7 @@ function get_neighbor_fraction_of_type_experimental{P}(g::Graph{P},v::Int,thisty
     for n in neighbors
         # pl = random_node_of_degree_type(g,LightGraphs.degree(g.g,n))
         # if pl == thistype
-        m = random_node_of_same_degree(g,n)
+        m = random_node_of_same_degree(g,n,v)
         if get_payload(g,m) == thistype
         # if get_payload(g,n) == thistype
             count += 1
