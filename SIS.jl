@@ -268,9 +268,9 @@ function update_node_experimental{P}(g::Graph{P},v::Int,im::InfectionModel,new_t
         x = get_neighbor_fraction_of_type(g,v,INFECTED)
         # x = get_neighbor_fraction_of_type_experimental(g,v,INFECTED,N,N_k,ks_map,p_k,p_k_n,n_k)
         #recover self
-        p = (1-x)*p_death(im,x)
+        p = p_death(im,x)
         if rand() < p
-            new_types[v] = SUSCEPTIBLE#get_sample_of_types_from_neighbors_experimental(g,v)
+            new_types[v] = get_sample_of_types_from_neighbors(g,v)
         end
     end
 
