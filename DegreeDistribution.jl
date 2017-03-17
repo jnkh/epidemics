@@ -1,7 +1,7 @@
 module DegreeDistribution
 
 using Epidemics,
-NLsolve,Distributions,StatsBase
+NLsolve,Distributions,StatsBase,LightGraphs
 
 export get_mean_k, get_k_range,
 get_y_k_equilibrium, get_y_k_branching_process,
@@ -10,8 +10,10 @@ get_mean_y_k,
 get_delta_y_plus,get_delta_y_minus,get_y_bar,
 
 run_epidemics_by_degree,run_epidemic_well_mixed_by_degree,
-get_p_reach_well_mixed_by_degree_simulation
-
+get_p_reach_well_mixed_by_degree_simulation,
+get_p_reach_well_mixed_by_degree_simulation_from_graph,
+create_p_k_p_k_neighbor_from_graph,
+create_p_k_p_k_neighbor_from_graph_fn
 
 function get_k_range(N)
     return collect(1:N-1)
@@ -245,20 +247,66 @@ function get_y_k_sq_tilde(z::Float64,k::Real)
     return z^2 + 1.0/k*z*(1-z)
 end
 
-function run_epidemic_well_mixed_by_degree(N,alpha,beta,p_k,p_k_neighbor,fixation_threshold=1.0;hypergeometric=true)
-    ks = get_k_range(N)
-    
-    #sample N_k (could also do this deterministically!)
-    N_k = rand(Multinomial(N,p_k))
-    #need to adjust p_k for this specific application:
-    p_k = N_k ./ N
-    p_k_neighbor = p_k .*ks
+function create_p_k_p_k_neighbor_from_graph(g)
+    N = nv(g)
+    ks = sort(unique(degree(g)))
+    ks_map = Dict(ks[i] => i for i in 1:length(ks))
+    p_k = zeros(ks)
+    p_k_neighbor = zeros(length(ks),length(ks))
+
+    for v in vertices(g)
+        k_curr_idx = ks_map[degree(g,v)]
+        p_k[k_curr_idx] += 1
+        for w in neighbors(g,v)
+            k_neighbor_idx = ks_map[degree(g,w)]
+            p_k_neighbor[k_curr_idx,k_neighbor_idx] += 1
+        end
+    end
+    N_k = p_k
     p_k /= sum(p_k)
-    p_k_neighbor /= sum(p_k_neighbor)
+    for i = 1:length(ks)
+        p_k_neighbor[i,:] /= sum(p_k_neighbor[i,:])
+    end
+    return ks,ks_map,N_k,p_k,p_k_neighbor
+end
+
+
+function create_p_k_p_k_neighbor_from_graph_fn(graph_fn,num_trials)
+    N = nv(graph_fn())
+    p_k = zeros(N-1)
+    p_k_neighbor_matrix = zeros(N-1,N-1)
+    ks = []
+
+    for i = 1:num_trials
+        ks,ks_map,N_k,p_k_exp,p_k_neighbor_exp = create_p_k_p_k_neighbor_from_graph(graph_fn())
+        p_k[ks] += p_k_exp
+        p_k_neighbor_matrix[ks,ks] += p_k_neighbor_exp
+    end
+    p_k /= sum(p_k)
+    for i = 1:length(p_k)
+        norm_fac = sum(p_k_neighbor_matrix[i,:])
+        if norm_fac > 0
+            p_k_neighbor_matrix[i,:] /= norm_fac 
+        end
+    end
+
+    return p_k,p_k_neighbor_matrix
+end
+
+
+
+function run_epidemic_well_mixed_by_degree_from_graph(N,alpha,beta,G,
+    fixation_threshold=1.0;hypergeometric=true,p_k_neighbor_is_matrix=true)
+    ks,k_idx_array,N_k,p_k,p_k_neighbor = create_p_k_p_k_neighbor_from_graph(G)
     
+    if ~p_k_neighbor_is_matrix
+        p_k_neighbor = p_k .*ks
+        p_k_neighbor /= sum(p_k_neighbor)
+    end
+
     
     n_vec = zeros(ks)
-    idx = sample(get_k_range(N),WeightVec(N_k))
+    idx = sample(collect(1:length(ks)),WeightVec(N_k))
     n_vec[idx] = 1
     dt = 0.1
     max_y = -1.0
@@ -278,21 +326,101 @@ function run_epidemic_well_mixed_by_degree(N,alpha,beta,p_k,p_k_neighbor,fixatio
             fixed = true
             break
         end
-        update_n_vec_by_degree(n_vec,y_k,ks,
-        N,N_k,p_k,p_k_neighbor,alpha,beta,dt,hypergeometric)
+   
+        if ~p_k_neighbor_is_matrix
+            update_n_vec_by_degree(n_vec,y_k,ks,
+            N,N_k,p_k,p_k_neighbor,alpha,beta,dt,hypergeometric)
+        else
+            update_n_vec_by_degree_neighbor_matrix(n_vec,y_k,ks,
+            N,N_k,p_k,p_k_neighbor,alpha,beta,dt,hypergeometric)
+        end
         n = sum(n_vec)
         max_y = max(max_y,n/N)
         # infecteds[step] = n
         # push!(infecteds,n)
-#         push!(y_k_vec,n_vec)
+
     end
 
-    size = dt*sum(infecteds)
+    run_size = dt*sum(infecteds)
     if fixed
-        size = Inf
+        run_size = Inf
     end
 
-    return EpidemicRun(infecteds,size,fixed),y_k_vec,max_y
+    return EpidemicRun(infecteds,run_size,fixed),y_k_vec,max_y
+end
+
+
+function run_epidemic_well_mixed_by_degree(N,alpha,beta,p_k,p_k_neighbor,fixation_threshold=1.0;hypergeometric=true)
+    ks = get_k_range(N)
+    p_k_neighbor_is_matrix = length(size(p_k_neighbor)) > 1
+    
+    #sample N_k (could also do this deterministically!)
+    N_k = rand(Multinomial(N,p_k))
+    #need to adjust p_k for this specific application:
+    p_k = N_k ./ N
+    p_k /= sum(p_k)
+    mask = p_k .> 0
+
+    if ~p_k_neighbor_is_matrix
+        p_k_neighbor = p_k .*ks
+        p_k_neighbor /= sum(p_k_neighbor)
+        p_k_neighbor = p_k_neighbor[mask]
+    else
+        p_k_neighbor = p_k_neighbor[mask,mask]
+    end
+
+
+    k_idx_array = find(mask)
+
+    N_k = N_k[mask]
+    p_k = p_k[mask]
+    ks = ks[mask]
+    
+    
+    n_vec = zeros(ks)
+    idx = sample(collect(1:length(ks)),WeightVec(N_k))
+    n_vec[idx] = 1
+    dt = 0.1
+    max_y = -1.0
+#     infecteds::Array{Float64,1} = []
+    infecteds::Array{Float64,1} = []
+    y_k_vec::Array{Array{Float64,1},1} = []
+    y_k = 1.0*zeros(ks)
+    
+    n = sum(n_vec)
+    max_y = n/N
+    fixed=false
+#     push!(infecteds,n)
+#     push!(y_k_vec,n_vec)
+
+    while n > 0
+        if n >= N || n >= fixation_threshold*N 
+            fixed = true
+            break
+        end
+   
+        if ~p_k_neighbor_is_matrix
+            update_n_vec_by_degree(n_vec,y_k,ks,
+            N,N_k,p_k,p_k_neighbor,alpha,beta,dt,hypergeometric)
+        else
+            update_n_vec_by_degree_neighbor_matrix(n_vec,y_k,ks,
+            N,N_k,p_k,p_k_neighbor,alpha,beta,dt,hypergeometric)
+        end
+        n = sum(n_vec)
+        max_y = max(max_y,n/N)
+        # infecteds[step] = n
+        # push!(infecteds,n)
+        # n_vec_actual = zeros(get_k_range(N))
+        # n_vec_actual[k_idx_array] = n_vec
+#         push!(y_k_vec,n_vec_actual)
+    end
+
+    run_size = dt*sum(infecteds)
+    if fixed
+        run_size = Inf
+    end
+
+    return EpidemicRun(infecteds,run_size,fixed),y_k_vec,max_y
 end
 
 function get_y_k_from_n_k!(y_k,n_k,N_k)
@@ -312,14 +440,18 @@ function get_delta_k(k,N,mean_k)
 end
 
 
+
+
+
+
 function get_hg_correction_1(y_k,p_k_neighbor,N_k)
     fac1 = 0.0
     fac2 = 0.0
     fac3 = 0.0
     for k = 1:length(N_k)
         if N_k[k] > 1
-            fac1 += y_k[k]*(1-y_k[k])*p_k_neighbor[k]^2/(N_k[k])
-            fac2 += y_k[k]*p_k_neighbor[k]*(1-p_k_neighbor[k])*(1-y_k[k])/N_k[k]
+            fac1 += y_k[k]*(1-y_k[k])*p_k_neighbor[k]^2/(N_k[k]-1)
+            fac2 += y_k[k]*p_k_neighbor[k]*(1-p_k_neighbor[k])*(1-y_k[k])/(N_k[k]-1)
         end
         fac3 += y_k[k]^2*p_k_neighbor[k]
     end
@@ -351,11 +483,41 @@ function get_y_k_sq_tilde_hg_3(z,k,N,mean_k,fac1,fac2,fac3)
     return z^2 + (1.0/k)*z*(1-delta_k*z) - fac1 - (1.0/k)*(delta_k*fac2 + (1 - delta_k)*fac3)
 end
 
+function get_z_crude(y_k,p_k_neighbor,N_k)
+    bias_vec = N_k./(N_k-1)
+    bias_vec[N_k .== 1] = 0.0
+    return sum(y_k.*p_k_neighbor.*bias_vec)
+end
+
+
+function get_hg_correction_crude(y_k,p_k_neighbor,N_k,delta_k)
+    fac1 = 0.0
+    fac2 = 0.0
+    fac3 = 0.0
+    for k = 1:length(N_k)
+        if N_k[k] > 1
+            fac1 += y_k[k]*(1-y_k[k])*p_k_neighbor[k]^2/(N_k[k]-1)
+            fac2 += y_k[k]*p_k_neighbor[k]*(1-p_k_neighbor[k])*(1-y_k[k])/(N_k[k]-1)
+            fac3 += ((N_k[k]/(N_k[k]-1))-delta_k)*y_k[k]^2*p_k_neighbor[k]
+        else
+            fac3 += -1.0*delta_k*y_k[k]^2*p_k_neighbor[k]
+        end
+    end
+    return fac1,fac2,fac3
+end
+
+function get_y_k_sq_tilde_crude(z,z_crude,y_k,p_k_neighbor,N_k,k,mean_k,N)
+    delta_k = get_delta_k(k,N,mean_k)
+    fac1,fac2,fac3 = get_hg_correction_crude(y_k,p_k_neighbor,N_k,delta_k)
+    return z^2 +(1.0/k)*z_crude- (1.0/k)*z^2*delta_k - fac1 - (1.0/k)*(delta_k*fac2 + fac3)
+end
+
 
 function update_n_vec_by_degree(n_vec::Array{Int,1},y_k::Array{Float64,1},
     ks::Array{Int,1},N::Int,N_k,p_k,p_k_neighbor,alpha,beta,dt,hypergeometric=true)
     
     N_ave = dot(p_k_neighbor,N_k)
+    # z_crude = get_z_crude(y_k,p_k_neighbor,N_k)
     get_y_k_from_n_k!(y_k,n_vec,N_k)
     z = get_z(y_k,p_k_neighbor)
     y_k_tilde = 0.0
@@ -377,19 +539,21 @@ function update_n_vec_by_degree(n_vec::Array{Int,1},y_k::Array{Float64,1},
     end
     
     
-    for k in ks 
+    for (k_idx,k) in enumerate(ks)
         y_k_tilde = get_y_k_tilde(z)
 #         y_k_sq_tilde = get_y_k_sq_tilde(z,k)
         if hypergeometric
             # y_k_sq_tilde = get_y_k_sq_tilde_hg(z,k,N_ave)
             # y_k_sq_tilde = get_y_k_sq_tilde_hg_2(z,k,hg_fac1,hg_fac2)
             # y_k_sq_tilde = get_y_k_sq_tilde_hg_2(z,k,hg_fac1,hg_fac2)
+
             y_k_sq_tilde = get_y_k_sq_tilde_hg_3(z,k,N,mean_k,hg_fac1,hg_fac2,hg_fac3)
+            # y_k_sq_tilde = get_y_k_sq_tilde_crude(z,z_crude,y_k,p_k_neighbor,N_k,k,mean_k,N)
         else
             y_k_sq_tilde = get_y_k_sq_tilde(z,k)
         end
-        n_plus_trials = N_k[k] - n_vec[k]
-        n_minus_trials = n_vec[k]
+        n_plus_trials = N_k[k_idx] - n_vec[k_idx]
+        n_minus_trials = n_vec[k_idx]
         n_plus_prob = dt*(y_k_tilde + alpha*y_k_sq_tilde)
         n_minus_prob = dt*(1-y_k_tilde)*(1 + beta)
         if n_plus_trials > 0
@@ -402,18 +566,92 @@ function update_n_vec_by_degree(n_vec::Array{Int,1},y_k::Array{Float64,1},
         else
             delta_n_k_minus = 0
         end
-        n_vec[k] = n_vec[k] + delta_n_k_plus - delta_n_k_minus
-        if n_vec[k] < 0 || n_vec[k] > N_k[k]
-            println(n_vec[k], " y:", sum(n_vec)/N)
+        n_vec[k_idx] = n_vec[k_idx] + delta_n_k_plus - delta_n_k_minus
+        if n_vec[k_idx] < 0 || n_vec[k_idx] > N_k[k_idx]
+            println(n_vec[k_idx], " y:", sum(n_vec)/N)
         end
-        n_vec[k] = clamp(n_vec[k],0,N_k[k])
+        n_vec[k_idx] = clamp(n_vec[k_idx],0,N_k[k_idx])
     end
 end
+
+
+function update_n_vec_by_degree_neighbor_matrix(n_vec::Array{Int,1},y_k::Array{Float64,1},
+    ks::Array{Int,1},N::Int,N_k,p_k,p_k_neighbor,alpha,beta,dt,hypergeometric=true)
+    
+    get_y_k_from_n_k!(y_k,n_vec,N_k)
+    y_k_tilde = 0.0
+    y_k_sq_tilde = 0.0
+    n_plus_trials = 0.0
+    n_minus_trials = 0.0
+    n_plus_prob = 0.0
+    n_minus_prob = 0.0
+
+    hg_fac1 = 0.0
+    hg_fac2 = 0.0
+    hg_fac3 = 0.0
+    mean_k = 0.0
+    z = 0.0
+
+  
+    
+    for (k_idx,k) in enumerate(ks)
+        p_k_neighbor_loc = p_k_neighbor[k_idx,:]
+        z = get_z(y_k,p_k_neighbor_loc)
+
+        y_k_tilde = get_y_k_tilde(z)
+        if hypergeometric
+            mean_k = dot(ks,p_k)
+            hg_fac1,hg_fac2,hg_fac3 = get_hg_correction_1(y_k,p_k_neighbor_loc,N_k)
+            N_ave = dot(p_k_neighbor_loc,N_k)
+            # y_k_sq_tilde = get_y_k_sq_tilde_hg(z,k,N_ave)
+            # y_k_sq_tilde = get_y_k_sq_tilde_hg_2(z,k,hg_fac1,hg_fac2)
+            # y_k_sq_tilde = get_y_k_sq_tilde_hg_2(z,k,hg_fac1,hg_fac2)
+            y_k_sq_tilde = get_y_k_sq_tilde_hg_3(z,k,N,mean_k,hg_fac1,hg_fac2,hg_fac3)
+        else
+            y_k_sq_tilde = get_y_k_sq_tilde(z,k)
+        end
+        n_plus_trials = N_k[k_idx] - n_vec[k_idx]
+        n_minus_trials = n_vec[k_idx]
+        n_plus_prob = dt*(y_k_tilde + alpha*y_k_sq_tilde)
+        n_minus_prob = dt*(1-y_k_tilde)*(1 + beta)
+        if n_plus_trials > 0
+            delta_n_k_plus = rand(Binomial(n_plus_trials,n_plus_prob))
+        else
+            delta_n_k_plus = 0
+        end
+        if n_minus_trials > 0
+            delta_n_k_minus = rand(Binomial(n_minus_trials,n_minus_prob))
+        else
+            delta_n_k_minus = 0
+        end
+        n_vec[k_idx] = n_vec[k_idx] + delta_n_k_plus - delta_n_k_minus
+        if n_vec[k_idx] < 0 || n_vec[k_idx] > N_k[k_idx]
+            println(n_vec[k_idx], " y:", sum(n_vec)/N)
+        end
+        n_vec[k_idx] = clamp(n_vec[k_idx],0,N_k[k_idx])
+    end
+end
+
+
 
 function adjust_binomial_factor_to_integer(n_float)
     n_int = ceil(n_float)
     fac = n_int/n_float
     return Int(n_int),fac
+end
+
+function get_p_reach_well_mixed_by_degree_simulation_from_graph(N,alpha,beta,graph_fn,num_runs=10,fac=1000,hypergeometric=true,p_k_neighbor_is_matrix=true)
+    all_maxs = []
+    tuples = 0
+    for i = 1:Int(round(num_runs/fac))
+        G = graph_fn()
+        runs,tuples,maxs = run_epidemics_by_degree(fac, () -> run_epidemic_well_mixed_by_degree_from_graph(N,alpha,beta,G,
+            hypergeometric=hypergeometric,p_k_neighbor_is_matrix=p_k_neighbor_is_matrix));
+        all_maxs = vcat(all_maxs,maxs)
+    end
+#     yy,pp = get_p_reach(runs,N)
+    yy,pp = get_p_reach_from_max_reaches(all_maxs)
+    return yy,pp,tuples
 end
 
 

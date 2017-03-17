@@ -4,8 +4,8 @@
 
 module SIS
 
-
-using PayloadGraph,IM,Distributions
+import LightGraphs
+using PayloadGraph,IM,Distributions,DegreeDistribution,StatsBase
 
 export INFECTED,SUSCEPTIBLE,get_average_degree,
 get_fraction_of_type,print_graph,update_graph,set_all_types,
@@ -96,40 +96,24 @@ end
 
 
 
-
-function get_neighbor_fraction_of_type_experimental{P}(g::Graph{P},v::Int,thistype::P)
-    neighbors = PayloadGraph.neighbors(g,v)
-    k = length(neighbors)
-    neighbors = sample(collect(1:length(g.payload)),k)
-    # return rand(Binomial(k,get_fraction_of_type(g,thistype)))/k
-    if length(neighbors) == 0 return 0.0 end
-    count = 0
-    for n in neighbors
-        if get_payload(g,n) == thistype
-            count += 1
-        end
-    end
-    return count/k
-end
-
 function get_degree_experimental{P}(g::Graph{P},v::Int)
     return length(PayloadGraph.neighbors(g,v))
 end
 
-function get_fraction_of_type_experimental{P}(g::Graph{P},thistype::P)
-    count = 0
-    vs = vertices(g)
-    for v in vs
-        if get_payload(g,v) == thistype
-            count += 1
-        end
-    end
-    return count/length(vs)
-end
+# function get_fraction_of_type_experimental{P}(g::Graph{P},thistype::P)
+#     count = 0
+#     vs = vertices(g)
+#     for v in vs
+#         if get_payload(g,v) == thistype
+#             count += 1
+#         end
+#     end
+#     return count/length(vs)
+# end
 
 
 
-function get_sample_of_types_from_neighbors_experimental{P}(g::Graph{P},v::P)
+function get_sample_of_types_from_neighbors_experimental{P}(g::Graph{P},v::P,p_k,p_k_n,n_k)
     neighbors = PayloadGraph.neighbors(g,v)
     # neighbor_types = sample(g.payload)
     if length(neighbors) == 0
@@ -143,43 +127,180 @@ function get_sample_of_types_from_neighbors_experimental{P}(g::Graph{P},v::P)
     return sample(neighbor_types)
 end
 
-
-function update_graph_experimental{P}(g::Graph{P},im::InfectionModel,new_types::Union{Array{P,1},SharedArray{P,1}})
-
-    set_array_with_payload(g,new_types)
-    # @sync @parallel for v in vertices(g)
-    for v in vertices(g)
-        update_node_experimental(g,v,im,new_types)
+function random_node_of_degree_type(g,k)
+    N = length(vertices(g))
+    while true
+        idx = rand(1:N)
+        if LightGraphs.degree(g.g,idx) == k
+            return get_payload(g,idx)
+        end
     end
-    set_payload(g,new_types)
+end
+
+function random_node_of_same_degree(g,v)
+    k = LightGraphs.degree(g.g,v)
+    N = length(vertices(g))
+    while true
+        idx = rand(1:N)
+        if idx != v && LightGraphs.degree(g.g,idx) == k
+            return idx
+        end
+    end
 end
 
 
 
-function update_node_experimental{P}(g::Graph{P},v::Int,im::InfectionModel,new_types::Union{Array{P,1},SharedArray{P,1}})
-    y = get_fraction_of_type(g,INFECTED)
-    k = length(neighbors(g,v))
-    # y_sample = rand(Binomial(k,y))/k
-    y_sample = get_neighbor_fraction_of_type_experimental(g,v,INFECTED)
+function get_neighbor_fraction_of_type_experimental{P}(g::Graph{P},v::Int,thistype::P,N::Int,N_k,ks_map,p_k,p_k_n,n_k)
+    neighbors = PayloadGraph.neighbors(g,v)
+    k = length(neighbors)
+    count = 0
+
+
+
+    k_vec = zeros(p_k)
+    for w in neighbors
+        k_vec[ks_map[LightGraphs.degree(g.g,w)]] += 1
+    end
+    assert(sum(k_vec) == k)
+
+    # k_vec = rand(Multinomial(k,p_k_n[ks_map[k],:]))
+    for (k_idx,k_count) in enumerate(k_vec)
+        if k_count > 0
+            tot = N_k[k_idx]
+            s = n_k[k_idx]
+            f = tot - s 
+            # count += rand(Binomial(Int(k_count),s/tot))
+            count += rand(Hypergeometric(s,f,k_count))
+        end
+    end
+
+
+    # for n in neighbors
+    #     # pl = random_node_of_degree_type(g,LightGraphs.degree(g.g,n))
+    #     # if pl == thistype
+    #     m = random_node_of_same_degree(g,n)
+    #     if get_payload(g,m) == thistype
+    #     # if get_payload(g,n) == thistype
+    #         count += 1
+    #     end
+    # end
+
+
+    # neighbors = sample(collect(1:length(g.payload)),k)
+    # return rand(Binomial(k,get_fraction_of_type(g,thistype)))/k
+    # if length(neighbors) == 0 return 0.0 end
+    # count = 0
+    # for n in neighbors
+    #     if get_payload(g,n) == thistype
+    #         count += 1
+    #     end
+    # end
+    return count/k
+end
+
+function calculate_n_k(g,ks,ks_map)
+    N = LightGraphs.nv(g.g)
+    n_k = zeros(ks)
+    for v in vertices(g)
+        k = LightGraphs.degree(g.g,v)
+        if get_payload(g,v) == INFECTED
+            n_k[ks_map[k]] += 1
+        end
+    end
+    assert( sum(n_k)/N == get_fraction_of_type(g,INFECTED))
+    n_k
+end
+
+
+function update_graph_experimental{P}(g::Graph{P},im::InfectionModel,new_types::Union{Array{P,1},SharedArray{P,1}})
+    ks,ks_map,N_k,p_k,p_k_n = create_p_k_p_k_neighbor_from_graph(g.g)
+    n_k = calculate_n_k(g,ks,ks_map)
+    # p_k,p_k_n,n_k = 0,0,0
+    N = length(vertices(g))
+
+    set_array_with_payload(g,new_types)
+    # @sync @parallel for v in vertices(g)
+    for v in vertices(g)
+        update_node_experimental(g,v,im,new_types,N,N_k,ks_map,p_k,p_k_n,n_k)
+        # update_node_experimental(g,v,im,new_types)
+    end
+    set_payload(g,new_types)
+end
+
+function update_node_experimental{P}(g::Graph{P},v::Int,im::InfectionModel,new_types::Union{Array{P,1},SharedArray{P,1}},N,N_k,ks_map,p_k,p_k_n,n_k)
+    # if get_payload(g,v) == INFECTED
+    #     # k = get_average_degree(g) 
+    #     #infect neighbors
+    #     neighbors::Array{Int,1} = PayloadGraph.neighbors(g,v)
+    #     p = 0.0
+    #     for w in neighbors
+    #         if get_payload(g,w) == SUSCEPTIBLE
+    #             # x = get_neighbor_fraction_of_type(g,w,INFECTED)
+    #             x = get_neighbor_fraction_of_type_experimental(g,w,INFECTED,N,N_k,ks_map,p_k,p_k_n,n_k)
+    #             k = get_degree(g,w)
+    #             p::Float64 = p_birth(im,x)/k
+    #             if rand() < p
+    #                 new_types[w] = INFECTED
+    #             end
+    #         end
+    #     end
+        
+    #     #recover self
+    #     # x =get_neighbor_fraction_of_type(g,v,INFECTED)
+    #     x = get_neighbor_fraction_of_type_experimental(g,v,INFECTED,N,N_k,ks_map,p_k,p_k_n,n_k)
+    #     p = (1-x)*p_death(im,x)
+    #     if rand() < p
+    #         new_types[v] = SUSCEPTIBLE#get_sample_of_types_from_neighbors(g,v)
+    #     end
+    # end
+
+#     y = get_fraction_of_type(g,INFECTED)
+#     k = length(neighbors(g,v))
+#     # y_sample = rand(Binomial(k,y))/k
+    x = get_neighbor_fraction_of_type_experimental(g,v,INFECTED,N,N_k,ks_map,p_k,p_k_n,n_k)
     if get_payload(g,v) == SUSCEPTIBLE
-        p = y_sample*p_birth(im,y_sample)
-        # k = get_average_degree(g) 
+        p = x*p_birth(im,x)
         #infect neighbors
-        # x = get_neighbor_fraction_of_type_experimental(g,v,INFECTED)
-        # p = x*p_birth(im,x)
         if rand() < p
             new_types[v] = INFECTED
         end
     elseif get_payload(g,v) == INFECTED 
         #recover self
-        # x =get_neighbor_fraction_of_type_experimental(g,v,INFECTED)
-        p = (1-y_sample)*p_death(im,y_sample)
+        p = (1-x)*p_death(im,x)
         if rand() < p
             new_types[v] = SUSCEPTIBLE#get_sample_of_types_from_neighbors_experimental(g,v)
         end
     end
 
+
 end
+
+
+# function update_node_experimental{P}(g::Graph{P},v::Int,im::InfectionModel,new_types::Union{Array{P,1},SharedArray{P,1}})
+#     y = get_fraction_of_type(g,INFECTED)
+#     k = length(neighbors(g,v))
+#     # y_sample = rand(Binomial(k,y))/k
+#     y_sample = get_neighbor_fraction_of_type_experimental(g,v,INFECTED)
+#     if get_payload(g,v) == SUSCEPTIBLE
+#         p = y_sample*p_birth(im,y_sample)
+#         # k = get_average_degree(g) 
+#         #infect neighbors
+#         # x = get_neighbor_fraction_of_type_experimental(g,v,INFECTED)
+#         # p = x*p_birth(im,x)
+#         if rand() < p
+#             new_types[v] = INFECTED
+#         end
+#     elseif get_payload(g,v) == INFECTED 
+#         #recover self
+#         # x =get_neighbor_fraction_of_type_experimental(g,v,INFECTED)
+#         p = (1-y_sample)*p_death(im,y_sample)
+#         if rand() < p
+#             new_types[v] = SUSCEPTIBLE#get_sample_of_types_from_neighbors_experimental(g,v)
+#         end
+#     end
+
+# end
+
 
 
 #####################################################

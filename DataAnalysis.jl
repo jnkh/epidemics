@@ -54,6 +54,10 @@ function summarize_p_reach_data(path)
         t = graph_information.data.t
         println("k_i = $(t.l), k_e = $(t.r)")
     end
+    if graph_type == Int(gamma_rg) ||graph_type == Int(two_degree_rg)
+        sigma_k = graph_information.data
+        println("sigma_k = $(sigma_k)")
+    end
     println("num trials: $(num_trials)")
         
 end
