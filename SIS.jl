@@ -157,33 +157,33 @@ function get_neighbor_fraction_of_type_experimental{P}(g::Graph{P},v::Int,thisty
 
 
 
-    k_vec = zeros(p_k)
-    for w in neighbors
-        k_vec[ks_map[LightGraphs.degree(g.g,w)]] += 1
-    end
-    assert(sum(k_vec) == k)
+    # k_vec = zeros(p_k)
+    # for w in neighbors
+    #     k_vec[ks_map[LightGraphs.degree(g.g,w)]] += 1
+    # end
+    # assert(sum(k_vec) == k)
 
-    # k_vec = rand(Multinomial(k,p_k_n[ks_map[k],:]))
-    for (k_idx,k_count) in enumerate(k_vec)
-        if k_count > 0
-            tot = N_k[k_idx]
-            s = n_k[k_idx]
-            f = tot - s 
-            # count += rand(Binomial(Int(k_count),s/tot))
-            count += rand(Hypergeometric(s,f,k_count))
-        end
-    end
-
-
-    # for n in neighbors
-    #     # pl = random_node_of_degree_type(g,LightGraphs.degree(g.g,n))
-    #     # if pl == thistype
-    #     m = random_node_of_same_degree(g,n)
-    #     if get_payload(g,m) == thistype
-    #     # if get_payload(g,n) == thistype
-    #         count += 1
+    # # k_vec = rand(Multinomial(k,p_k_n[ks_map[k],:]))
+    # for (k_idx,k_count) in enumerate(k_vec)
+    #     if k_count > 0
+    #         tot = N_k[k_idx]
+    #         s = n_k[k_idx]
+    #         f = tot - s 
+    #         # count += rand(Binomial(Int(k_count),s/tot))
+    #         count += rand(Hypergeometric(s,f,k_count))
     #     end
     # end
+
+
+    for n in neighbors
+        # pl = random_node_of_degree_type(g,LightGraphs.degree(g.g,n))
+        # if pl == thistype
+        m = random_node_of_same_degree(g,n)
+        if get_payload(g,m) == thistype
+        # if get_payload(g,n) == thistype
+            count += 1
+        end
+    end
 
 
     # neighbors = sample(collect(1:length(g.payload)),k)
