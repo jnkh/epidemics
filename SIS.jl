@@ -258,14 +258,14 @@ function update_node_experimental{P}(g::Graph{P},v::Int,im::InfectionModel,new_t
 #     k = length(neighbors(g,v))
 #     # y_sample = rand(Binomial(k,y))/k
     if get_payload(g,v) == SUSCEPTIBLE
-        x = get_neighbor_fraction_of_type_experimental(g,v,INFECTED,N,N_k,ks_map,p_k,p_k_n,n_k)
+        x = get_neighbor_fraction_of_type(g,v,INFECTED)
         p = x*p_birth(im,x)
         #infect neighbors
         if rand() < p
             new_types[v] = INFECTED
         end
     elseif get_payload(g,v) == INFECTED 
-        x = get_neighbor_fraction_of_type(g,v,INFECTED)
+        x = get_neighbor_fraction_of_type_experimental(g,v,INFECTED,N,N_k,ks_map,p_k,p_k_n,n_k)
         #recover self
         p = (1-x)*p_death(im,x)
         if rand() < p
