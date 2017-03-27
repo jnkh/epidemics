@@ -48,8 +48,8 @@ graph_type_range = [TWO_DEGREE]
 
 if verbose println(N, ' ' ,alpha, ' ',beta) end
 
-num_trials_mixed = 1000
 num_trials = 1000
+num_trials_mixed = num_trials
 fixation_threshold = 1.0
 ###Set to true if we want by-node information on infecteds (much more data!)
 carry_by_node_information = false
