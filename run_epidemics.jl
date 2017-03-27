@@ -10,9 +10,10 @@ using JLD
 addprocs(get_list_of_nodes())
 #addprocs(8)
 using EpidemicsSimulations
-@everywhere using TwoLevelGraphs,GraphGeneration
-@everywhere using SIS,IM,Epidemics
+@everywhere using TwoLevelGraphs,GraphGeneration, GraphCreation
+@everywhere using SIS,IM,Epidemics,Distributions
 
+CLUSTERING = 7
 TWO_DEGREE = 6
 GAMMA = 5
 SCALE_FREE = 4
@@ -26,7 +27,7 @@ verbose = false
 
 
 c_r = 0.3
-N = 400
+N = 2000
 y_n = 0.1
 
 n_n = Int(N*y_n)#y_n*N
@@ -35,6 +36,7 @@ alpha = get_alpha(N,c_r,n_n)#(N*beta)/n_n
 
 k_range = [10]
 sigma_k_range = [10]#[0.2,1,3,5,10,15,20]
+C_range = [0.1,0.5]
 
 ####only for two-level graphs####
 m = 20 #nodes per subnode
@@ -61,12 +63,14 @@ compact = true
 
 for k in k_range
 for sigma_k in sigma_k_range
+for C in C_range
 for graph_type in graph_type_range
 for graph_model in graph_model_range
 
 	@eval @everywhere N = $N
 	@eval @everywhere k = $k
 	@eval @everywhere sigma_k = $(sigma_k)
+    @eval @everywhere C = $C
 	graph_data = nothing
 	G = 0
 	if graph_type == REGULAR
@@ -78,6 +82,11 @@ for graph_model in graph_model_range
 	elseif graph_type == GAMMA
 	    graph_fn = () -> graph_from_gamma_distribution(N,k,sigma_k)
 	    graph_data = sigma_k
+    elseif graph_type == CLUSTERING
+        # @eval @everywhere d = Binomial(k,1)
+        # graph_fn = () -> create_graph(N,k,:rand_clust,C,deg_distr=d)
+        graph_fn = () -> create_graph(N,k,:watts_strogatz,C)
+        graph_data = C
 	elseif graph_type == TWO_DEGREE
             graph_fn = () -> graph_from_two_degree_distribution(N,k,sigma_k)
             graph_data = sigma_k
