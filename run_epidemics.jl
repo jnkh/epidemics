@@ -5,10 +5,10 @@
 # Pkg.add("JLD")
 push!(LOAD_PATH, pwd())
 using TwoLevelGraphs
-# using SlurmNodes
+using SlurmNodes
 using JLD
-# addprocs(get_list_of_nodes())
-addprocs(8)
+addprocs(get_list_of_nodes())
+#addprocs(8)
 using EpidemicsSimulations
 @everywhere using TwoLevelGraphs,GraphGeneration
 @everywhere using SIS,IM,Epidemics
@@ -34,7 +34,7 @@ beta = get_beta(N,c_r,n_n)#4.0/(c_r*n_n)
 alpha = get_alpha(N,c_r,n_n)#(N*beta)/n_n
 
 k_range = [10]
-sigma_k_range = [0.1,5,10]#[0.2,1,3,5,10,15,20]
+sigma_k_range = [10]#[0.2,1,3,5,10,15,20]
 
 ####only for two-level graphs####
 m = 20 #nodes per subnode
@@ -48,8 +48,8 @@ graph_type_range = [TWO_DEGREE]
 
 if verbose println(N, ' ' ,alpha, ' ',beta) end
 
-num_trials_mixed = 1000
-num_trials = 1000
+num_trials = 10_000
+num_trials_mixed = num_trials
 fixation_threshold = 1.0
 ###Set to true if we want by-node information on infecteds (much more data!)
 carry_by_node_information = false
@@ -68,6 +68,7 @@ for graph_model in graph_model_range
 	@eval @everywhere k = $k
 	@eval @everywhere sigma_k = $(sigma_k)
 	graph_data = nothing
+	G = 0
 	if graph_type == REGULAR
 	    graph_fn = () -> LightGraphs.random_regular_graph(N,k)
 	elseif graph_type == RANDOM
@@ -77,11 +78,10 @@ for graph_model in graph_model_range
 	elseif graph_type == GAMMA
 	    graph_fn = () -> graph_from_gamma_distribution(N,k,sigma_k)
 	    graph_data = sigma_k
-    elseif graph_type == TWO_DEGREE
-        graph_fn = () -> graph_from_two_degree_distribution(N,k,sigma_k)
-        graph_data = sigma_k
-	elseif graph_type == TWO_LEVEL
-
+	elseif graph_type == TWO_DEGREE
+            graph_fn = () -> graph_from_two_degree_distribution(N,k,sigma_k)
+            graph_data = sigma_k
+    	elseif graph_type == TWO_LEVEL
 
 	    t = TwoLevel(N,m,l,r)
 		@eval @everywhere t = $t
