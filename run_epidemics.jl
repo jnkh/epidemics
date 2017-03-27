@@ -12,6 +12,7 @@ addprocs(get_list_of_nodes())
 using EpidemicsSimulations
 @everywhere using TwoLevelGraphs,GraphGeneration, GraphCreation
 @everywhere using SIS,IM,Epidemics,Distributions
+@everywhere @pyimport networkx as nx
 
 CLUSTERING = 7
 TWO_DEGREE = 6
@@ -46,7 +47,7 @@ r = 10 #Int(m/2)#2 #external
 #################################
 
 
-graph_type_range = [TWO_DEGREE]
+graph_type_range = [CLUSTERING]
 
 if verbose println(N, ' ' ,alpha, ' ',beta) end
 
