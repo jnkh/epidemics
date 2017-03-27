@@ -10,6 +10,7 @@ using JLD
 addprocs(get_list_of_nodes())
 #addprocs(8)
 using EpidemicsSimulations
+@everywhere using PyCall
 @everywhere @pyimport networkx as nx
 @everywhere using TwoLevelGraphs,GraphGeneration, GraphCreation
 @everywhere using SIS,IM,Epidemics,Distributions
