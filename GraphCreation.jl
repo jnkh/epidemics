@@ -27,7 +27,7 @@ function create_graph(N,k,graph_type=:erdos_renyi,clustering=0.6;deg_distr=nothi
         g = random_clustering_graph(Gamma(1.0,k),N,clustering)
     elseif graph_type == :rand_clust
         if deg_distr == nothing
-            deg_distr = Gamma(1.0,k)
+            deg_distr = Binomial(k,1) 
         end
         g = random_clustering_graph(deg_distr,N,clustering)
     else

@@ -14,7 +14,8 @@ get_neighbor_fraction_of_type,get_neighbor_fraction_of_type_new,
 get_parameters,
 
 update_graph_threads,get_c_r,get_n_n,get_alpha_beta,
-update_graph_experimental
+update_graph_experimental, update_graph_gillespie,
+compute_all_rates
 
 
 
@@ -322,6 +323,75 @@ end
 #####################################################
 ##################END Experimental###################
 #####################################################
+
+
+
+
+
+#####################################################
+##################BEGIN  Gillespie###################
+#####################################################
+### Epidemic on a Graph ###
+
+function compute_all_rates{P}(g::Graph{P},im::InfectionModel)
+    rates = fill(0.0,num_vertices(g))
+    for v in vertices(g)
+        rates[v] = compute_rate(g,v,im)
+    end
+    return rates
+end
+
+
+
+function compute_rate{P}(g::Graph{P},v::Int,im::InfectionModel)
+    y = get_neighbor_fraction_of_type(g,v,INFECTED)
+    rate = 0.0
+    if get_payload(g,v) == INFECTED
+        rate = (1-y)*p_death(im,y)
+    else 
+        assert(get_payload(g,v) == SUSCEPTIBLE )
+        rate = y*p_birth(im,y)
+    end
+    return rate
+end
+
+
+function pick_update_and_time(rates::Array{Float64,1})
+    v = sample(WeightVec(rates))
+    t = rand(Exponential(1/rates[v]))
+    return v,t
+end
+
+function update_nodes_and_rates{P}(g::Graph{P},v::Int,rates::Array{Float64,1},im::InfectionModel)
+    curr_type = get_payload(g,v)
+    ns = PayloadGraph.neighbors(g,v)
+    if curr_type == INFECTED#set to SUSCEPTIBLE
+        set_payload(g,v,SUSCEPTIBLE)
+    else
+        set_payload(g,v,INFECTED)
+    end
+    rates[v] = compute_rate(g,v,im)
+    for w in ns 
+        rates[w] = compute_rate(g,w,im)
+    end
+end
+
+
+function update_graph_gillespie{P}(g::Graph{P},im::InfectionModel,rates::Array{Float64,1})
+    v,t = pick_update_and_time(rates)
+    update_nodes_and_rates(g,v,rates,im)
+    return t
+end
+
+
+
+
+
+#####################################################
+####################END  Gillespie###################
+#####################################################
+
+
 
 
 

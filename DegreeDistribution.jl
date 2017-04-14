@@ -391,7 +391,7 @@ function run_epidemic_well_mixed_by_degree(N,alpha,beta,p_k,p_k_neighbor,fixatio
     max_y = n/N
     fixed=false
 #     push!(infecteds,n)
-#     push!(y_k_vec,n_vec)
+    push!(y_k_vec,n_vec ./ N_k)
 
     while n > 0
         if n >= N || n >= fixation_threshold*N 
@@ -413,6 +413,7 @@ function run_epidemic_well_mixed_by_degree(N,alpha,beta,p_k,p_k_neighbor,fixatio
         # n_vec_actual = zeros(get_k_range(N))
         # n_vec_actual[k_idx_array] = n_vec
 #         push!(y_k_vec,n_vec_actual)
+        push!(y_k_vec,n_vec ./ N_k)
     end
 
     run_size = dt*sum(infecteds)
@@ -671,12 +672,12 @@ function run_epidemics_by_degree(num_runs::Int,run_epidemic_fn)
         _,y_k_vec,max_y = run_epidemic_fn()
 #         runs[i] = run
         maxs[i] = max_y
-#         push!(y_k_vec_arr,y_k_vec)
+        push!(y_k_vec_arr,y_k_vec)
     end
-    all_y_k_vec = vcat(y_k_vec_arr...)
+    # all_y_k_vec = hcat(y_k_vec_arr...)
     #get rid of fixed oneus
 
-    return runs,hcat(all_y_k_vec),maxs
+    return runs,y_k_vec_arr,maxs
 end
 
 

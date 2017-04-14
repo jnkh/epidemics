@@ -151,6 +151,133 @@ end
 
 
 
+############################################
+########Edge Rewiring For Clustering########
+############################################
+
+
+function swap_edges_c(e1,e2)
+    e3 = Pair(e1[1],e2[2])
+    e4 = Pair(e2[1],e1[2])
+    return e3,e4
+end
+
+
+function valid_swap_c(G,v1,v2,w1,w2)
+    if w1 == w2 return false end
+    if length(unique([v1,v2,w1,w2])) != 4 return false end
+        
+    e1 = Pair(v1,w1)
+    e2 = Pair(v2,w2)
+    e1s,e2s = swap_edges_c(e1,e2)
+    
+    if has_edge(G,e1s) || has_edge(G,e2s) return false end
+    return true
+end
+ 
+
+
+
+function form_triangle!(G)
+    success = false
+    while !success
+        v0 = sample(vertices(G))
+        v1,v2 = sample(neighbors(G,v0),2,replace=false)
+        w1 = v0
+        w2 = v0
+        while w1 == v0 || w2 == v0
+            w1 = sample(neighbors(G,v1))
+            w2 = sample(neighbors(G,v2))
+        end
+        if valid_swap_c(G,v1,v2,w1,w2)
+            e1 = Pair(v1,w1)
+            e2 = Pair(v2,w2)
+            e1s,e2s = swap_edges_c(e1,e2)
+            assert(has_edge(G,e1))
+            assert(has_edge(G,e2))
+            assert(!has_edge(G,e1s))
+            assert(!has_edge(G,e2s))
+            assert(v1 != v2)
+            
+            C_before = mean([local_clustering_coefficient(G,vloc) for vloc in [v1,v2,w1,w2]])
+            rem_edge!(G,e1)
+            rem_edge!(G,e2)
+            add_edge!(G,e1s)
+            add_edge!(G,e2s)
+            C_after = mean([local_clustering_coefficient(G,vloc) for vloc in [v1,v2,w1,w2]])
+            #undo if bad change
+            if C_after <= C_before
+                rem_edge!(G,e1s)
+                rem_edge!(G,e2s)
+                add_edge!(G,e1)
+                add_edge!(G,e2)
+            else
+                success = true
+            end
+        end
+    end
+end
+
+
+function form_triangle_simple!(G)
+    success = false
+    while !success
+        v1,v2 = sample(vertices(G),2,replace=false)
+        w1 = v2
+        w2 = v1
+        while w1 == v2 || w2 == v1
+            w1 = sample(neighbors(G,v1))
+            w2 = sample(neighbors(G,v2))
+        end
+        if valid_swap_c(G,v1,v2,w1,w2)
+            involved_vertices = [v1,v2,w1,w2]
+            e1 = Pair(v1,w1)
+            e2 = Pair(v2,w2)
+            e1s,e2s = swap_edges_c(e1,e2)
+#             assert(has_edge(G,e1))
+#             assert(has_edge(G,e2))
+#             assert(!has_edge(G,e1s))
+#             assert(!has_edge(G,e2s))
+#             assert(v1 != v2)
+            
+            C_before = mean(local_clustering_coefficient(G,involved_vertices))
+            rem_edge!(G,e1)
+            rem_edge!(G,e2)
+            add_edge!(G,e1s)
+            add_edge!(G,e2s)
+            C_after = mean(local_clustering_coefficient(G,involved_vertices))
+            #undo if bad change
+            if C_after <= C_before
+                rem_edge!(G,e1s)
+                rem_edge!(G,e2s)
+                add_edge!(G,e1)
+                add_edge!(G,e2)
+            else
+                success = true
+            end
+#             println(" ",mean(local_clustering_coefficient(G)))
+        end
+    end
+end
+
+function regular_clustering_graph(N,k,C)
+    G = LightGraphs.random_regular_graph(N,k)
+    C_curr = mean(local_clustering_coefficient(G))
+    iters = 1
+    tot_iters = 0
+    while C_curr < C
+        for i = 1:iters
+            form_triangle_simple!(G)
+            tot_iters += 1
+        end
+        C_curr = mean(local_clustering_coefficient(G))
+    end
+    return G
+end
+
+
+
+
 #############Creates a graph from a prescribed degree distribution using 
 #############The stub-connect algorithm with random rewiring to remove
 #############Random edges (such as self-edges and duplicate edges).

@@ -4,7 +4,7 @@ using SIS,Distributions, IM, LightGraphs,PayloadGraph, Dierckx,GraphGeneration
 
 export
 
-RandomGraphType,random_rg,regular_rg,two_level_rg,scale_free_rg,gamma_rg,two_degree_rg,
+RandomGraphType,random_rg,regular_rg,two_level_rg,scale_free_rg,gamma_rg,two_degree_rg,clustering_rg,
 
 run_epidemic_graph,run_epidemic_well_mixed,run_epidemics_parallel,run_epidemics,
 run_epidemic_well_mixed_two_level,
@@ -15,7 +15,9 @@ s,get_s_eff,get_s_eff_exact,normed_distribution, P_w_th,get_y_eff,get_y_eff_exac
 get_sizes, get_num_fixed,GraphInformation,
 get_dt_two_level, update_n_two_level,
 get_p_reach, CompactEpidemicRuns, get_n_plus, get_n_minus,
-run_epidemic_graph_experimental,get_s_eff_degree_distribution,
+run_epidemic_graph_experimental,
+run_epidemic_graph_gillespie,
+get_s_eff_degree_distribution,
 get_s_eff_degree_distribution_gamma,get_s_eff_degree_distribution_scale_free,
 get_p_k_barabasi_albert,get_p_k_gamma,
 
@@ -27,7 +29,7 @@ get_p_reach_well_mixed_simulation,get_p_reach_well_mixed_two_level_simulation
 
 #Content
 
-@enum RandomGraphType random_rg=1 regular_rg=2 two_level_rg=3 scale_free_rg=4 gamma_rg=5 two_degree_rg=6
+@enum RandomGraphType random_rg=1 regular_rg=2 two_level_rg=3 scale_free_rg=4 gamma_rg=5 two_degree_rg=6 clustering_rg=7
 
 function graph_is_connected(g::LightGraphs.Graph)
     parents = LightGraphs.dijkstra_shortest_paths(g,1).parents[2:end]
@@ -157,6 +159,60 @@ function run_epidemic_graph_experimental(N::Int,im::InfectionModel,graph_informa
             break
         end
         update_graph_experimental(p,im,new_types)
+        frac = get_fraction_of_type(p,INFECTED)
+        push!(infecteds,N*frac)
+        if carry_by_node_info
+            push!(infecteds_by_nodes,copy(get_payload(p)))
+        end
+        if shuffle_nodes
+            if graph_information.data == nothing
+                shuffle_payload(p)
+            else
+                shuffle_payload_by_cluster(p,graph_information.data.clusters)
+            end
+        end
+    end
+
+    size = im.dt*sum(infecteds)
+    if fixed
+        size = Inf
+    end
+
+    return EpidemicRun(infecteds,size,fixed,infecteds_by_nodes,graph_information)
+end
+
+#gillespie version
+function run_epidemic_graph_gillespie(N::Int,im::InfectionModel,graph_information::GraphInformation,fixation_threshold=1.0)
+    fixed=false
+    shuffle_nodes = false
+    #construct graph
+    g = guarantee_connected(graph_information.graph_fn)
+#     graph_information.graph = g
+    carry_by_node_info::Bool = graph_information.carry_by_node_info
+
+    #create payload graph
+    p = create_graph_from_value(g,SUSCEPTIBLE)
+    infecteds::Array{Float64,1} = []
+    infecteds_by_nodes::Array{Array{Int,1},1} = []
+
+
+    set_payload(p,rand(1:length(get_payload(p))),INFECTED)
+    frac = get_fraction_of_type(p,INFECTED)
+    push!(infecteds,N*frac)
+    if carry_by_node_info
+        graph_information.graph = g
+        push!(infecteds_by_nodes,copy(get_payload(p)))
+    end
+
+    rates = compute_all_rates(p,im) 
+
+    while frac > 0
+        if !(frac < 1 && frac < fixation_threshold)
+            fixed = true
+            break
+        end
+
+        t = update_graph_gillespie(p,im,rates)
         frac = get_fraction_of_type(p,INFECTED)
         push!(infecteds,N*frac)
         if carry_by_node_info
