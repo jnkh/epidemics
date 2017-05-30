@@ -960,7 +960,7 @@ end
 function get_stationary_distribution_nlsolve_finite_size(N::Int,m::Int,l::Int,r::Int,y_desired::AbstractFloat,alpha::AbstractFloat,beta::AbstractFloat,apply_finite_size=true)
     t = TwoLevel(N,m,l,r)
     #distribute_randomly(t,n)
-    adjust_infecteds(t,y_desired)
+    # adjust_infecteds(t,y_desired)
     t.i = y_desired*N
     return get_stationary_distribution_nlsolve_finite_size(t,alpha,beta)
 end

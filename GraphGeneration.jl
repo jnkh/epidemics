@@ -9,7 +9,8 @@ graph_given_degrees,
 compute_two_degree_params,
 compute_k_sigma_k,
 TwoDegreeParams,
-get_p_k_two_degree
+get_p_k_two_degree,
+regular_clustering_graph
 
 function get_gamma_params(mu,sigma)
     k = mu^2/sigma^2

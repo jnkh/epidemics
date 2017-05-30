@@ -1,6 +1,6 @@
 module DataAnalysis
 
-using SIS,IM,PayloadGraph,PyPlot, Epidemics,JLD, TwoLevelGraphs,Dierckx,Plotting
+using SIS,IM,PayloadGraph,PyPlot, Clustering,Epidemics,JLD, TwoLevelGraphs,Dierckx,Plotting
 import LightGraphs
 
 export get_infecteds_by_clusters_vs_time,
@@ -9,7 +9,9 @@ summarize_p_reach_data,load_p_reach_data,
 
 get_two_level_states_from_runs,get_mean_distribution_from_states,
 
-get_two_level_states
+get_two_level_states,
+
+get_individual_arrays,get_z_arrays, get_infection_size,get_max_reach
 
 
 
@@ -134,5 +136,56 @@ function get_mean_distribution_from_states(two_level_states::Array{TwoLevel,1},y
     println("$counter instances")
     return accum
 end
+
+###Clustering###
+function get_individual_arrays(ecs::Array{Clustering.EdgeCounts,1})
+    len = length(ecs)
+    miis = zeros(len)
+    miss = zeros(len)
+    msss = zeros(len)
+    ns = zeros(len)
+    for i = 1:len
+        miis[i] = ecs[i].mii
+        miss[i] = ecs[i].mis
+        msss[i] = ecs[i].mss
+        ns[i] = Clustering.get_num_infecteds(ecs[i])
+    end
+    return miis,miss,msss,ns
+end
+
+function get_z_arrays(ecs::Array{EdgeCounts,1},C,central_infected,attached_infected)
+    len = length(ecs)
+    z_a_arr = zeros(len)
+    z_a_b_arr = zeros(len)
+    z_a_b_mean_arr = zeros(len)
+    for i = 1:len
+        ms = ecs[i]
+        if ms.mis > 0
+            z_a_arr[i] = get_z_a(ms,central_infected)
+            z_a_b_arr[i] = get_z_a_b(ms,central_infected,attached_infected)
+            z_a_b_mean_arr[i] = get_z_a_b_mean(C,ms,central_infected,attached_infected)
+        end
+    end
+    return z_a_arr,z_a_b_arr,z_a_b_mean_arr
+end
+
+function get_infection_size(ecs::Array{Clustering.EdgeCounts,1})
+    len = length(ecs)
+    size_curr = 0
+    for i = 1:len
+        size_curr += Clustering.get_num_infecteds(ecs[i])
+    end
+    size_curr *= 0.1
+    return size_curr
+end
+
+function get_max_reach(ecs::Array{Clustering.EdgeCounts,1})
+    max_curr = -1.0
+    for i = 1:length(ecs)
+        max_curr = max(Clustering.get_num_infecteds(ecs[i]),max_curr)
+    end
+    return max_curr
+end
+    
 
 end

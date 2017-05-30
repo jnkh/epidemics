@@ -1,6 +1,6 @@
 module Clustering
 
-using Epidemics,
+using Epidemics,SIS,
 NLsolve,Distributions,StatsBase,LightGraphs,GSL
 
 export
@@ -48,19 +48,19 @@ function get_clustering_from_graph(g)
 end
 
 type EdgeCounts
-    mii::Int
-    mis::Int
-    msi::Int
-    mss::Int
-    m::Int
-    k::Int
+    mii::Real
+    mis::Real
+    msi::Real
+    mss::Real
+    m::Real
+    k::Real
 end
 
 function copy(ms::EdgeCounts)
     return EdgeCounts(ms.mii,ms.mis,ms.msi,ms.mss,ms.m,ms.k)
 end
 
-function EdgeCounts(mii::Int,mis::Int,m::Int,k::Int)
+function EdgeCounts(mii::Real,mis::Real,m::Real,k::Real)
     msi = mis
     mss = m - mis - msi - mii
     return EdgeCounts(mii,mis,msi,mss,m,k)
@@ -270,7 +270,8 @@ function update_ms_clustering(ms::EdgeCounts,C::Float64,N::Int,alpha,beta,dt)
     # resampled = 0
     # while ~success
 
-    delta_mis,delta_mii = get_delta_mis_mii_complex(ms,C,N,alpha,beta,dt)
+    delta_mis,delta_mii = get_delta_mis_mii_gillespie(ms,C,N,alpha,beta,dt)
+    # delta_mis,delta_mii = get_delta_mis_mii_complex(ms,C,N,alpha,beta,dt)
     # delta_mis,delta_mii = get_delta_mis_mii_sampling(ms,C,N,alpha,beta,dt)
     mis_curr = ms.mis + delta_mis 
     mii_curr = ms.mii + delta_mii 
@@ -327,6 +328,60 @@ function get_delta_mis_mii(ms::EdgeCounts,C::Float64,N::Int,alpha,beta,dt)
     delta_mii =  1* (mii_delta_plus - mii_delta_minus)
     return delta_mis,delta_mii
 end
+
+
+function get_delta_mis_mii_gillespie(ms::EdgeCounts,C::Float64,N::Int,alpha,beta,dt)
+    k = ms.k
+
+    fac = k
+
+
+    delta_mis = 0
+    delta_mii = 0
+    posterior = true
+    k_i,k_s = 0,0
+    #ss -> is 
+    rates = Float64[] 
+    infected_configuration = []
+    ms_effectives = [] 
+    for central_infected in [true,false]
+        for attached_infected in [true,false]
+            m_count = get_pair_count(ms,central_infected,attached_infected)
+            ms_effective = adjust_pair_count_for_self(ms,central_infected,attached_infected)
+            transition_fn = central_infected ? p_i_to_s : p_s_to_i
+            rate = m_count > 0 ? fac*dt*transition_fn(ms_effective,C,central_infected,attached_infected,alpha,beta) : 0.0
+            push!(rates,m_count*rate)
+            push!(infected_configuration,(central_infected,attached_infected))
+            push!(ms_effectives,ms_effective)
+        end
+    end
+    change_idx,t = pick_update_and_time(rates)
+    central_infected,attached_infected = infected_configuration[change_idx]
+    ms_effective = ms_effectives[change_idx]
+    delta_curr = 1
+    if posterior
+        k_i,k_s = sample_posterior_k_i(C,ms_effective,central_infected,attached_infected,alpha,beta)
+    else
+        k_i,k_s = draw_k_i(ms_effective,k,C,central_infected,attached_infected)
+    end
+
+    I_a = get_infected_indicator(attached_infected)
+    k_s_tot = (1-I_a) + k_s
+    k_i_tot = I_a + k_i
+
+    delta_mii_loc = 2*k_i_tot*delta_curr
+    delta_mis_loc = k_i_tot*delta_curr - k_s_tot*delta_curr
+
+    if central_infected
+        delta_mii -= delta_mii_loc
+        delta_mis += delta_mis_loc
+    else
+        delta_mii += delta_mii_loc
+        delta_mis -= delta_mis_loc
+    end
+    return delta_mis,delta_mii
+end
+
 
 
 
