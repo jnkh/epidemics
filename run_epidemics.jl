@@ -8,7 +8,7 @@ using TwoLevelGraphs
 using SlurmNodes
 using JLD
 addprocs(get_list_of_nodes())
-#addprocs(8)
+# addprocs(8)
 using EpidemicsSimulations
 @everywhere using PyCall
 @everywhere @pyimport networkx as nx
@@ -29,7 +29,7 @@ verbose = false
 
 
 c_r = 0.3
-N = 2000
+N = 400
 y_n = 0.1
 
 n_n = Int(N*y_n)#y_n*N
@@ -38,7 +38,7 @@ alpha = get_alpha(N,c_r,n_n)#(N*beta)/n_n
 
 k_range = [10]
 sigma_k_range = [10]#[0.2,1,3,5,10,15,20]
-C_range = [0.1,0.5]
+C_range = [0.1]
 
 ####only for two-level graphs####
 m = 20 #nodes per subnode
@@ -48,7 +48,7 @@ r = 10 #Int(m/2)#2 #external
 #################################
 
 
-graph_type_range = [CLUSTERING]
+graph_type_range = [GAMMA]
 
 if verbose println(N, ' ' ,alpha, ' ',beta) end
 
@@ -101,7 +101,7 @@ for graph_model in graph_model_range
 	    graph_fn = () -> generate_regular_two_level_graph(t)
 	end
 
-	graph_information = GraphInformation(graph_fn,LightGraphs.Graph(),carry_by_node_information,graph_data)
+	graph_information = GraphInformation(graph_fn,LightGraphs.Graph(),carry_by_node_information,graph_data,graph_type)
 
 	params = Dict{AbstractString,Any}("N" => N, "alpha" => alpha,
 	"beta" => beta, "fixation_threshold" => fixation_threshold,

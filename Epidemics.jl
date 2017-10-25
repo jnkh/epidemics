@@ -8,7 +8,8 @@ RandomGraphType,random_rg,regular_rg,two_level_rg,scale_free_rg,gamma_rg,two_deg
 
 run_epidemic_graph,run_epidemic_well_mixed,run_epidemics_parallel,run_epidemics,
 run_epidemic_well_mixed_two_level,
-EpidemicRun, 
+EpidemicRun,
+prepare_for_saving,
 
 s,get_s_eff,get_s_eff_exact,normed_distribution, P_w_th,get_y_eff,get_y_eff_exact,
 
@@ -23,7 +24,9 @@ get_p_k_barabasi_albert,get_p_k_gamma,
 
 get_alpha,get_beta,get_c_r,get_n_n,QuadraticEpidemicParams,get_QuadraticEpidemicParams,
 
-get_p_reach_well_mixed_simulation,get_p_reach_well_mixed_two_level_simulation
+get_p_reach_well_mixed_simulation,get_p_reach_well_mixed_two_level_simulation,
+get_p_reach,get_p_reach_theory,get_p_reach_sim,SimulationResult,get_graph_information,get_simulation_result
+
 
 
 
@@ -50,14 +53,15 @@ function guarantee_connected(graph_fn)
 end
 
 type GraphInformation
-    graph_fn::Function
+    graph_fn
     graph::LightGraphs.Graph
     carry_by_node_info::Bool
     data
+    graph_type::RandomGraphType
 end
 
 function GraphInformation()
-    return GraphInformation(_ -> _,LightGraphs.Graph(),false,nothing)
+    return GraphInformation(x -> x,LightGraphs.Graph(),false,nothing,random_rg)
 end
 
 type EpidemicRun
@@ -128,7 +132,123 @@ end
 
 
 
+#get graph information for the different types of graphs
+function get_graph_information(graph_type;N=400,k = 10,sigma_k = 10,m=20,l=19,r=1)
+    graph_fn = nothing
+    graph_data = nothing
+    carry_by_node_information = false
+    G = 0
+    if graph_type == regular_rg
+        graph_data = k
+        graph_fn = () -> LightGraphs.random_regular_graph(N,k)
+    elseif graph_type == random_rg
+        graph_fn = () -> LightGraphs.erdos_renyi(N,1.0*k/(N-1))
+    elseif graph_type == scale_free_rg
+        graph_fn = () -> LightGraphs.barabasi_albert(N,Int(round(k/2)),Int(round(k/2)))
+    elseif graph_type == gamma_rg
+        graph_fn = () -> graph_from_gamma_distribution(N,k,sigma_k)
+        graph_data = sigma_k
+    elseif graph_type == clustering_rg
+        # @eval @everywhere d = Binomial(k,1)
+        # graph_fn = () -> create_graph(N,k,:rand_clust,C,deg_distr=d)
+        graph_fn = () -> create_graph(N,k,:watts_strogatz,C)
+        graph_data = C
+    elseif graph_type == two_degree_rg
+            graph_fn = () -> graph_from_two_degree_distribution(N,k,sigma_k)
+            graph_data = sigma_k
+    elseif graph_type == two_level_rg
+        t = TwoLevel(N,m,l,r)
+        @eval @everywhere t = $t
+        graph_data = TwoLevelGraph(LightGraphs.Graph(),t,get_clusters(t))
+        # graph_fn = () -> make_two_level_random_graph(t)[1]
+        graph_fn = () -> generate_regular_two_level_graph(t)
+    end
+
+    graph_information = GraphInformation(graph_fn,LightGraphs.Graph(),carry_by_node_information,graph_data,graph_type)
+    return graph_information
+end
+
+function get_p_reach_sim(N,alpha,beta,num_trials,graph_information;in_parallel=false,fixation_threshold=1.0)
+    im_normal = InfectionModel(x -> 1 + alpha*x , x -> 1 + beta);
+    runssim = run_epidemics_parallel(num_trials,() -> run_epidemic_graph_gillespie(N,im_normal,graph_information,fixation_threshold),in_parallel);
+    return get_p_reach(runssim,N)
+end
+
+
+function get_p_reach_theory(N,alpha,beta,graph_information,num_trials)
+    yy = logspace(log10(1/N),0,1000)
+    pp = 0
+    graph_type = graph_information.graph_type
+    if graph_type == two_level_rg
+        has_two_level = true
+        t = graph_information.data.t
+        yy,pp,s_eff_two_level = get_p_reach_theory(t,alpha,beta,N,apply_finite_size,num_points)
+    elseif graph_type == scale_free_rg 
+        im = InfectionModel(x -> 1 + beta + get_s_eff_degree_distribution_scale_free(x,alpha,beta,k,N) , x -> 1 + beta)
+        pp = P_reach_fast(im,N,1.0/N,yy,true)
+    elseif graph_type == gamma_rg
+        sigma_k = graph_information.data
+        yy,pp = get_p_reach_gamma_theory(N,alpha,beta,sigma_k,k,num_trials)
+    elseif graph_type == two_degree_rg
+        sigma_k = graph_information.data
+        tdp = compute_two_degree_params(k,sigma_k)
+#             yy_wm,pp_wm,_ = get_p_reach_well_mixed_two_degree_simulation(alpha,beta,N,tdp,num_trials)
+        degr_distr = get_p_k_two_degree(tdp)
+        p_k,p_k_neighbor,mean_k = get_p_k_as_vec(degr_distr,N);
+        yy,pp,_ = get_p_reach_well_mixed_by_degree_simulation(N,alpha,beta,p_k,p_k_neighbor,num_trials_wm,hypergeometric)
+    elseif graph_type == regular_rg 
+        k = graph_information.data
+        im = InfectionModel(x -> 1 + beta + get_s_eff_exact(x,alpha,beta,k,N) , x -> 1 + beta)
+        pp = P_reach_fast(im,N,1.0/N,yy,true)
+    elseif graph_type == clustering_rg 
+        C = graph_information.data
+        yy,pp,edge_counts = GraphClustering.get_p_reach_well_mixed_with_clustering(N,k,C,alpha,beta,num_trials_wm,1-1/N);
+#         t =get_optimal_tl_params(N,k,C)
+#         yy,pp,s_eff_two_level = get_p_reach_theory(t,alpha,beta,N,apply_finite_size,num_points)
+    end
+    yy,pp
+end
+
+function get_p_reach_gamma_theory(N,alpha,beta,sigma_k,k,num_trials,hypergeometric=true)
+    min_degree = 3
+    degr_distr = get_p_k_gamma(sigma_k,k,min_degree)
+    p_k,p_k_neighbor,mean_k = get_p_k_as_vec(degr_distr,N);
+    @time yy_wm,pp_wm,_ = get_p_reach_well_mixed_by_degree_simulation(N,alpha,beta,p_k,p_k_neighbor,num_trials,hypergeometric)
+    return yy_wm,pp_wm
+end
+
+type SimulationResult
+    yysim::Array{Float64,1}
+    ppsim::Array{Float64,1}
+    num_trials_sim::Int
+    yyth::Array{Float64,1}
+    ppth::Array{Float64,1}
+    num_trials_th::Int
+    N::Int
+    alpha::Float64
+    beta::Float64
+    graph_information::GraphInformation
+end
+
+function get_simulation_result(N,alpha,beta,gi,num_trials_th,num_trials_sim;in_parallel=false,fixation_threshold=1.0)
+    yysim,ppsim = get_p_reach_sim(N,alpha,beta,num_trials_sim,gi,in_parallel=in_parallel,fixation_threshold=fixation_threshold)
+    yyth,ppth = get_p_reach_theory(N,alpha,beta,gi,num_trials_th);
+    return SimulationResult(yysim,ppsim,num_trials_sim,yyth,ppth,num_trials_th,N,alpha,beta,gi)
+end
+
+function prepare_for_saving(gi::GraphInformation)
+    gi.graph_fn = nothing
+end
+
+function prepare_for_saving(si::SimulationResult)
+    prepare_for_saving(si.graph_information)
+end
+
+
+###########################
 ### Epidemic on a Graph ###
+###########################
+
 function run_epidemic_graph_experimental(N::Int,im::InfectionModel,graph_information::GraphInformation,fixation_threshold=1.0)
     fixed=false
     shuffle_nodes = false
@@ -475,7 +595,7 @@ function get_s_eff(y,alpha::Float64,beta::Float64,k::Int)
 end
 
 function get_y_eff_exact(y,k::Real,N::Int)
-    return y.*(1 + ((1-y)*(N-k))./(y*k*N))
+    return (y + ((1-y)*(N-k))./(k*N))
 end
 
 function get_s_eff_exact(y,alpha,beta,k,N)

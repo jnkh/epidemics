@@ -358,7 +358,7 @@ end
 
 
 function pick_update_and_time(rates::Array{Float64,1})
-    v = sample(WeightVec(rates))
+    v = sample(Weights(rates))
     t = rand(Exponential(1/rates[v]))
     return v,t
 end

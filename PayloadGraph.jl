@@ -13,10 +13,11 @@ type Graph{P}
     g::LightGraphs.Graph
     payload::Array{P,1}
     
-    Graph(a::LightGraphs.Graph,b::Array{P,1}) =  LightGraphs.nv(a) == length(b) ? new(a,b) :  error("Incorrect array length")
+    # Graph(a::LightGraphs.Graph,b::Array{P,1}) =  LightGraphs.nv(a) == length(b) ? new(a,b) :  error("Incorrect array length")
+    Graph{P}(a,b) where P =  LightGraphs.nv(a) == length(b) ? new(a,b) :  error("Incorrect array length")
 end
 
-Graph{P}(a::LightGraphs.Graph,b::Array{P,1}) = Graph{P}(a,b) 
+Graph(a::LightGraphs.Graph,b::Array{P,1}) where P = Graph{P}(a,b); 
 
 
 function shuffle_payload{P}(g::PayloadGraph.Graph{P})

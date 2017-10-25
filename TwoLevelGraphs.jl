@@ -11,7 +11,8 @@ get_frac_infected,get_s_effective_two_level,get_splus_effective_two_level,
 get_s_birth_effective_two_level,get_s_death_effective_two_level,
 get_s_effective_two_level_interp,get_splus_effective_two_level_interp,
 generate_regular_two_level_graph,same_cluster,get_p_reach_theory,get_sparse_j_mask,
-get_stationary_distribution_nlsolve_finite_size
+get_stationary_distribution_nlsolve_finite_size,get_community_graph_fixation_ratio,
+get_fixation_MC
 
 type TwoLevel
     a::Array{Number,1} #number communities with [idx] infected nodes
@@ -97,14 +98,14 @@ function run_mcmc_transition(t::TwoLevel,death_fn::Function,birth_fn::Function,p
         birth_probs[j] = birth_fn(t,j-1)
     end
 
-    birth_idx = StatsBase.sample(WeightVec(birth_probs))
+    birth_idx = StatsBase.sample(Weights(birth_probs))
     birth_at(t,birth_idx)
 
     #death
     for j = 1:t.m
         death_probs[j] = death_fn(t,j)
     end
-    death_idx = StatsBase.sample(WeightVec(death_probs))
+    death_idx = StatsBase.sample(Weights(death_probs))
     death_at(t,death_idx)
 
 
@@ -753,7 +754,7 @@ function get_stationary_distribution_from_matrix(t::TwoLevel,transition_matrix)
   if nsolutions > 1
     println("$(size(equilibrium_distribution)[2]) solutions")
     # println("PROBLEM: $(size(equilibrium_distribution)[2]) SOLUTIONS");
-    mask = Array(Bool, nsolutions)
+    mask = Array{Bool}(nsolutions)
     for i = 1:nsolutions
       mask[i] = all(equilibrium_distribution[:,i] .>= 0) && any(equilibrium_distribution[:,i] .> 0.0)
     end
@@ -958,6 +959,9 @@ function f_finite_size!(x,fvec,t,alpha,beta)
 end
 
 function get_stationary_distribution_nlsolve_finite_size(N::Int,m::Int,l::Int,r::Int,y_desired::AbstractFloat,alpha::AbstractFloat,beta::AbstractFloat,apply_finite_size=true)
+    if ~apply_finite_size
+      println("Finite size effects always applied with nlsolve, ignoring 'apply_finite_size=false' option")
+    end
     t = TwoLevel(N,m,l,r)
     #distribute_randomly(t,n)
     # adjust_infecteds(t,y_desired)
@@ -1264,7 +1268,7 @@ function get_edges_for_supergraph(clusters::Array{Array{Int,1},1},num_edges::Int
             if j > i
                 for v in clust_from
                     for w in clust_to
-                        push!(possible_edges,Pair(v,w))
+                        push!(possible_edges,Edge(v,w))
                     end
                 end
             end
@@ -1276,13 +1280,13 @@ end
 #     possible_edges = []
 #     for i = 1:length(clusters)
 #         for j = i+1:length(clusters)
-#             push!(possible_edges,Pair(i,j))
+#             push!(possible_edges,Edge(i,j))
 #         end
 #     end
 #     super_edges = sample(possible_edges,num_edges)
 #     edges = []
 #     for se in super_edges
-#         e = Pair(sample(clusters[se[1]]),sample(clusters[se[2]]))
+#         e = Edge(sample(clusters[se[1]]),sample(clusters[se[2]]))
 #         push!(edges,e)
 #     end
 #    return edges
@@ -1316,7 +1320,7 @@ function get_edges_for_subgraph(cluster::Array{Int,1},num_edges::Int)
     edges = collect(LightGraphs.edges(g))
     new_edges = copy(edges)
     for (i,e) in enumerate(edges)
-        new_edges[i] = Pair(cluster[e[1]],cluster[e[2]])
+        new_edges[i] = Edge(cluster[e.src],cluster[e.dst])
     end
     return new_edges
 end
@@ -1326,7 +1330,7 @@ function get_edges_for_subgraph(cluster::Array{Int,1},p_edges::Float64)
     edges = collect(LightGraphs.edges(g))
     new_edges = copy(edges)
     for (i,e) in enumerate(edges)
-        new_edges[i] = Pair(cluster[e[1]],cluster[e[2]])
+        new_edges[i] = Edge(cluster[e.src],cluster[e.dst])
     end
     return new_edges
 end
@@ -1442,16 +1446,16 @@ function rewire_edges(unique_edges,dup_edge,clusters)
 end
 
 function swap_edges(e1,e2)
-    e3 = Pair(e1[1],e2[2])
-    e4 = Pair(e2[1],e1[2])
+    e3 = Edge(e1.src,e2.dst)
+    e4 = Edge(e2.src,e1.dst)
     return e3,e4
 end
 
 
 function valid_swap(e1,e2,unique_edges,clusters)
-    if e1[1] == e2[1] || e1[2] == e2[2] return false end
-    if e1[1] == e2[2] || e1[2] == e2[1] return false end
-    if same_cluster(e1[1],e2[2],clusters) || same_cluster(e1[2],e2[1],clusters) return false end
+    if e1.src == e2.src || e1.dst == e2.dst return false end
+    if e1.src == e2.dst || e1.dst == e2.src return false end
+    if same_cluster(e1.src,e2.dst,clusters) || same_cluster(e1.dst,e2.src,clusters) return false end
     e3,e4 = swap_edges(e1,e2)
     if e3 in unique_edges || e4 in unique_edges || reverse(e3) in unique_edges || reverse(e4) in unique_edges
       return false
@@ -1462,7 +1466,7 @@ end
 
 function get_duplicates(arr)
     duplicates = []
-    arr = sort(arr)
+    arr = sort(arr,by=x -> Pair(x.src,x.dst))
     for i in 1:length(arr)-1
         curr = arr[i]
         next = arr[i+1]
@@ -1491,7 +1495,7 @@ end
 function remap_edges(edges,cluster)
     new_edges = copy(edges)
     for (i,e) in enumerate(edges)
-        new_edges[i] = Pair(cluster[e[1]],cluster[e[2]])
+        new_edges[i] = Edge(cluster[e.src],cluster[e.dst])
     end
     return new_edges
 end
@@ -1544,11 +1548,11 @@ function distribute_super_edges(super_edges,clusters,r)
     for (clust_idx,cluster) in enumerate(clusters)
         cluster_indeces = shuffle(repmat(cluster,r))
         for (edge_idx,edge) in enumerate(super_edges)
-            if edge[1] == clust_idx
-                new_edge = Pair(pop!(cluster_indeces),new_edges[edge_idx][2])
+            if edge.src == clust_idx
+                new_edge = Edge(pop!(cluster_indeces),new_edges[edge_idx].dst)
                 new_edges[edge_idx] = new_edge
-            elseif edge[2] == clust_idx
-                new_edge = Pair(new_edges[edge_idx][1],pop!(cluster_indeces))
+            elseif edge.dst == clust_idx
+                new_edge = Edge(new_edges[edge_idx].src,pop!(cluster_indeces))
                 new_edges[edge_idx] = new_edge
             end
         end
@@ -1571,6 +1575,214 @@ function same_cluster(n1,n2,clusters)
     end
 end 
 
+
+
+
+####Forward/Backward fixation ratio
+
+
+function get_alpha_beta(N,c_r,y_n)
+    n_n = Int(N*y_n)#y_n*N
+    beta = get_beta(N,c_r,n_n)#4.0/(c_r*n_n)
+    alpha = get_alpha(N,c_r,n_n)#(N*beta)/n_n
+    return alpha,beta
+end
+    
+
+function get_t(N,k,m,l)
+    r = k -l
+    t = TwoLevel(Int(ceil(N/m)*m),m,l,r)
+    return t
+end
+
+function get_community_graph_fixation_ratio(t,alpha,beta)
+    return get_fixation_MC(t,alpha,beta)/get_fixation_MC(t,alpha,beta,true)
+#     yy,pp,pp_reverse = get_single_community_fixation(t,alpha,beta,false)
+#     return pp[end]/pp_reverse[end]
+end
+
+function get_theory_sim_fixation_ratio(t,alpha,beta,num_trials,use_model = false)
+    success = true
+    if use_model
+        yys,pps,_ = get_p_reach_theory(t,alpha,beta,N,true,200)
+    else
+        yys,pps = get_simulation_yy_pp(t,alpha,beta,num_trials)
+    end
+#     yy,pp,pp_reverse = get_single_community_fixation(t,alpha,beta)
+#     pfixth = pp[end]
+    pfixth = get_fixation_MC(t,alpha,beta)
+    pfix = pps[end]
+    if yys[end] < 0.99
+        println("simulation didn't reach 1.0")
+        println("theory suggests at least $(1/pfixth)")
+        success = false
+        pfix = 0
+#         return -1
+    end
+    figure(1)
+    loglog(yys,pps)
+    return pfix/pfixth, success,pfix,pfixth
+end
+
+
+using Dierckx
+
+function get_simulation_yy_pp(t,alpha,beta,num_trials=100)
+    im_normal = InfectionModel(x -> 1 + alpha*x , x -> 1 + beta);
+    fixation_threshold = 1.0
+
+    verbose = false
+    ###Set to true if we want by-node information on infecteds (much more data!)
+    carry_by_node_information = false
+    graph_model = true
+    in_parallel = true
+    T = generate_regular_two_level_graph(t)
+    graph_fn = () -> T 
+    graph_data = TwoLevelGraph(LightGraphs.Graph(),t,get_clusters(t))
+    graph_information = GraphInformation(graph_fn,Graph(),carry_by_node_information,graph_data)
+
+    # @time runs = run_epidemics_parallel(num_trials,() -> run_epidemic_graph(N,im_normal,graph_information,fixation_threshold),in_parallel);
+    # yy,pp = get_p_reach(runs)
+    # yy /= N
+    @time runs = run_epidemics_parallel(num_trials,() -> run_epidemic_graph_gillespie(t.N,im_normal,graph_information,fixation_threshold),in_parallel);
+    yys,pps = get_p_reach(runs)
+    yys /= N;
+    return yys,pps
+end
+
+
+
+function get_dmp_dmm(t,j,alpha,beta)
+    i_orig = t.i
+    t.i = i_orig + j 
+    z_s = TwoLevelGraphs.get_y_local(t,j,true)
+    z_sq_s = TwoLevelGraphs.get_y_squared_local(t,j,true)
+    z_i = TwoLevelGraphs.get_y_local(t,j,false)
+#     println("j: $j")
+#     println("z_s: $(z_s)")
+#     println("z_i: $(z_i)")
+#     println()
+
+    y_i = j/t.m
+    
+    
+    dmp = (1-y_i)*(z_s + alpha*z_sq_s)
+    dmm = (y_i)*(1-z_i)*(1 + beta)
+    
+    if j == 0 || j == t.m
+        dmm = 0 #j == 0
+        dmp = 0 #j ==t.m
+    end
+
+    t.i = i_orig
+    return dmp,dmm
+end
+
+function get_fixation_MC(t,alpha,beta,reverse=false)
+    y = 0.0
+    t.i = t.N*y
+    m = t.m
+
+    j_range = collect(0:t.m)
+    y_range = j_range/t.m
+    s_arr = zeros(Float64,size(j_range))
+    dmp_arr = zeros(Float64,size(j_range))
+    dmm_arr = zeros(Float64,size(j_range))
+    s_plus_arr = zeros(Float64,size(j_range))
+    for (idx,j) in enumerate(j_range)
+        dmp,dmm = get_dmp_dmm(t,j,alpha,beta)
+        dmp_arr[idx] = dmp
+        dmm_arr[idx] = dmm
+    end
+    if reverse
+        tmp = dmp_arr
+        dmp_arr = dmm_arr
+        dmm_arr = tmp
+        dmp_arr = dmp_arr[end:-1:1]
+        dmm_arr = dmm_arr[end:-1:1]
+    end
+        
+    M = zeros(Float64,m+1,m+1)
+    Q = zeros(Float64,m-1,m-1)
+#     for (idx,j) in enumerate(j_range)
+    for idx in 2:m
+        M[idx,idx+1] = dmp_arr[idx]
+        M[idx,idx-1] = dmm_arr[idx]
+        M[idx,idx] = -dmp_arr[idx]-dmm_arr[idx]
+    end
+    Q = M[2:m,2:m]
+    W1 = M[2:m,1]
+    W2 = M[2:m,m+1]
+    return(- inv(Q)*W2)[1]
+    
+#     sanity check
+#     eps = 0.5
+#     P = eye(m+1) + eps*M
+#     s0 = zeros(m+1)
+#     s0[2] = 1.0
+#     println((s0'*(P^100000))[end])
+    
+#     tot = 0
+#     prod_vec = zeros(m)
+#     lambdas = dmp_arr[2:m]
+#     mus = dmm_arr[2:m]
+#     for i in 1:m
+#         prod_vec[i] = prod(lambdas[1:i-1])*prod(mus[i:end])
+#     end
+# #     prod_vec[1] = prod(mus)
+# #     prod_vec[end] = prod(lambdas)
+#     return prod(lambdas)/sum(prod_vec)
+        
+#     M[1,1] = 1
+#     M[end,end] = 1
+#     pi = eig(M')
+    
+#     return pi
+end
+
+function get_single_community_fixation(t,alpha,beta,plotting=false)
+    y = 0.0
+    t.i = t.N*y
+
+    j_range = collect(0:t.m)
+    y_range = j_range/t.m
+    s_arr = zeros(Float64,size(j_range))
+    dmp_arr = zeros(Float64,size(j_range))
+    dmm_arr = zeros(Float64,size(j_range))
+    s_plus_arr = zeros(Float64,size(j_range))
+    for (idx,j) in enumerate(j_range)
+        dmp,dmm = get_dmp_dmm(t,j,alpha,beta)
+        s_arr[idx] = (dmp-dmm)
+        s_plus_arr[idx] = (dmp+dmm)
+        dmp_arr[idx] = dmp
+        dmm_arr[idx] = dmm
+    end
+
+    # plot(j_range,s_arr./s_plus_arr)
+    # plot(j_range,s_arr,"-")
+    if plotting
+        plot(j_range,dmm_arr,"--")
+        plot(j_range,dmp_arr,"-")
+    end
+
+
+    interpolation_order = 3
+    s_fn(x) = evaluate(Spline1D(y_range,s_arr,k=interpolation_order,bc="extrapolate"),x)
+    splus_fn(x) = evaluate(Spline1D(y_range,s_plus_arr,k=interpolation_order,bc="extrapolate"),x)
+
+    s_m_fn(x) = evaluate(Spline1D(1-y_range[end:-1:1],-s_arr[end:-1:1],k=interpolation_order,bc="extrapolate"),x)
+
+    
+    if plotting
+        figure()
+        plot(y_range,s_fn(y_range))
+        plot(y_range,s_m_fn(y_range))
+    end
+    yy = y_range[1:end]
+    pp_reverse = P_reach_fast(s_m_fn,splus_fn,t.m,1.0/t.m,yy)
+    pp = P_reach_fast(s_fn,splus_fn,t.m,1.0/t.m,yy)
+    return yy,pp,pp_reverse
+end
 
 
 

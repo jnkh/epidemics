@@ -158,8 +158,8 @@ end
 
 
 function swap_edges_c(e1,e2)
-    e3 = Pair(e1[1],e2[2])
-    e4 = Pair(e2[1],e1[2])
+    e3 = Edge(e1.src,e2.dst)
+    e4 = Edge(e2.src,e1.dst)
     return e3,e4
 end
 
@@ -168,8 +168,8 @@ function valid_swap_c(G,v1,v2,w1,w2)
     if w1 == w2 return false end
     if length(unique([v1,v2,w1,w2])) != 4 return false end
         
-    e1 = Pair(v1,w1)
-    e2 = Pair(v2,w2)
+    e1 = Edge(v1,w1)
+    e2 = Edge(v2,w2)
     e1s,e2s = swap_edges_c(e1,e2)
     
     if has_edge(G,e1s) || has_edge(G,e2s) return false end
@@ -191,8 +191,8 @@ function form_triangle!(G)
             w2 = sample(neighbors(G,v2))
         end
         if valid_swap_c(G,v1,v2,w1,w2)
-            e1 = Pair(v1,w1)
-            e2 = Pair(v2,w2)
+            e1 = Edge(v1,w1)
+            e2 = Edge(v2,w2)
             e1s,e2s = swap_edges_c(e1,e2)
             assert(has_edge(G,e1))
             assert(has_edge(G,e2))
@@ -232,8 +232,8 @@ function form_triangle_simple!(G)
         end
         if valid_swap_c(G,v1,v2,w1,w2)
             involved_vertices = [v1,v2,w1,w2]
-            e1 = Pair(v1,w1)
-            e2 = Pair(v2,w2)
+            e1 = Edge(v1,w1)
+            e2 = Edge(v2,w2)
             e1s,e2s = swap_edges_c(e1,e2)
 #             assert(has_edge(G,e1))
 #             assert(has_edge(G,e2))
@@ -322,6 +322,30 @@ function get_valid_edges(edges)
     return unique(valid_edges)
 end
 
+import Base.isless,Base.isequal,Base.==
+function isless(e1::Edge,e2::Edge)
+    isless(edge_to_tuple(e1),edge_to_tuple(e2))
+end
+
+function isequal(e1::Edge,e2::Edge)
+    isequal(edge_to_tuple(e1),edge_to_tuple(e2))
+end
+
+function ==(e1::Edge,e2::Edge)
+    ==(edge_to_tuple(e1),edge_to_tuple(e2))
+end
+
+
+function edge_to_tuple(e::Edge)
+    if e.src < e.dst
+        return (e.src,e.dst)
+    else
+        return (e.dst,e.src)
+    end
+end
+
+
+
 function get_duplicates(arr)
     duplicates = []
     arr = sort(arr)
@@ -338,7 +362,7 @@ function get_duplicates(arr)
 end 
 
 function is_self_edge(edge)
-    return edge[1] == edge[2]
+    return edge.src == edge.dst
 end
 
 function get_self_edges(edges)
@@ -381,16 +405,16 @@ function rewire_edges(unique_edges,dup_edge)
 end
 
 function swap_edges(e1,e2)
-    e3 = Pair(e1[1],e2[2])
-    e4 = Pair(e2[1],e1[2])
+    e3 = Edge(e1.src,e2.dst)
+    e4 = Edge(e2.src,e1.dst)
     return e3,e4
 end
 
 
 function valid_swap(e_invalid,e_valid,unique_edges)
     
-    if e_valid[1] == e_invalid[1] || e_valid[2] == e_invalid[2] return false end
-    if e_valid[1] == e_invalid[2] || e_valid[2] == e_invalid[1] return false end
+    if e_valid.src == e_invalid.src || e_valid.dst == e_invalid.dst return false end
+    if e_valid.src == e_invalid.dst || e_valid.dst == e_invalid.src return false end
     e3,e4 = swap_edges(e_invalid,e_valid)
     assert((~ is_self_edge(e3)) && (~is_self_edge(e4)))
     if e3 in unique_edges || e4 in unique_edges || reverse(e3) in unique_edges || reverse(e4) in unique_edges
@@ -402,7 +426,7 @@ end
 
 function sample_integers(d::UnivariateDistribution,N::Int,min_degree=1)
     samples = rand(d,N)
-    return [Int(max(el,min_degree)) for el in round(samples)]
+    return [Int(max(el,min_degree)) for el in round.(samples)]
 end
 
 function sample_degrees(d::UnivariateDistribution,N::Int,min_degree=1)
@@ -415,7 +439,7 @@ function sample_degrees(d::UnivariateDistribution,N::Int,min_degree=1)
 end
 
 function get_stubs(degrees)
-    stubs = Array(Int,sum(degrees))
+    stubs = Array{Int}(sum(degrees))
     idx = 1
     for i = 1:length(degrees)
         for j = 0:degrees[i]-1
@@ -427,7 +451,7 @@ function get_stubs(degrees)
 end
 
 function make_ordered_pair(first::Int,second::Int)
-    first <= second ? Pair(first,second) : Pair(second,first)
+    first <= second ? Edge(first,second) : Edge(second,first)
 end
 
 function make_edges(stubs)

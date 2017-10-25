@@ -50,8 +50,8 @@ function get_p_k_as_vec(degr_distr,N)
     end
     mask = p_k .> thresh
     #set irrelevant entries to zero.
-    p_k[~mask] = 0
-    p_k_neighbor[~mask] = 0
+    p_k[.~mask] = 0
+    p_k_neighbor[.~mask] = 0
     p_k /= sum(p_k)
     p_k_neighbor /= sum(p_k_neighbor)
     return p_k, p_k_neighbor,mean_k
@@ -306,7 +306,7 @@ function run_epidemic_well_mixed_by_degree_from_graph(N,alpha,beta,G,
 
     
     n_vec = zeros(ks)
-    idx = sample(collect(1:length(ks)),WeightVec(N_k))
+    idx = sample(collect(1:length(ks)),Weights(N_k))
     n_vec[idx] = 1
     dt = 0.1
     max_y = -1.0
@@ -378,7 +378,7 @@ function run_epidemic_well_mixed_by_degree(N,alpha,beta,p_k,p_k_neighbor,fixatio
     
     
     n_vec = zeros(ks)
-    idx = sample(collect(1:length(ks)),WeightVec(N_k))
+    idx = sample(collect(1:length(ks)),Weights(N_k))
     n_vec[idx] = 1
     dt = 0.1
     max_y = -1.0
@@ -664,8 +664,8 @@ function get_p_reach_well_mixed_by_degree_simulation(N,alpha,beta,p_k,p_k_neighb
 end
 
 function run_epidemics_by_degree(num_runs::Int,run_epidemic_fn)
-    runs = Array(EpidemicRun,num_runs)
-    maxs = Array(Float64,num_runs)
+    runs = Array{EpidemicRun}(num_runs)
+    maxs = Array{Float64}(num_runs)
     y_k_vec_arr::Array{Array{Array{Float64,1},1}} = []
 
     for i in 1:num_runs

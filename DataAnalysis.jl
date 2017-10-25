@@ -1,6 +1,6 @@
 module DataAnalysis
 
-using SIS,IM,PayloadGraph,PyPlot, Clustering,Epidemics,JLD, TwoLevelGraphs,Dierckx,Plotting
+using SIS,IM,PayloadGraph,PyPlot, GraphClustering,Epidemics,JLD, TwoLevelGraphs,Dierckx,Plotting
 import LightGraphs
 
 export get_infecteds_by_clusters_vs_time,
@@ -138,7 +138,7 @@ function get_mean_distribution_from_states(two_level_states::Array{TwoLevel,1},y
 end
 
 ###Clustering###
-function get_individual_arrays(ecs::Array{Clustering.EdgeCounts,1})
+function get_individual_arrays(ecs::Array{GraphClustering.EdgeCounts,1})
     len = length(ecs)
     miis = zeros(len)
     miss = zeros(len)
@@ -148,7 +148,7 @@ function get_individual_arrays(ecs::Array{Clustering.EdgeCounts,1})
         miis[i] = ecs[i].mii
         miss[i] = ecs[i].mis
         msss[i] = ecs[i].mss
-        ns[i] = Clustering.get_num_infecteds(ecs[i])
+        ns[i] = GraphClustering.get_num_infecteds(ecs[i])
     end
     return miis,miss,msss,ns
 end
@@ -169,20 +169,20 @@ function get_z_arrays(ecs::Array{EdgeCounts,1},C,central_infected,attached_infec
     return z_a_arr,z_a_b_arr,z_a_b_mean_arr
 end
 
-function get_infection_size(ecs::Array{Clustering.EdgeCounts,1})
+function get_infection_size(ecs::Array{GraphClustering.EdgeCounts,1})
     len = length(ecs)
     size_curr = 0
     for i = 1:len
-        size_curr += Clustering.get_num_infecteds(ecs[i])
+        size_curr += GraphClustering.get_num_infecteds(ecs[i])
     end
     size_curr *= 0.1
     return size_curr
 end
 
-function get_max_reach(ecs::Array{Clustering.EdgeCounts,1})
+function get_max_reach(ecs::Array{GraphClustering.EdgeCounts,1})
     max_curr = -1.0
     for i = 1:length(ecs)
-        max_curr = max(Clustering.get_num_infecteds(ecs[i]),max_curr)
+        max_curr = max(GraphClustering.get_num_infecteds(ecs[i]),max_curr)
     end
     return max_curr
 end
