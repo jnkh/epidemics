@@ -1,6 +1,7 @@
-using SlurmNodes
-addprocs(get_list_of_nodes())
 push!(LOAD_PATH, pwd())
+#using SlurmNodes
+#addprocs(get_list_of_nodes())
+addprocs(6)
 # using PyCall
 #using PyPlot,Plotting
 #pygui(:qt)
@@ -39,22 +40,35 @@ elseif graph_type == gamma_rg
     save_path = "../data/figure_data_gamma.jld"
     N = 2000
     k = 10
-    alpha= 0.666
+    alpha= 0.666 #0.666
     beta = 0.0666
+
     println(Epidemics.get_c_r(N,alpha,beta))
     println(Epidemics.get_n_n(N,alpha,beta)/N)
 
-    num_trials_th = 100000
-    num_trials_sim_range = 1000*ones(Int,4)
+    num_trials_th = 1000000
+    num_trials_sim_range = 10000*ones(Int,4)
     graph_type = gamma_rg
-    sigma_k_range = [1,5,15]
+    sigma_k_range = [1,30]
+    alpha_range = [0.666,0.333]
+    color_range = ["b","r","g","k"]
+    # linestyle_range = ["-","--","-."]
     # labels = [latexstring("\\sigma_k = $sk") for sk in sigma_k_range]
 
-    for (i,sigma_k) in enumerate(sigma_k_range)
-        gi = get_graph_information(graph_type,N=N,k = k,sigma_k=sigma_k)
-        @time si = get_simulation_result(N,alpha,beta,gi,num_trials_th,num_trials_sim_range[i],in_parallel=in_parallel)
-        push!(results,si)
-    end
+    # labels = []
+    # color_results = []
+    # linestyle_results = []
+    results = SimulationResult[]
+    for (j,alpha) in enumerate(alpha_range)
+        for (i,sigma_k) in enumerate(sigma_k_range)
+            gi = get_graph_information(graph_type,N=N,k = k,sigma_k=sigma_k)
+            @time si = get_simulation_result(N,alpha,beta,gi,num_trials_th,num_trials_sim_range[i])
+            push!(results,si)
+            # push!(labels,latexstring("\\sigma_k = $(sigma_k)"))
+            # push!(color_results,color_range[i])
+            # push!(linestyle_results,linestyle_range[j])
+        end
+    end 
 elseif graph_type == two_level_rg
     save_path = "../data/figure_data_two_level.jld"
     N = 400
