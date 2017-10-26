@@ -33,21 +33,21 @@ function plot_p_reach_th(pr::PreachResult;color="b",linestyle="-",marker="o",lab
     gca()[:tick_params](labelsize=15)
 end
 
-function plot_p_reach_sim(pr::PreachResult;color="b",linestyle="none",marker="o",num_points=10)
+function plot_p_reach_sim(pr::PreachResult;color="b",linestyle="none",linewidth=0.5,marker="o",fillstyle="full",num_points=10)
     yyraw = pr.yy
     ppraw = pr.pp
     num_trials = pr.num_trials
     xx,yy,dyy = log_interp(yyraw,ppraw,num_trials,num_points)
-    plt[:errorbar](xx,yy,color=color,linestyle=linestyle,marker=marker,yerr=dyy,linewidth=0.5,markersize=3)
+    plt[:errorbar](xx,yy,color=color,linestyle=linestyle,marker=marker,yerr=dyy,fillstyle=fillstyle,linewidth=linewidth,markersize=3)
     loglog()
     xlabel(L"Frequency $y$",size=20)
     ylabel(L"P_{reach}(y)",size=20)
     gca()[:tick_params](labelsize=15)
 end
 
-function plot_simulation_result(si::SimulationResult;color="b",marker="o",label="",linestyle = "-",num_points=10)
+function plot_simulation_result(si::SimulationResult;color="b",marker="o",fillstyle="full",error_line_width=0.5,label="",linestyle = "-",num_points=10)
     plot_p_reach_th(si.prth,color=color,label=label,linestyle=linestyle)
-    plot_p_reach_sim(si.prsim,color=color,num_points=num_points,linestyle="none")
+    plot_p_reach_sim(si.prsim,color=color,num_points=num_points,linestyle="none",linewidth=error_line_width,fillstyle=fillstyle)
 end
 
 function plot_theory_result(thr::TheoryResult;color="b",marker="o",label="",linestyle="-",num_points=10)

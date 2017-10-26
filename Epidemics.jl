@@ -1,7 +1,7 @@
 module Epidemics
 
 using SIS,Distributions, IM, LightGraphs,PayloadGraph, Dierckx,GraphGeneration
-import TwoLevelGraphs
+import TwoLevelGraphs,DegreeDistribution
 
 export
 
@@ -151,7 +151,7 @@ function get_graph_information(graph_type::RandomGraphType;N=400,k = 10,sigma_k 
         graph_fn = () -> LightGraphs.barabasi_albert(N,Int(round(k/2)),Int(round(k/2)))
     elseif graph_type == gamma_rg
         graph_fn = () -> graph_from_gamma_distribution(N,k,sigma_k)
-        graph_data = sigma_k
+        graph_data = (k,sigma_k)
     elseif graph_type == clustering_rg
         # @eval @everywhere d = Binomial(k,1)
         # graph_fn = () -> create_graph(N,k,:rand_clust,C,deg_distr=d)
@@ -159,10 +159,10 @@ function get_graph_information(graph_type::RandomGraphType;N=400,k = 10,sigma_k 
         graph_data = C
     elseif graph_type == two_degree_rg
             graph_fn = () -> graph_from_two_degree_distribution(N,k,sigma_k)
-            graph_data = sigma_k
+            graph_data = (k,sigma_k)
     elseif graph_type == two_level_rg
         t = TwoLevelGraphs.TwoLevel(N,m,l,r)
-        @eval @everywhere t = $t
+        # @eval @everywhere t = $t
         graph_data = TwoLevelGraphs.TwoLevelGraph(LightGraphs.Graph(),t,TwoLevelGraphs.get_clusters(t))
         # graph_fn = () -> make_two_level_random_graph(t)[1]
         graph_fn = () -> TwoLevelGraphs.generate_regular_two_level_graph(t)
@@ -181,6 +181,16 @@ function get_p_reach_sim(N,alpha,beta,num_trials,graph_information;in_parallel=f
     return PreachResult(yy,pp,num_trials)
 end
 
+function get_p_reach_gamma_theory(N,alpha,beta,sigma_k,k,num_trials,graph_information,hypergeometric=true)
+    min_degree = 3
+    degr_distr = get_p_k_gamma(sigma_k,k,min_degree)
+    p_k,p_k_neighbor,mean_k = DegreeDistribution.get_p_k_as_vec(degr_distr,N);
+    graph_fn = graph_information.graph_fn
+    #p_k_exp,p_k_neighbor_exp = DegreeDistribution.create_p_k_p_k_neighbor_from_graph_fn(graph_fn,100)
+    yy_wm,pp_wm,_ = DegreeDistribution.get_p_reach_well_mixed_by_degree_simulation(N,alpha,beta,p_k,p_k_neighbor,num_trials,hypergeometric)
+    return yy_wm,pp_wm
+end
+
 
 function get_p_reach_theory(N,alpha,beta,graph_information,num_trials)
     yy = logspace(log10(1/N),0,1000)
@@ -196,10 +206,10 @@ function get_p_reach_theory(N,alpha,beta,graph_information,num_trials)
         im = InfectionModel(x -> 1 + beta + get_s_eff_degree_distribution_scale_free(x,alpha,beta,k,N) , x -> 1 + beta)
         pp = P_reach_fast(im,N,1.0/N,yy,true)
     elseif graph_type == gamma_rg
-        sigma_k = graph_information.data
-        yy,pp = get_p_reach_gamma_theory(N,alpha,beta,sigma_k,k,num_trials)
+        k,sigma_k = graph_information.data
+        yy,pp = get_p_reach_gamma_theory(N,alpha,beta,sigma_k,k,num_trials,graph_information)
     elseif graph_type == two_degree_rg
-        sigma_k = graph_information.data
+        k,sigma_k = graph_information.data
         tdp = compute_two_degree_params(k,sigma_k)
 #             yy_wm,pp_wm,_ = get_p_reach_well_mixed_two_degree_simulation(alpha,beta,N,tdp,num_trials)
         degr_distr = get_p_k_two_degree(tdp)
@@ -216,14 +226,6 @@ function get_p_reach_theory(N,alpha,beta,graph_information,num_trials)
 #         yy,pp,s_eff_two_level = get_p_reach_theory(t,alpha,beta,N,apply_finite_size,num_points)
     end
     return PreachResult(yy,pp,num_trials)
-end
-
-function get_p_reach_gamma_theory(N,alpha,beta,sigma_k,k,num_trials,hypergeometric=true)
-    min_degree = 3
-    degr_distr = get_p_k_gamma(sigma_k,k,min_degree)
-    p_k,p_k_neighbor,mean_k = get_p_k_as_vec(degr_distr,N);
-    @time yy_wm,pp_wm,_ = get_p_reach_well_mixed_by_degree_simulation(N,alpha,beta,p_k,p_k_neighbor,num_trials,hypergeometric)
-    return yy_wm,pp_wm
 end
 
 
