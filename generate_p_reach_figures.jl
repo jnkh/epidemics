@@ -10,7 +10,7 @@ TwoDegree,DegreeDistribution,GraphClustering,TwoLevelGraphs,
 import LightGraphs
 plt[:rc]("text",usetex=true)
 
-graph_type = regular_rg
+graph_type = gamma_rg
 
 if graph_type == regular_rg
     save_path = "../data/figure_data_regular.jld"
