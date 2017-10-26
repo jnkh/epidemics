@@ -4,11 +4,11 @@ push!(LOAD_PATH, pwd())
 using PyCall
 #using PyPlot,Plotting
 #pygui(:qt)
+#plt[:rc]("text",usetex=true)
 using SIS,IM,PayloadGraph, Epidemics,JLD,
-Dierckx,Plotting,DataAnalysis,GraphGeneration,
+Dierckx,DataAnalysis,GraphGeneration,
 TwoDegree,DegreeDistribution,GraphClustering,TwoLevelGraphs
 import LightGraphs
-plt[:rc]("text",usetex=true)
 
 graph_type = gamma_rg
 in_parallel= true
