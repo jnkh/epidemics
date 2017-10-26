@@ -1,14 +1,11 @@
 using SlurmNodes
 addprocs(get_list_of_nodes())
 push!(LOAD_PATH, pwd())
-using PyCall
+# using PyCall
 #using PyPlot,Plotting
 #pygui(:qt)
 #plt[:rc]("text",usetex=true)
-using SIS,IM,PayloadGraph, Epidemics,JLD,
-Dierckx,GraphGeneration,DataAnalysis,
-TwoDegree,DegreeDistribution,GraphClustering,TwoLevelGraphs
-import LightGraphs
+using Epidemics,JLD
 
 graph_type = gamma_rg
 in_parallel= true
