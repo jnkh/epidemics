@@ -1,6 +1,6 @@
 module TwoLevelGraphs
 
-using LightGraphs, Distributions, StatsBase, PyPlot, IM, NLsolve
+using LightGraphs, Distributions, StatsBase, IM, NLsolve#,PyPlot
 
 export TwoLevel, is_valid, get_num_infected, distribute_randomly, make_consistent,
 TwoLevelGraph, get_clusters, make_two_level_random_graph,birth_fn,death_fn,
@@ -1760,10 +1760,10 @@ function get_single_community_fixation(t,alpha,beta,plotting=false)
 
     # plot(j_range,s_arr./s_plus_arr)
     # plot(j_range,s_arr,"-")
-    if plotting
-        plot(j_range,dmm_arr,"--")
-        plot(j_range,dmp_arr,"-")
-    end
+    # if plotting
+    #     plot(j_range,dmm_arr,"--")
+    #     plot(j_range,dmp_arr,"-")
+    # end
 
 
     interpolation_order = 3
@@ -1773,11 +1773,11 @@ function get_single_community_fixation(t,alpha,beta,plotting=false)
     s_m_fn(x) = evaluate(Spline1D(1-y_range[end:-1:1],-s_arr[end:-1:1],k=interpolation_order,bc="extrapolate"),x)
 
     
-    if plotting
-        figure()
-        plot(y_range,s_fn(y_range))
-        plot(y_range,s_m_fn(y_range))
-    end
+    # if plotting
+    #     figure()
+    #     plot(y_range,s_fn(y_range))
+    #     plot(y_range,s_m_fn(y_range))
+    # end
     yy = y_range[1:end]
     pp_reverse = P_reach_fast(s_m_fn,splus_fn,t.m,1.0/t.m,yy)
     pp = P_reach_fast(s_fn,splus_fn,t.m,1.0/t.m,yy)
