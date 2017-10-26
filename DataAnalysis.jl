@@ -1,6 +1,6 @@
 module DataAnalysis
 
-using SIS,IM,PayloadGraph,PyPlot, GraphClustering,Epidemics,JLD, TwoLevelGraphs,Dierckx,Plotting
+using SIS,IM,PayloadGraph, GraphClustering,Epidemics,JLD, TwoLevelGraphs,Dierckx
 import LightGraphs
 
 export get_infecteds_by_clusters_vs_time,
