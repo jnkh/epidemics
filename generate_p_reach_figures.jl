@@ -6,11 +6,19 @@ using PyCall
 #pygui(:qt)
 using SIS,IM,PayloadGraph, Epidemics,JLD,
 Dierckx,Plotting,DataAnalysis,GraphGeneration,
-TwoDegree,DegreeDistribution,GraphClustering,TwoLevelGraphs,
+TwoDegree,DegreeDistribution,GraphClustering,TwoLevelGraphs
 import LightGraphs
 plt[:rc]("text",usetex=true)
 
 graph_type = gamma_rg
+in_parallel= true
+color_range = ["b","r","g","k"]
+if in_parallel
+    println("running in parallel on $(nprocs()-1) nodes...")
+else
+    println("running in serial")
+end
+results = SimulationResult[]
 
 if graph_type == regular_rg
     save_path = "../data/figure_data_regular.jld"
@@ -22,16 +30,9 @@ if graph_type == regular_rg
     num_trials_sim = 1000
     num_trials_sim_range = 1000*ones(Int,4) #[1000,1000,1000,100]
     k_range = [4,10,40,399]
-    color_range = ["b","r","g","k"]
     labels = [L"k = $k" for k in k_range]
-    in_parallel= true
 
-    results = SimulationResult[]
-    if in_parallel
-        println("running in parallel on $(nprocs()-1) nodes...")
-    else
-        println("running in serial")
-    end
+
     for (i,k) in enumerate(k_range)
         gi = get_graph_information(graph_type,N=N,k = k)
         @time si = get_simulation_result(N,alpha,beta,gi,num_trials_th,num_trials_sim_range[i],in_parallel=in_parallel)
@@ -43,7 +44,6 @@ elseif graph_type == gamma_rg
     k = 10
     alpha= 0.666
     beta = 0.0666
-
     println(Epidemics.get_c_r(N,alpha,beta))
     println(Epidemics.get_n_n(N,alpha,beta)/N)
 
@@ -51,13 +51,11 @@ elseif graph_type == gamma_rg
     num_trials_sim_range = 1000*ones(Int,4)
     graph_type = gamma_rg
     sigma_k_range = [1,5,15]
-    color_range = ["b","r","g","k"]
     labels = [latexstring("\\sigma_k = $sk") for sk in sigma_k_range]
 
-    results = SimulationResult[]
     for (i,sigma_k) in enumerate(sigma_k_range)
         gi = get_graph_information(graph_type,N=N,k = k,sigma_k=sigma_k)
-        @time si = get_simulation_result(N,alpha,beta,gi,num_trials_th,num_trials_sim_range[i])
+        @time si = get_simulation_result(N,alpha,beta,gi,num_trials_th,num_trials_sim_range[i],in_parallel=in_parallel)
         push!(results,si)
     end
 elseif graph_type == two_level_rg
@@ -66,7 +64,6 @@ elseif graph_type == two_level_rg
     k = 20
     alpha= 3.333
     beta = 0.3333
-
     println(Epidemics.get_c_r(N,alpha,beta))
     println(Epidemics.get_n_n(N,alpha,beta)/N)
 
@@ -76,13 +73,11 @@ elseif graph_type == two_level_rg
     m = k
     l_range = [19,15,10,1]
     r_range = [k-l for l in l_range]
-    color_range = ["b","r","g","k"]
     labels = [latexstring("k_i = $l") for l in l_range]
 
-    results = SimulationResult[]
     for (i,l) in enumerate(l_range)
         gi = get_graph_information(graph_type,N=N,k = k,l=l,m=m,r=r_range[i])
-        @time si = get_simulation_result(N,alpha,beta,gi,num_trials_th,num_trials_sim_range[i])
+        @time si = get_simulation_result(N,alpha,beta,gi,num_trials_th,num_trials_sim_range[i],in_parallel=in_parallel)
         push!(results,si)
     end
 end
