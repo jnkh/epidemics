@@ -38,7 +38,7 @@ if graph_type == regular_rg
         push!(results,si)
     end
 elseif graph_type == gamma_rg
-    save_path = "../../data/figure_data_gamma.jld"
+    save_path = "../data/figure_data_gamma.jld"
     N = 2000
     k = 10
     alpha= 0.666
@@ -61,7 +61,7 @@ elseif graph_type == gamma_rg
         push!(results,si)
     end
 elseif graph_type == two_level_rg
-    save_path_two_level = "../../data/figure_data_two_level.jld"
+    save_path = "../data/figure_data_two_level.jld"
     N = 400
     k = 20
     alpha= 3.333
