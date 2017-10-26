@@ -6,7 +6,7 @@ import LightGraphs
 export plot_schematic,plot_schematics,
 
 plot_w,plot_two_level_schematic,
-plot_p_reach_th,plot_p_reach_sim,plot_simulation_result
+plot_p_reach_th,plot_p_reach_sim,plot_simulation_result,plot_theory_result
 
 
 function log_interp(yy,pp,num_trials,num_points = 10)
@@ -24,14 +24,19 @@ function get_binomial_errorbars(x,num_trials)
     return (x.*(1-x)/num_trials).^0.5
 end
 
-function plot_p_reach_th(yyraw,ppraw;color="b",linestyle="-",marker="o",label="")
+function plot_p_reach_th(pr::PreachResult;color="b",linestyle="-",marker="o",label="")
+    yyraw = pr.yy
+    ppraw = pr.pp
     loglog(yyraw,ppraw,linestyle=linestyle,color=color,linewidth=1,label=label)
     xlabel(L"y",size=20)
     ylabel(L"P_{reach}(y)",size=20)
     gca()[:tick_params](labelsize=15)
 end
 
-function plot_p_reach_sim(yyraw,ppraw,num_trials;color="b",linestyle="none",marker="o",num_points=10)
+function plot_p_reach_sim(pr::PreachResult;color="b",linestyle="none",marker="o",num_points=10)
+    yyraw = pr.yy
+    ppraw = pr.pp
+    num_trials = pr.num_trials
     xx,yy,dyy = log_interp(yyraw,ppraw,num_trials,num_points)
     plt[:errorbar](xx,yy,color=color,linestyle=linestyle,marker=marker,yerr=dyy,linewidth=0.5,markersize=3)
     loglog()
@@ -40,10 +45,16 @@ function plot_p_reach_sim(yyraw,ppraw,num_trials;color="b",linestyle="none",mark
     gca()[:tick_params](labelsize=15)
 end
 
-function plot_simulation_result(si;color="b",marker="o",label="",num_points=10)
-    plot_p_reach_th(si.yyth,si.ppth,color=color,label=label)
-    plot_p_reach_sim(si.yysim,si.ppsim,si.num_trials_sim,color=color,num_points=num_points)
+function plot_simulation_result(si::SimulationResult;color="b",marker="o",label="",linestyle = "-",num_points=10)
+    plot_p_reach_th(si.prth,color=color,label=label,linestyle=linestyle)
+    plot_p_reach_sim(si.prsim,color=color,num_points=num_points,linestyle="none")
 end
+
+function plot_theory_result(thr::TheoryResult;color="b",marker="o",label="",linestyle="-",num_points=10)
+    plot_p_reach_th(thr.pr,color=color,label=label,linestyle=linestyle)
+end
+
+
 
 function plot_schematics(N,n_n,c_r,alpha,beta,im,imk,k,exact=false)
     plot_reach = true
