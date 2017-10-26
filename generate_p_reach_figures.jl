@@ -6,7 +6,7 @@ using PyCall
 #pygui(:qt)
 #plt[:rc]("text",usetex=true)
 using SIS,IM,PayloadGraph, Epidemics,JLD,
-Dierckx,DataAnalysis,GraphGeneration,
+Dierckx,GraphGeneration,DataAnalysis,
 TwoDegree,DegreeDistribution,GraphClustering,TwoLevelGraphs
 import LightGraphs
 
