@@ -10,7 +10,9 @@ compute_two_degree_params,
 compute_k_sigma_k,
 TwoDegreeParams,
 get_p_k_two_degree,
-regular_clustering_graph
+regular_clustering_graph,
+change_num_triangles!,
+change_clustering_by_swapping
 
 function get_gamma_params(mu,sigma)
     k = mu^2/sigma^2
@@ -221,15 +223,47 @@ end
 
 
 function form_triangle_simple!(G)
-    success = false
-    while !success
+    change_num_triangles!(G,true)
+end
+
+function get_valid_set_of_edges(G)
+    while true
         v1,v2 = sample(vertices(G),2,replace=false)
+        n1s = collect(neighbors(G,v1))
+        n2s = collect(neighbors(G,v2))
+        println(n1s)
+        println(n2s)
+        max_trials = 2*(length(n1s) + length(n2s))
+        if length(n1s) == 0 || length(n2s) == 0
+            continue
+        end
         w1 = v2
         w2 = v1
-        while w1 == v2 || w2 == v1
-            w1 = sample(neighbors(G,v1))
-            w2 = sample(neighbors(G,v2))
+        trial = 0
+        while w1 == v2 || w2 == v1 && trial <= max_trials
+            println("trial: $trial, w1: $w1, w2: $s2")
+            w1 = sample(n1s)
+            w2 = sample(n2s)
+            trial += 1
         end
+        if trial <= max_trials
+            print("exit")
+            # print("valid set after $(trial) trials ($(max_trials) max)")
+            assert(w1 != v2 && w2 != v1)
+            return v1,v2,w1,w2
+        # else
+            # pass
+            # print("exceeded $(max_trials) trials. $(length(n1s)), $(length(n2s))")
+        end
+    end
+end
+
+function change_num_triangles!(G,increase=true)
+    success = false
+    max_trials = nv(G)^2
+    trial = 0
+    @time while !success && trial < max_trials
+        v1,v2,w1,w2 = get_valid_set_of_edges(G)
         if valid_swap_c(G,v1,v2,w1,w2)
             involved_vertices = [v1,v2,w1,w2]
             e1 = Edge(v1,w1)
@@ -248,7 +282,7 @@ function form_triangle_simple!(G)
             add_edge!(G,e2s)
             C_after = mean(local_clustering_coefficient(G,involved_vertices))
             #undo if bad change
-            if C_after <= C_before
+            if (increase && C_after <= C_before) || (~increase && C_after >= C_before) 
                 rem_edge!(G,e1s)
                 rem_edge!(G,e2s)
                 add_edge!(G,e1)
@@ -256,24 +290,40 @@ function form_triangle_simple!(G)
             else
                 success = true
             end
-#             println(" ",mean(local_clustering_coefficient(G)))
+            # println("success: $(success)")
+            # println(" ",mean(local_clustering_coefficient(G)))
         end
+        trial += 1
     end
+    println("success $(success) after $(trial) trials")
+    return success
 end
 
-function regular_clustering_graph(N,k,C)
-    G = LightGraphs.random_regular_graph(N,k)
+function change_clustering_by_swapping(G,C)
     C_curr = mean(local_clustering_coefficient(G))
+    increase = C_curr < C
+    if C_curr == C
+        return G
+    end
     iters = 1
     tot_iters = 0
-    while C_curr < C
+    while (increase && C_curr < C) || (~increase && C_curr > C)
         for i = 1:iters
-            form_triangle_simple!(G)
+            succ = change_num_triangles!(G,increase)
+            if !succ
+                print("Warning: Clustering adjustment didn't converge")
+                return G
+            end
             tot_iters += 1
         end
         C_curr = mean(local_clustering_coefficient(G))
     end
     return G
+end
+
+function regular_clustering_graph(N,k,C)
+    G = LightGraphs.random_regular_graph(N,k)
+    return change_clustering_by_swapping(G,C)
 end
 
 
