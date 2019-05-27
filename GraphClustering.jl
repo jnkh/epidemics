@@ -47,7 +47,7 @@ function get_clustering_from_graph(g)
     return mean(local_clustering_coefficient(g))
 end
 
-type EdgeCounts
+struct EdgeCounts
     mii::Real
     mis::Real
     msi::Real

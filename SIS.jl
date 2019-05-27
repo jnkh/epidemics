@@ -4,7 +4,7 @@
 
 module SIS
 
-import LightGraphs
+import LightGraphs,SharedArrays
 using PayloadGraph,IM,Distributions,DegreeDistribution,StatsBase
 
 export INFECTED,SUSCEPTIBLE,get_average_degree,
@@ -98,7 +98,7 @@ end
 
 
 
-function get_degree_experimental{P}(g::Graph{P},v::Int)
+function get_degree_experimental(g::Graph{P},v::Int) where {P}
     return length(PayloadGraph.neighbors(g,v))
 end
 
@@ -115,7 +115,7 @@ end
 
 
 
-function get_sample_of_types_from_neighbors_experimental{P}(g::Graph{P},v::P,p_k,p_k_n,n_k)
+function get_sample_of_types_from_neighbors_experimental(g::Graph{P},v::P,p_k,p_k_n,n_k) where {P}
     neighbors = PayloadGraph.neighbors(g,v)
     # neighbor_types = sample(g.payload)
     if length(neighbors) == 0
@@ -165,7 +165,7 @@ end
 
 
 
-function get_neighbor_fraction_of_type_experimental{P}(g::Graph{P},v::Int,thistype::P,N::Int,N_k,ks_map,p_k,p_k_n,n_k)
+function get_neighbor_fraction_of_type_experimental(g::Graph{P},v::Int,thistype::P,N::Int,N_k,ks_map,p_k,p_k_n,n_k) where {P}
     neighbors = PayloadGraph.neighbors(g,v)
     k = length(neighbors)
     count = 0
@@ -222,12 +222,12 @@ function calculate_n_k(g,ks,ks_map)
             n_k[ks_map[k]] += 1
         end
     end
-    assert( sum(n_k)/N == get_fraction_of_type(g,INFECTED))
+    @assert( sum(n_k)/N == get_fraction_of_type(g,INFECTED))
     n_k
 end
 
 
-function update_graph_experimental{P}(g::Graph{P},im::InfectionModel,new_types::Union{Array{P,1},SharedArray{P,1}})
+function update_graph_experimental(g::Graph{P},im::InfectionModel,new_types::Union{Array{P,1},SharedArrays.SharedArray{P,1}}) where {P}
     ks,ks_map,N_k,p_k,p_k_n = create_p_k_p_k_neighbor_from_graph(g.g)
     n_k = calculate_n_k(g,ks,ks_map)
     # p_k,p_k_n,n_k = 0,0,0
@@ -243,7 +243,7 @@ function update_graph_experimental{P}(g::Graph{P},im::InfectionModel,new_types::
     set_payload(g,new_types)
 end
 
-function update_node_experimental{P}(g::Graph{P},v::Int,im::InfectionModel,new_types::Union{Array{P,1},SharedArray{P,1}},N,N_k,ks_map,p_k,p_k_n,n_k)
+function update_node_experimental(g::Graph{P},v::Int,im::InfectionModel,new_types::Union{Array{P,1},SharedArrays.SharedArray{P,1}},N,N_k,ks_map,p_k,p_k_n,n_k) where {P}
     # if get_payload(g,v) == INFECTED
     #     # k = get_average_degree(g) 
     #     #infect neighbors
@@ -334,7 +334,7 @@ end
 #####################################################
 ### Epidemic on a Graph ###
 
-function compute_all_rates{P}(g::Graph{P},im::InfectionModel)
+function compute_all_rates(g::Graph{P},im::InfectionModel) where {P} 
     rates = fill(0.0,num_vertices(g))
     for v in vertices(g)
         rates[v] = compute_rate(g,v,im)
@@ -344,13 +344,13 @@ end
 
 
 
-function compute_rate{P}(g::Graph{P},v::Int,im::InfectionModel)
+function compute_rate(g::Graph{P},v::Int,im::InfectionModel) where {P} 
     y = get_neighbor_fraction_of_type(g,v,INFECTED)
     rate = 0.0
     if get_payload(g,v) == INFECTED
         rate = (1-y)*p_death(im,y)
     else 
-        assert(get_payload(g,v) == SUSCEPTIBLE )
+        @assert(get_payload(g,v) == SUSCEPTIBLE )
         rate = y*p_birth(im,y)
     end
     return rate
@@ -363,7 +363,7 @@ function pick_update_and_time(rates::Array{Float64,1})
     return v,t
 end
 
-function update_nodes_and_rates{P}(g::Graph{P},v::Int,rates::Array{Float64,1},im::InfectionModel)
+function update_nodes_and_rates(g::Graph{P},v::Int,rates::Array{Float64,1},im::InfectionModel) where {P} 
     curr_type = get_payload(g,v)
     ns = PayloadGraph.neighbors(g,v)
     if curr_type == INFECTED#set to SUSCEPTIBLE
@@ -378,7 +378,7 @@ function update_nodes_and_rates{P}(g::Graph{P},v::Int,rates::Array{Float64,1},im
 end
 
 
-function update_graph_gillespie{P}(g::Graph{P},im::InfectionModel,rates::Array{Float64,1})
+function update_graph_gillespie(g::Graph{P},im::InfectionModel,rates::Array{Float64,1}) where {P} 
     v,t = pick_update_and_time(rates)
     update_nodes_and_rates(g,v,rates,im)
     return t
@@ -396,7 +396,7 @@ end
 
 
 
-function get_neighbor_fraction_of_type{P}(g::Graph{P},v::Int,thistype::P)
+function get_neighbor_fraction_of_type(g::Graph{P},v::Int,thistype::P) where {P} 
     neighbors = PayloadGraph.neighbors(g,v)
     if length(neighbors) == 0 return 0.0 end
     count = 0
@@ -408,11 +408,11 @@ function get_neighbor_fraction_of_type{P}(g::Graph{P},v::Int,thistype::P)
     return count/length(neighbors)
 end
 
-function get_degree{P}(g::Graph{P},v::Int)
+function get_degree(g::Graph{P},v::Int) where {P} 
     return length(PayloadGraph.neighbors(g,v))
 end
 
-function get_fraction_of_type{P}(g::Graph{P},thistype::P)
+function get_fraction_of_type(g::Graph{P},thistype::P) where {P} 
     count = 0
     vs = vertices(g)
     for v in vs
@@ -425,7 +425,7 @@ end
 
 
 
-function get_sample_of_types_from_neighbors{P}(g::Graph{P},v::P)
+function get_sample_of_types_from_neighbors(g::Graph{P},v::P) where {P} 
     neighbors = PayloadGraph.neighbors(g,v)
     if length(neighbors) == 0
         error("Disconnected Graph")
@@ -438,14 +438,14 @@ function get_sample_of_types_from_neighbors{P}(g::Graph{P},v::P)
     return sample(neighbor_types)
 end
 
-function print_graph{P}(g::Graph{P})
+function print_graph(g::Graph{P}) where {P} 
     for v in vertices(g)
         print(get_payload(g,v))
     end
 end
 
 
-function update_graph{P}(g::Graph{P},im::InfectionModel,new_types::Union{Array{P,1},SharedArray{P,1}})
+function update_graph(g::Graph{P},im::InfectionModel,new_types::Union{Array{P,1},SharedArrays.SharedArray{P,1}}) where {P} 
 
     set_array_with_payload(g,new_types)
     # @sync @parallel for v in vertices(g)
@@ -457,7 +457,7 @@ end
 
 
 
-function update_node{P}(g::Graph{P},v::Int,im::InfectionModel,new_types::Union{Array{P,1},SharedArray{P,1}})
+function update_node(g::Graph{P},v::Int,im::InfectionModel,new_types::Union{Array{P,1},SharedArrays.SharedArray{P,1}}) where {P} 
     if get_payload(g,v) == INFECTED
         # k = get_average_degree(g) 
         #infect neighbors
@@ -485,7 +485,7 @@ function update_node{P}(g::Graph{P},v::Int,im::InfectionModel,new_types::Union{A
 end
 
 
-function update_types{P}(g::Graph{P},new_types::Array{P,1})
+function update_types(g::Graph{P},new_types::Array{P,1}) where {P} 
     for v in vertices(g)
         set_payload(g,v,new_types[v])
     end
@@ -506,7 +506,7 @@ end
 # end
 
 
-# function get_sample_of_types_from_neighbors_threadsafe{P}(g::Graph{P},v::P,rng)
+# function get_sample_of_types_from_neighbors_threadsafe(g::Graph{P},v::P,rng) where {P} 
 #     neighbors = PayloadGraph.neighbors(g,v)
 #     if length(neighbors) == 0
 #         error("Disconnected Graph")
@@ -528,7 +528,7 @@ end
 
 
 # #This function doesn't use the infection model yet since anonymous functions crash in the threading package!
-# function update_graph_threads{P}(g::Graph{P},im::InfectionModel,new_types::Union{Array{P,1},SharedArray{P,1}})
+# function update_graph_threads{P}(g::Graph{P},im::InfectionModel,new_types::Union{Array{P,1},SharedArrays.SharedArray{P,1}})
 #     rngs = [MersenneTwister(777+x) for x in 1:nthreads()]
 #     m = Mutex()
 #     set_array_with_payload(g,new_types)

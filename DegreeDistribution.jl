@@ -4,7 +4,9 @@ using Epidemics,
 NLsolve,Distributions,StatsBase,LightGraphs
 
 export get_mean_k, get_k_range,
-get_y_k_equilibrium, get_y_k_branching_process,
+get_y_k_equilibrium, 
+y_k_dot_given_y_k!,
+get_y_k_branching_process,
 get_p_k_as_vec,
 get_mean_y_k,
 get_delta_y_plus,get_delta_y_minus,get_y_bar,
@@ -85,7 +87,7 @@ function get_mean_y_k_squared_hg(mean_y_k,k,mean_N_k)
 end
 
 
-function y_k_dot_given_y_k!(y_k,y_k_dot,y_desired,N,p_k,p_k_neighbor,alpha,beta)
+function y_k_dot_given_y_k!(y_k_dot,y_k,y_desired,N,p_k,p_k_neighbor,alpha,beta)
     k_range = get_k_range(N)
     mean_y_k = get_mean_y_k(y_k,p_k_neighbor,N)
     mean_N_k = get_mean_N_k(p_k,p_k_neighbor,N)
@@ -143,8 +145,8 @@ function mock_degree_distribution(mean_k,sigma_k)
 end
 
 function get_y_k_equilibrium(y_desired,N,p_k,p_k_neighbor,alpha,beta)
-    f!(x,out) = y_k_dot_given_y_k!(x,out,y_desired,N,p_k,p_k_neighbor,alpha,beta)
-    x_init = 1/N*zeros(N)
+    f!(out,x) = y_k_dot_given_y_k!(out,x,y_desired,N,p_k,p_k_neighbor,alpha,beta)
+    x_init = 1/N*ones(N)
     ret = nlsolve(f!,x_init,autodiff=true,ftol=1e-12)
     y_k = ret.zero
     return y_k
@@ -226,7 +228,7 @@ end
 
 #drift function
 function get_b_k(y_k,y_k_tilde,y_k_sq_tilde,alpha,beta,N_k)
-    vec = 1./N_k.*((1 - y_k).*(y_k_tilde + alpha.*y_k_sq_tilde) + y_k.*(1 - y_k_tilde).*(1 + beta))
+    vec = 1.0/N_k.*((1 - y_k).*(y_k_tilde + alpha.*y_k_sq_tilde) + y_k.*(1 - y_k_tilde).*(1 + beta))
     vec[N_k .== 0] = 0
     return vec 
 end

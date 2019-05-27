@@ -5,21 +5,22 @@
 
 module IM
 
+using Dierckx
 #import Cubature
-import QuadGK
+import QuadGK,PyPlot,Interpolations
 export p_birth,p_death,InfectionModel, plot_schematic, get_parameters,
 P_reach,P_fix,P_reach_fast,P_reach_raw_fast,
 
 get_s_interp, get_s_integral_interp
 
 
-type InfectionModel
+struct InfectionModel
     birth_rate::Function
     death_rate::Function
     dt::Float64
 end
 
-eps = 1e-8
+eps = 1e-10
 maxevals = 200
 
 function InfectionModel(birth_rate::Function,death_rate::Function)
@@ -144,24 +145,37 @@ function P_reach_fast(s::Function,splus::Function,N::Int,x0::Real,x1::Array)
 end
 
 function P_reach_raw_fast(a::Function,b::Function,N::Int,x0::Real,x1::Array,num_points=100)
-    a_over_b(y) = a(y)/b(y)
+    a_over_b(y) = a(y)./b(y)
     return P_reach_raw_fast(a_over_b,N,x0,x1,num_points)
 end
 
 function P_reach_raw_fast(a_over_b::Function,N::Int,x0::Real,x1::Array,num_points=100)
     psi_interp = get_psi_interp(a_over_b,eps,N,num_points)
-    integration_fn(x_0,x) = QuadGK.quadgk(y -> psi_interp(y),x_0,x,maxevals=maxevals)[1] 
-    denominator = zeros(x1)
-    denominator[1] = integration_fn(eps,x1[1])
-    for i in 2:length(x1)
-        denominator[i] = denominator[i-1] + integration_fn(x1[i-1],x1[i])
+
+    try
+        integration_fn(x_0,x) = QuadGK.quadgk(y -> psi_interp(y),x_0,x,maxevals=maxevals)[1] 
+        denominator = 0*similar(psi_interp(x1)) #ensure the same type as psi_interp, which could be BigFloat
+        denominator[1] = integration_fn(eps,x1[1])
+        for i in 2:length(x1)
+            denominator[i] = denominator[i-1] + integration_fn(x1[i-1],x1[i])
+        end
+        
+        numerator = integration_fn(eps,x0) 
+        ret = Float64.(numerator ./ denominator) #ensure return is float
+        return ret
+    catch DomainError
+        # PyPlot.figure()
+        # PyPlot.plot(xx,a_over_b(xx),"--k")
+        # PyPlot.show()
+        # PyPlot.figure()
+        # PyPlot.plot(xx,psi_interp(xx),"--b")
+        # PyPlot.show()
+        xx = 0:0.01:1.0
+        println(psi_interp(xx))
+        throw(DomainError)
     end
-    
-    numerator = integration_fn(eps,x0) 
-    return numerator ./ denominator
 end
     
-using Dierckx
 # function get_psi_interp(a::Function,b::Function,eps::Real,N::Int)
 #     psi(x,a,b) = exp( -2* QuadGK.quadgk(y -> a(y)/b(y),eps,x)[1])
 #     xx = logspace(log10(eps),0,100)
@@ -190,7 +204,7 @@ end
 function get_s_integral_interp(s::Function)
     S(x0,x1) = QuadGK.quadgk(s,x0,x1,maxevals=1000)[1]
     xx = linspace(eps,1,1000)
-    yy = zeros(xx)
+    yy = 0*similar(xx)
     yy[1] = S(eps,xx[1])
     for i in 2:length(xx)
         yy[i] = yy[i-1] + S(xx[i-1],xx[i])
@@ -202,18 +216,30 @@ end
 
 
 
+function is_out_of_reasonable_range(x)
+    return isnan(x) || abs(x) == Inf || abs(x) > 1e300
+end
+
 function get_psi_interp(a_over_b::Function,eps::Real,N::Int,num_points=100)
     psi(x0,x1) = QuadGK.quadgk(a_over_b,x0,x1,maxevals=maxevals)[1]
-    xx = logspace(log10(eps),0,num_points)
-    yy = zeros(xx)
+    xx = 10.0.^range(log10(eps),stop=0,length=num_points)
+    yy = 0*similar(xx)
     yy[1] = psi(eps,xx[1])
     for i in 2:length(xx)
         yy[i] = yy[i-1] + psi(xx[i-1],xx[i])
     end
-    yy = exp.( - 2.* yy)
-    psi_spline = Spline1D(xx,yy,k=1,bc="extrapolate")
+    psi_vec = exp.( - 2.0* yy)
+    psi_spline = Spline1D(xx,psi_vec,k=1,bc="extrapolate")
     psi_interp(x) = evaluate(psi_spline,x)
-    return psi_interp
+
+    if any(is_out_of_reasonable_range.(psi_interp(xx))) #if the fortran routine fails, use julia and bigfloat
+        psi_vec = exp.( -2.0*BigFloat.(yy))
+        intp = Interpolations.interpolate((xx,),psi_vec,Interpolations.Gridded(Interpolations.Linear()))
+        psi_interp_new(x) = intp[x]
+        return psi_interp_new
+    else
+        return psi_interp
+    end
 end
 
 function get_psi_interp(a::Function,b::Function,eps::Real,N::Int,num_points=100)
@@ -222,8 +248,8 @@ function get_psi_interp(a::Function,b::Function,eps::Real,N::Int,num_points=100)
 end
 
 function get_interp_function(f::Function,x0,x1,num_points=100)
-    xx = logspace(log10(x0),log10(x1),num_points)
-    yy = zeros(xx)
+    xx = 10.0.^range(log10(x0),stop=log10(x1),length=num_points)
+    yy = 0*similar(xx)
     for i in 1:length(xx)
         yy[i] = f(xx[i]) 
     end

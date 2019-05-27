@@ -12,7 +12,8 @@ TwoDegreeParams,
 get_p_k_two_degree,
 regular_clustering_graph,
 change_num_triangles!,
-change_clustering_by_swapping
+change_clustering_by_swapping,
+get_mutual_neighbors
 
 function get_gamma_params(mu,sigma)
     k = mu^2/sigma^2
@@ -32,7 +33,7 @@ end
 ####################################################
 #Create a graph with a degree distribution that 
 #allows only 2 degrees
-type TwoDegreeParams
+struct TwoDegreeParams
     k1::Int
     k2::Int
     p1::Float64
@@ -196,11 +197,11 @@ function form_triangle!(G)
             e1 = Edge(v1,w1)
             e2 = Edge(v2,w2)
             e1s,e2s = swap_edges_c(e1,e2)
-            assert(has_edge(G,e1))
-            assert(has_edge(G,e2))
-            assert(!has_edge(G,e1s))
-            assert(!has_edge(G,e2s))
-            assert(v1 != v2)
+            @assert(has_edge(G,e1))
+            @assert(has_edge(G,e2))
+            @assert(!has_edge(G,e1s))
+            @assert(!has_edge(G,e2s))
+            @assert(v1 != v2)
             
             C_before = mean([local_clustering_coefficient(G,vloc) for vloc in [v1,v2,w1,w2]])
             rem_edge!(G,e1)
@@ -231,8 +232,6 @@ function get_valid_set_of_edges(G)
         v1,v2 = sample(vertices(G),2,replace=false)
         n1s = collect(neighbors(G,v1))
         n2s = collect(neighbors(G,v2))
-        println(n1s)
-        println(n2s)
         max_trials = 2*(length(n1s) + length(n2s))
         if length(n1s) == 0 || length(n2s) == 0
             continue
@@ -240,16 +239,15 @@ function get_valid_set_of_edges(G)
         w1 = v2
         w2 = v1
         trial = 0
-        while w1 == v2 || w2 == v1 && trial <= max_trials
-            println("trial: $trial, w1: $w1, w2: $s2")
+        while (w1 == v2 || w2 == v1) && trial <= max_trials
+            # println("trial: $trial / $(max_trials), w1: $w1, w2: $w2")
             w1 = sample(n1s)
             w2 = sample(n2s)
             trial += 1
         end
         if trial <= max_trials
-            print("exit")
             # print("valid set after $(trial) trials ($(max_trials) max)")
-            assert(w1 != v2 && w2 != v1)
+            @assert(w1 != v2 && w2 != v1)
             return v1,v2,w1,w2
         # else
             # pass
@@ -258,22 +256,37 @@ function get_valid_set_of_edges(G)
     end
 end
 
+
+
+function get_mutual_neighbors(g::LightGraphs.Graph,v1::Int,v2::Int)
+    neighbors1 = LightGraphs.neighbors(g,v1)
+    neighbors2 = LightGraphs.neighbors(g,v2)
+    return intersect(neighbors1,neighbors2)
+end
+
+get_mutual_neighbors(g::LightGraphs.Graph,e::Edge) = get_mutual_neighbors(g,e.src,e.dst)
+
+
+function get_nodes_affected_by_swap(g::LightGraphs.Graph,e1::Edge,e2::Edge)
+    return union([e1.src,e1.dst,e2.src,e2.dst],get_mutual_neighbors(g,e1.src,e1.dst),get_mutual_neighbors(g,e2.src,e2.dst),
+        get_mutual_neighbors(g,e1.src,e2.dst),get_mutual_neighbors(g,e2.src,e1.dst))
+end
+
+
 function change_num_triangles!(G,increase=true)
     success = false
-    max_trials = nv(G)^2
+    N = nv(G)
+    max_trials = 1e5#nv(G)^2
     trial = 0
-    @time while !success && trial < max_trials
+    epsilon = 0.1/length(edges(G))^2
+    C_diff = 0.0
+    while !success && trial < max_trials
         v1,v2,w1,w2 = get_valid_set_of_edges(G)
         if valid_swap_c(G,v1,v2,w1,w2)
-            involved_vertices = [v1,v2,w1,w2]
             e1 = Edge(v1,w1)
             e2 = Edge(v2,w2)
+            involved_vertices = get_nodes_affected_by_swap(G,e1,e2) #[v1,v2,w1,w2]
             e1s,e2s = swap_edges_c(e1,e2)
-#             assert(has_edge(G,e1))
-#             assert(has_edge(G,e2))
-#             assert(!has_edge(G,e1s))
-#             assert(!has_edge(G,e2s))
-#             assert(v1 != v2)
             
             C_before = mean(local_clustering_coefficient(G,involved_vertices))
             rem_edge!(G,e1)
@@ -282,25 +295,29 @@ function change_num_triangles!(G,increase=true)
             add_edge!(G,e2s)
             C_after = mean(local_clustering_coefficient(G,involved_vertices))
             #undo if bad change
-            if (increase && C_after <= C_before) || (~increase && C_after >= C_before) 
+            if (increase && C_after <= C_before+epsilon) || (~increase && C_after >= C_before-epsilon) 
                 rem_edge!(G,e1s)
                 rem_edge!(G,e2s)
                 add_edge!(G,e1)
                 add_edge!(G,e2)
             else
                 success = true
+                C_diff = (C_after - C_before)*length(involved_vertices)/N
+                # println("C: $(mean(local_clustering_coefficient(G))) ")
             end
             # println("success: $(success)")
             # println(" ",mean(local_clustering_coefficient(G)))
         end
         trial += 1
     end
-    println("success $(success) after $(trial) trials")
-    return success
+    # println("success $(success) after $(trial) trials")
+    return success,C_diff
 end
 
 function change_clustering_by_swapping(G,C)
     C_curr = mean(local_clustering_coefficient(G))
+    k = mean(degree(G))
+    N = nv(G)
     increase = C_curr < C
     if C_curr == C
         return G
@@ -308,16 +325,22 @@ function change_clustering_by_swapping(G,C)
     iters = 1
     tot_iters = 0
     while (increase && C_curr < C) || (~increase && C_curr > C)
-        for i = 1:iters
-            succ = change_num_triangles!(G,increase)
-            if !succ
-                print("Warning: Clustering adjustment didn't converge")
-                return G
-            end
-            tot_iters += 1
+        # iters = Int(ceil(0.5*abs(C_curr - C)/(1.0/(N*k)))) #expected absolute change
+        # println(iters)
+        # println(C_curr)
+        # for i = 1:iters
+        succ,C_diff = change_num_triangles!(G,increase)
+        C_curr += C_diff
+
+        if !succ
+            print("Warning: Clustering adjustment didn't converge")
+            return G
         end
-        C_curr = mean(local_clustering_coefficient(G))
+        tot_iters += 1
+        # end
+        # C_curr = mean(local_clustering_coefficient(G))
     end
+    @assert(abs(C_curr - mean(local_clustering_coefficient(G))) < 1e-5)
     return G
 end
 
@@ -434,7 +457,7 @@ function remove_invalid_edges(edges)
     for dup_edge in invalid_edges
         unique_edges = rewire_edges(unique_edges,dup_edge)
     end
-    assert(length(get_invalid_edges(unique_edges))==0)
+    @assert(length(get_invalid_edges(unique_edges))==0)
     return unique_edges
 end
 
@@ -466,7 +489,7 @@ function valid_swap(e_invalid,e_valid,unique_edges)
     if e_valid.src == e_invalid.src || e_valid.dst == e_invalid.dst return false end
     if e_valid.src == e_invalid.dst || e_valid.dst == e_invalid.src return false end
     e3,e4 = swap_edges(e_invalid,e_valid)
-    assert((~ is_self_edge(e3)) && (~is_self_edge(e4)))
+    @assert((~ is_self_edge(e3)) && (~is_self_edge(e4)))
     if e3 in unique_edges || e4 in unique_edges || reverse(e3) in unique_edges || reverse(e4) in unique_edges
       return false
     end

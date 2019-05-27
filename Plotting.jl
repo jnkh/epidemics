@@ -12,23 +12,23 @@ plot_p_reach_th,plot_p_reach_sim,plot_simulation_result,plot_theory_result
 function log_interp(yy,pp,num_trials,num_points = 10)
     x = log10.(yy)
     y = log10.(pp)
-    new_x = collect(linspace(minimum(x),maximum(x),num_points))
+    new_x = collect(range(minimum(x),stop=maximum(x),length=num_points))
     new_y = evaluate(Spline1D(x,y,k=1,bc="extrapolate"),new_x)
-    new_xx = 10.^new_x
-    new_yy = 10.^new_y
+    new_xx = 10.0.^new_x
+    new_yy = 10.0.^new_y
     new_dyy = get_binomial_errorbars(new_yy,num_trials)
     new_xx,new_yy,new_dyy
 end
     
 function get_binomial_errorbars(x,num_trials)
-    return (x.*(1-x)/num_trials).^0.5
+    return (x.*(1.0.-x)./num_trials).^0.5
 end
 
 function plot_p_reach_th(pr::PreachResult;color="b",linestyle="-",marker="o",label="")
     yyraw = pr.yy
     ppraw = pr.pp
     loglog(yyraw,ppraw,linestyle=linestyle,color=color,linewidth=1,label=label)
-    xlabel(L"y",size=20)
+    xlabel(L"Frequency $y$",size=20)
     ylabel(L"P_{reach}(y)",size=20)
     gca()[:tick_params](labelsize=15)
 end

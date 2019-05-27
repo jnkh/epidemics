@@ -1,11 +1,11 @@
 module Epidemics
 
-using SIS,Distributions, IM, LightGraphs,PayloadGraph, Dierckx,GraphGeneration
+using SIS,Distributions, IM, LightGraphs,PayloadGraph, Dierckx,GraphGeneration,Distributed
 import TwoLevelGraphs,DegreeDistribution
 
 export
 
-RandomGraphType,random_rg,regular_rg,two_level_rg,scale_free_rg,gamma_rg,two_degree_rg,clustering_rg,
+RandomGraphType,random_rg,regular_rg,two_level_rg,scale_free_rg,gamma_rg,two_degree_rg,clustering_rg,complete_rg,custom_rg,
 
 run_epidemic_graph,run_epidemic_well_mixed,run_epidemics_parallel,run_epidemics,
 run_epidemic_well_mixed_two_level,
@@ -15,6 +15,7 @@ prepare_for_saving,
 s,get_s_eff,get_s_eff_exact,
 normed_distribution, P_w_th,get_y_eff,get_y_eff_exact,
 get_c_r,get_n_n,
+get_binomial_error,
 
 get_sizes, get_num_fixed,GraphInformation,
 get_dt_two_level, update_n_two_level,
@@ -29,14 +30,21 @@ get_alpha,get_beta,get_c_r,get_n_n,QuadraticEpidemicParams,get_QuadraticEpidemic
 
 get_p_reach_well_mixed_simulation,get_p_reach_well_mixed_two_level_simulation,
 get_p_reach,get_p_reach_theory,get_p_reach_sim,SimulationResult,PreachResult,
-TheoryResult,get_theory_result,get_graph_information,get_simulation_result
+TheoryResult,get_theory_result,get_graph_information,get_simulation_result,
+get_simulation_yy_pp,
+
+sparsity_pfix_prediction,
+sparsity_pfix_prediction_large_N,
+sparsity_cascade_condition,
+sparsity_cascade_condition_simple,
+sparsity_get_yn
 
 
 
 
 #Content
 
-@enum RandomGraphType random_rg=1 regular_rg=2 two_level_rg=3 scale_free_rg=4 gamma_rg=5 two_degree_rg=6 clustering_rg=7
+@enum RandomGraphType random_rg=1 regular_rg=2 two_level_rg=3 scale_free_rg=4 gamma_rg=5 two_degree_rg=6 clustering_rg=7 complete_rg=8 custom_rg=9
 
 function graph_is_connected(g::LightGraphs.Graph)
     parents = LightGraphs.dijkstra_shortest_paths(g,1).parents[2:end]
@@ -56,7 +64,7 @@ function guarantee_connected(graph_fn)
     return g
 end
 
-type GraphInformation
+struct GraphInformation
     graph_fn
     graph::LightGraphs.Graph
     carry_by_node_info::Bool
@@ -68,7 +76,7 @@ function GraphInformation()
     return GraphInformation(x -> x,LightGraphs.Graph(),false,nothing,random_rg)
 end
 
-type EpidemicRun
+struct EpidemicRun
     infecteds_vs_time::Array{Float64,1}
     size::Float64
     fixed::Bool
@@ -76,7 +84,7 @@ type EpidemicRun
     graph_information::GraphInformation
 end
 
-type CompactEpidemicRuns
+struct CompactEpidemicRuns
     sizes::Array{Float64,1}
     y_reach::Array{Float64,1}
     p_reach::Array{Float64,1}
@@ -119,10 +127,10 @@ function get_p_reach(runs::Array{EpidemicRun, 1})
     max_reaches = get_max_reaches(runs)
     sorted_max_reaches = sort(max_reaches)
     xvals = unique(sorted_max_reaches)
-    yvals = zeros(xvals)
+    yvals = 0*similar(xvals)
     for r in sorted_max_reaches
-        idx = findfirst(xvals,r)
-        yvals[1:idx] += 1
+        idx = findfirst(x -> x == r, xvals)
+        yvals[1:idx] .+= 1
     end
 
     return xvals,yvals/length(max_reaches)
@@ -134,10 +142,39 @@ function get_p_reach(runs::Array{EpidemicRun, 1},N::Real)
     return xvals/N,yvals
 end
 
+function get_binomial_error(p_est,n_samples)
+    return sqrt(p_est.*(1-p_est)./n_samples)
+end
+
+###
+function get_simulation_yy_pp(gi::GraphInformation,N,alpha,beta,num_trials_th=100;in_parallel=false,num_trials_sim=1000,use_theory=true,verbose=false)
+    if use_theory
+        tr = get_theory_result(N,alpha,beta,gi,num_trials_th)
+        yy = tr.pr.yy
+        pp = tr.pr.pp
+    else
+        sr = get_simulation_result(N,alpha,beta,gi,num_trials_th,num_trials_sim,in_parallel=in_parallel)
+        yy = sr.prsim.yy
+        pp = sr.prsim.pp
+    end
+    pfix = pp[end]
+    success = true
+    if yy[end] < 0.99
+        if verbose
+            println("simulation didn't reach 1.0")
+            println("theory suggests at least $(1/pfix)")
+        end
+        success = false
+        pfix = 0
+    end
+    return yy,pp,pfix,success
+end
+
+
 
 
 #get graph information for the different types of graphs
-function get_graph_information(graph_type::RandomGraphType;N=400,k = 10,sigma_k = 10,m=20,l=19,r=1)
+function get_graph_information(graph_type::RandomGraphType;N=400,k = 10,sigma_k = 10,m=20,l=19,r=1,custom_g = nothing)
     graph_fn = nothing
     graph_data = nothing
     carry_by_node_information = false
@@ -166,6 +203,10 @@ function get_graph_information(graph_type::RandomGraphType;N=400,k = 10,sigma_k 
         graph_data = TwoLevelGraphs.TwoLevelGraph(LightGraphs.Graph(),t,TwoLevelGraphs.get_clusters(t))
         # graph_fn = () -> make_two_level_random_graph(t)[1]
         graph_fn = () -> TwoLevelGraphs.generate_regular_two_level_graph(t)
+    elseif graph_type == complete_rg
+        graph_fn = () -> LightGraphs.CompleteGraph(N)
+    elseif graph_type == custom_rg
+        graph_fn = () -> custom_g
     else
         println("Unkown Graph Type, returning Void GraphInformation")
     end
@@ -193,8 +234,8 @@ end
 
 
 function get_p_reach_theory(N,alpha,beta,graph_information,num_trials)
-    yy = logspace(log10(1/N),0,1000)
-    pp = 0
+    yy = 10.0.^range(log10(1/N),stop=0,length=1000)
+    pp = 0*similar(yy)
     graph_type = graph_information.graph_type
     if graph_type == two_level_rg
         has_two_level = true
@@ -224,12 +265,15 @@ function get_p_reach_theory(N,alpha,beta,graph_information,num_trials)
         yy,pp,edge_counts = GraphClustering.get_p_reach_well_mixed_with_clustering(N,k,C,alpha,beta,num_trials_wm,1-1/N);
 #         t =get_optimal_tl_params(N,k,C)
 #         yy,pp,s_eff_two_level = get_p_reach_theory(t,alpha,beta,N,apply_finite_size,num_points)
+    elseif graph_type == complete_rg
+        im = InfectionModel(x -> 1 + beta + s(x,alpha,beta) , x -> 1 + beta)
+        pp = P_reach_fast(im,N,1.0/N,yy,true)
     end
     return PreachResult(yy,pp,num_trials)
 end
 
 
-type PreachResult
+struct PreachResult
     yy::Array{Float64,1}
     pp::Array{Float64,1}
     num_trials::Int
@@ -237,7 +281,7 @@ end
 
 
 
-type SimulationResult
+struct SimulationResult
     prsim::PreachResult
     prth::PreachResult
     N::Int
@@ -254,7 +298,7 @@ end
 
 
 
-type TheoryResult
+struct TheoryResult
     pr::PreachResult
     N::Int
     alpha::Float64
@@ -591,7 +635,7 @@ end
 ########### Utility Functions ##################
 
 
-function unzip{A,B}(zipped::Array{Tuple{A,B},1})
+function unzip(zipped::Array{Tuple{A,B},1}) where {A,B}
     l = length(zipped)
     a = Array{A,1}(l)
     b = Array{B,1}(l)
@@ -613,8 +657,43 @@ function unzip(zipped)
     return a,b
 end
 
+#theory for sparse networks
+
+function sparsity_pfix_prediction_large_N(alpha,beta,k) #only works if yn is negative, i.e. only positive selection
+    yn = sparsity_get_yn(alpha,beta,k)
+    return alpha*abs(yn)
+end
 
 
+function sparsity_pfix_prediction(N,alpha,beta,k)
+    yn = (beta/alpha - 1/k)
+    if yn < 0
+        return 1/N*(yn + (yn^2 + 2.0/(alpha*N))^0.5)^(-1.0)
+    else #only valid if cascade_condition is < 1, i.e. in neutral selection regime
+        return (N*yn + (2.0*N/alpha)^0.5)^(-1.0) 
+    end
+end
+
+   
+function sparsity_cascade_condition(N,alpha,beta,k) #if this is greater than 1, cascades cannot occur because we have a regime of negative selection
+    yn = sparsity_get_yn(alpha,beta,k)
+    if beta/alpha - 1/k > 0
+        return N*0.5*alpha*yn^2
+#         return N*(beta/k - 0.5*(alpha/k^2 + beta^2/alpha))
+    else
+        return 0
+    end
+end
+
+function sparsity_cascade_condition_simple(alpha,beta,k) #if this is less than 0, scaling is at worst 1/sqrt(N) or better
+    return sparsity_get_yn(alpha,beta,k)
+end
+
+function sparsity_get_yn(alpha,beta,k)
+    return beta/alpha - 1/k
+end
+ 
+    
 
 
 
@@ -622,9 +701,9 @@ function normed_distribution(x,px)
     return px./sum(diff(x).*px[1:end-1])
 end
 
-P_w_th(w,s) = exp(-s.^2.*w./4).*w.^(-1.5)./(2*sqrt(pi).*(1 .+ s))
+P_w_th(w,s) = exp(-s.^2*w./4).*w.^(-1.5)./(2*sqrt(pi).*(1 .+ s))
 
-function s(y,alpha::Int,beta::Int)
+function s(y,alpha::Float64,beta::Float64)
     return alpha*y - beta
 end
 
@@ -707,11 +786,11 @@ end
 
 function get_n_minus(y,alpha,beta,k,N)
     eps = 1e-6 #for numerical stability
-    delta_minus = 1 + 1./(eps + N.*(1-y))
+    delta_minus = 1 + 1.0/(eps + N.*(1-y))
     return delta_minus.*(1 + beta)
 end
 
-type QuadraticEpidemicParams
+struct QuadraticEpidemicParams
     N::Int
     alpha::Float64
     beta::Float64

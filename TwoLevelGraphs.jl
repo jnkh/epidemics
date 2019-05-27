@@ -12,9 +12,9 @@ get_s_birth_effective_two_level,get_s_death_effective_two_level,
 get_s_effective_two_level_interp,get_splus_effective_two_level_interp,
 generate_regular_two_level_graph,same_cluster,get_p_reach_theory,get_sparse_j_mask,
 get_stationary_distribution_nlsolve_finite_size,get_community_graph_fixation_ratio,
-get_fixation_MC
+get_fixation_MC,phase_transition_condition,get_t
 
-type TwoLevel
+struct TwoLevel
     a::Array{Number,1} #number communities with [idx] infected nodes
     N::Int #total number of nodes
     m::Int #number of nodes per community
@@ -82,6 +82,12 @@ function set_y(t::TwoLevel,y_desired::AbstractFloat)
     adjust_infecteds(t,y_desired)
     make_consistent(t)
 end    
+
+function get_t(N::Int,k,m,l)
+    r = k -l
+    t = TwoLevel(Int(ceil(N/m)*m),m,l,r)
+    return t
+end
 
 
 
@@ -496,7 +502,7 @@ function get_stationary_distribution(N::Int,m::Int,l::Int,r::Int,y_desired::Abst
     #distribute_randomly(t,n)
     adjust_infecteds(t,y_desired)
     make_consistent(t)
-    assert(is_valid(t))
+    @assert(is_valid(t))
     get_stationary_distribution(t,death_fn,birth_fn,num_trials)
 end
 
@@ -526,7 +532,7 @@ function get_stationary_distribution_theory(N::Int,m::Int,l::Int,r::Int,y_desire
     #distribute_randomly(t,n)
     adjust_infecteds(t,y_desired)
     make_consistent(t)
-    assert(is_valid(t))
+    @assert(is_valid(t))
     return get_stationary_distribution_theory(t,alpha,beta)
 end
 
@@ -649,7 +655,7 @@ end
 
 
 function get_upper_diagonal(arr::Array{Float64,2})
-    assert(size(arr,1) == size(arr,2))
+    @assert(size(arr,1) == size(arr,2))
     ret = zeros(size(arr,1)-1)
     for i = 1:length(ret)
         ret[i] = arr[i,i+1]
@@ -658,7 +664,7 @@ function get_upper_diagonal(arr::Array{Float64,2})
 end
 
 function get_lower_diagonal(arr::Array{Float64,2})
-    assert(size(arr,1) == size(arr,2))
+    @assert(size(arr,1) == size(arr,2))
     ret = zeros(size(arr,1)-1)
     for i = 1:length(ret)
         ret[i] = arr[i+1,i]
@@ -729,7 +735,7 @@ function apply_finite_size_effects(t,equilibrium_distribution)
     # println("infecteds: $(t.i), susceptibles: $(t.N - t.i)")
     # println("j: $j t.i: $(t.i), $(t.m -j)")
   # end
-  equilibrium_distribution[~mask] = 0.0
+  equilibrium_distribution[.~mask] = 0.0
   equilibrium_distribution *= t.n/sum(equilibrium_distribution)
   return equilibrium_distribution 
 end
@@ -749,7 +755,7 @@ function get_stationary_distribution_from_matrix(t::TwoLevel,transition_matrix)
   end
 
   # println(equilibrium_distribution)
-  equilibrium_distribution = clamp(equilibrium_distribution,eps,Inf)
+  equilibrium_distribution = clamp.(equilibrium_distribution,eps,Inf)
 
   if nsolutions > 1
     println("$(size(equilibrium_distribution)[2]) solutions")
@@ -853,14 +859,14 @@ function find_valid_initial_value(f_out,y_desired)
     success_range[i] = success && y >= 0
   end
 
-  pygui(true)
-  ion()
-  figure(1)
-  loglog(x_range[success_range],y_range[success_range])
-  loglog(x_range[~success_range],y_range[~success_range],"o")
-  axhline(y_desired,linestyle="--",color="k")
-  lower = (y_range .< y_desired) & success_range
-  higher = (y_range .> y_desired) & success_range
+  # pygui(true)
+  # ion()
+  # figure(1)
+  # loglog(x_range[success_range],y_range[success_range])
+  # loglog(x_range[~success_range],y_range[~success_range],"o")
+  # axhline(y_desired,linestyle="--",color="k")
+  lower = (y_range .< y_desired) .& success_range
+  higher = (y_range .> y_desired) .& success_range
   if !any(lower) || !any(higher)
     println("PROBLEM: No stable value for gamma found.")
     return 0.5,1.5
@@ -874,7 +880,7 @@ function find_valid_initial_value(f_out,y_desired)
     return 0.5,1.5
   end
 
-  assert(x_high_ind > x_low_ind)
+  @assert(x_high_ind > x_low_ind)
   x_lower = x_range[x_low_ind]
   x_higher = x_range[x_high_ind]
 
@@ -937,7 +943,7 @@ function get_stationary_distribution_nonlinear_theory(N::Int,m::Int,l::Int,r::In
     adjust_infecteds(t,y_desired)
     t.i = y_desired*N
     # make_consistent(t)
-    # assert(is_valid(t))
+    # @assert(is_valid(t))
     return get_stationary_distribution_nonlinear_theory(t,alpha,beta,y_desired,apply_finite_size)
 end
 
@@ -946,13 +952,13 @@ end
 #######NLSOLVE APPROACH#########
 ################################
 
-function f_finite_size!(x,fvec,t,alpha,beta)
+function f_finite_size!(fvec,x,t,alpha,beta)
     mask = get_sparse_j_mask(t) 
     gamma = x[end-1]
     a = x[1:end-2]
     m = generate_transition_matrix_finite_size(t,alpha,beta,gamma)
     fvec[1:end-2] = m*a
-    arr = zeros(length(mask))
+    arr = x[1]*zeros(length(mask)) #set type implicitly to x so autodiff works
     arr[mask] = a
     fvec[end-1] = get_frac_infected(arr,t)-t.i/t.N
     fvec[end] = sum(a) - t.n
@@ -973,8 +979,8 @@ end
 function get_stationary_distribution_nlsolve_finite_size(t,alpha,beta)
     mask = get_sparse_j_mask(t) 
     dim = sum(mask)
-    fn(x,y) = f_finite_size!(x,y,t,alpha,beta)
-    res = nlsolve(fn,ones(dim+2))
+    fn(x_res,x) = f_finite_size!(x_res,x,t,alpha,beta)
+    res = nlsolve(fn,ones(dim+2), autodiff = :forward,ftol=1e-12,iterations=10_000)
     
     if ~res.f_converged
         println(res)
@@ -1015,7 +1021,7 @@ function generate_transition_matrix_finite_size(t::TwoLevel,alpha,beta,gamma)
     
     p_plus_arr *= gamma 
     
-    transition_matrix = zeros(dim,dim)
+    transition_matrix = p_plus_arr[1]*zeros(dim,dim) #set type to same as p_plus_arr so autodiff works
     for row = 1:(dim)
         for col = 1:(dim)
             if row == col
@@ -1033,7 +1039,30 @@ end
 
 
 ##################### Develop Effective y and y squred ####################
+
+#if this quantity is > 1, the fixation probability should not decrease with large N
+function phase_transition_condition(t,alpha,beta,apply_finite_size=true)
+    y_s = t.m/t.N
+    y_n = beta/alpha
+    y_desired = y_s
+    accum = get_stationary_distribution_nlsolve_finite_size(t.N,t.m,t.l,t.r,y_desired,alpha,beta,apply_finite_size)
+    t.a = accum
+    y_real = get_frac_infected(t)
+    t.i = y_real*t.N
+    y_susc_sq = compute_mean_y_squared_local(t,true)
+    y_inf = compute_mean_y_local(t,false)
+    return y_susc_sq*(1 - y_s)/(y_s*y_n*(1-y_inf))
+end
+    
 using Dierckx
+
+function logitspace(eps,num_points)
+  @assert( 0<eps<1)
+  logit(x) = log(x/(1-x))
+  logist(x) = 1/(e^(-x) + 1)
+  return logist.(linspace(logit(eps),logit(1-eps),num_points))
+end
+
 
 function get_interpolations(t::TwoLevel,alpha,beta,apply_finite_size=true,num_points=200)
     dy = 1.0/t.N
@@ -1046,6 +1075,9 @@ function get_interpolations(t::TwoLevel,alpha,beta,apply_finite_size=true,num_po
     # y_range = vcat( collect(y_min:y_min:4*dy),collect(5*dy:dy:0.1) , collect(0.1+dy:dy2:(1.0-dy)) )
     # y_range = logspace(log10(y_min),log10(1-y_min),200)
     y_range = linspace(y_min,1-y_min,num_points)
+    if t.N > num_points #distribute points logistically between 0 and 1
+      y_range = logitspace(y_min,num_points)
+    end
     interpolation_order = 1
     y_real_range = zeros(y_range)
 
@@ -1133,7 +1165,7 @@ end
 
 
 
-type TwoLevelGraph
+struct TwoLevelGraph
     g::LightGraphs.Graph
     t::TwoLevel
     clusters::Array{Array{Int,1},1}
@@ -1167,14 +1199,14 @@ function get_splus_effective_two_level(y,y_susc,y_sq_susc,y_inf,y_sq_inf,alpha::
 end
 
 function get_s_birth_effective_two_level(y::Array,y_susc,y_sq_susc,alpha::Float64)
-    ret = 1./y.*(y_susc + alpha .* y_sq_susc)
+    ret = 1.0/y.*(y_susc + alpha .* y_sq_susc)
     ret[y .== 0] = 1.0
     return ret
 end
 
 function get_s_birth_effective_two_level(y::Number,y_susc,y_sq_susc,alpha::Float64)
     if y == 0 return 1.0 end
-    return 1./y.*(y_susc + alpha .* y_sq_susc)
+    return 1.0/y.*(y_susc + alpha .* y_sq_susc)
 end
 
 function get_s_death_effective_two_level(y::Array,y_inf,beta::Float64)
@@ -1390,8 +1422,8 @@ function generate_single_regular_two_level_graph(t::TwoLevel)
     super_edges = get_regular_edges_for_supergraph(t)
     all_edges = vcat(sub_edges,super_edges)
 
-    assert(length(sub_edges) == t.N*t.l/2)
-    assert(length(super_edges) == t.N*t.r/2)
+    @assert(length(sub_edges) == t.N*t.l/2)
+    @assert(length(super_edges) == t.N*t.r/2)
     clusters = get_clusters(t)
 
     nodes = vcat(clusters...)
@@ -1425,7 +1457,7 @@ function remove_duplicate_superedges(edges,clusters)
     for dup_edge in duplicates
         unique_edges = rewire_edges(unique_edges,dup_edge,clusters)
     end
-    assert(length(get_duplicates(unique_edges))==0)
+    @assert(length(get_duplicates(unique_edges))==0)
     return unique_edges
 end
 
@@ -1507,7 +1539,7 @@ function get_regular_super_edges_for_supergraph(t::TwoLevel)
     m = t.m
     n = t.n
     r = t.r
-    assert(n*m == N)
+    @assert(n*m == N)
     max_increment = min(n-1,m*r)
     tot_neighbors = m*r
     curr_neighbors = 0
@@ -1523,7 +1555,7 @@ function get_regular_super_edges_for_supergraph(t::TwoLevel)
     if curr_neighbors < tot_neighbors
         edges = vcat(edges,get_regular_edges(n,tot_neighbors - curr_neighbors))
     end
-    assert(length(edges) == N*r/2)
+    @assert(length(edges) == N*r/2)
     return edges
 end
 
@@ -1556,7 +1588,7 @@ function distribute_super_edges(super_edges,clusters,r)
                 new_edges[edge_idx] = new_edge
             end
         end
-        assert(length(cluster_indeces) == 0)
+        @assert(length(cluster_indeces) == 0)
     end
     new_edges = remove_duplicate_superedges(new_edges,clusters)
     return new_edges

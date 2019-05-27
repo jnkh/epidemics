@@ -2,7 +2,7 @@
 
 using Graphs, IM
 
-type TypedGraph{V,E}
+struct TypedGraph{V,E}
     g::AbstractGraph{V,E}
     node_types::Array
     
