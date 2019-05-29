@@ -70,7 +70,7 @@ function convert_cpus_strings_to_ints(s::AbstractString)
 end
 
 
-function generate_list_of_node_numbers{S <: AbstractString}(numlist::Array{S,1})
+function generate_list_of_node_numbers(numlist::Array{S,1}) where {S <: AbstractString}
 	list_of_nodes = []
  for s in numlist
  	if is_node_range(s)
