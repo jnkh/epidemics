@@ -1,7 +1,9 @@
 ###Preamble###
 using Distributed
+using SlurmNodes
 in_parallel = true
 if in_parallel
+	# addprocs(get_list_of_nodes())
 	addprocs()
 	println("Running on $(nprocs()) processes.")
 else
