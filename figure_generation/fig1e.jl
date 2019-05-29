@@ -1,5 +1,6 @@
 ###Preamble###
 using Distributed
+push!(LOAD_PATH, pwd()*"/..")
 using SlurmNodes
 in_parallel = true
 if in_parallel
