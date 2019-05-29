@@ -31,7 +31,7 @@ get_alpha,get_beta,get_c_r,get_n_n,QuadraticEpidemicParams,get_QuadraticEpidemic
 get_p_reach_well_mixed_simulation,get_p_reach_well_mixed_two_level_simulation,
 get_p_reach,get_p_reach_theory,get_p_reach_sim,SimulationResult,PreachResult,
 TheoryResult,get_theory_result,get_graph_information,get_simulation_result,
-get_simulation_yy_pp,
+get_simulation_yy_pp,get_p_reach_and_runs_sim,
 
 sparsity_pfix_prediction,
 sparsity_pfix_prediction_large_N,
@@ -54,7 +54,8 @@ end
 function guarantee_connected(graph_fn)
     g = graph_fn()
     resampled = 0
-    while(!graph_is_connected(g))
+    # while(!graph_is_connected(g))
+    while(!LightGraphs.is_connected(g))
         g = graph_fn()
         resampled += 1
     end
@@ -77,6 +78,7 @@ function GraphInformation()
 end
 
 struct EpidemicRun
+    times::Array{Float64,1}
     infecteds_vs_time::Array{Float64,1}
     size::Float64
     fixed::Bool
@@ -98,8 +100,14 @@ function CompactEpidemicRuns(runs::Array{EpidemicRun,1},N::Int)
 end
 
 function EpidemicRun(infecteds_vs_time::Array{Float64,1},size::Float64,fixed::Bool)
-    return EpidemicRun(infecteds_vs_time,size,fixed,[],GraphInformation())
+    times = zeros(Float64,length(infecteds_vs_time))
+    return EpidemicRun(times,infecteds_vs_time,size,fixed,[],GraphInformation())
 end
+
+function EpidemicRun(times::Array{Float64,1},infecteds_vs_time::Array{Float64,1},size::Float64,fixed::Bool)
+    return EpidemicRun(times,infecteds_vs_time,size,fixed,[],GraphInformation())
+end
+
 
 function get_sizes(runs::Array{EpidemicRun,1})
     return filter(x -> x < Inf,[e.size for e in runs])
@@ -143,7 +151,7 @@ function get_p_reach(runs::Array{EpidemicRun, 1},N::Real)
 end
 
 function get_binomial_error(p_est,n_samples)
-    return sqrt(p_est.*(1-p_est)./n_samples)
+    return sqrt.(p_est.*(1.0.-p_est)./n_samples)
 end
 
 ###
@@ -157,6 +165,11 @@ function get_simulation_yy_pp(gi::GraphInformation,N,alpha,beta,num_trials_th=10
         yy = sr.prsim.yy
         pp = sr.prsim.pp
     end
+    pfix,success = get_pfix_from_yy_pp(yy,pp,verbose)
+    return yy,pp,pfix,success
+end
+
+function get_pfix_from_yy_pp(yy,pp,verbose=false)
     pfix = pp[end]
     success = true
     if yy[end] < 0.99
@@ -167,9 +180,8 @@ function get_simulation_yy_pp(gi::GraphInformation,N,alpha,beta,num_trials_th=10
         success = false
         pfix = 0
     end
-    return yy,pp,pfix,success
+    return pfix,success
 end
-
 
 
 
@@ -216,10 +228,18 @@ function get_graph_information(graph_type::RandomGraphType;N=400,k = 10,sigma_k 
 end
 
 function get_p_reach_sim(N,alpha,beta,num_trials,graph_information;in_parallel=false,fixation_threshold=1.0)
-    im_normal = InfectionModel(x -> 1 + alpha*x , x -> 1 + beta);
+    im_normal = InfectionModelLinear(alpha,beta);
     runssim = run_epidemics_parallel(num_trials,() -> run_epidemic_graph_gillespie(N,im_normal,graph_information,fixation_threshold),in_parallel);
     yy,pp =  get_p_reach(runssim,N)
     return PreachResult(yy,pp,num_trials)
+end
+
+function get_p_reach_and_runs_sim(N,alpha,beta,num_trials,graph_information;in_parallel=false,fixation_threshold=1.0)
+    im_normal = InfectionModelLinear(alpha,beta);
+    runssim = run_epidemics_parallel(num_trials,() -> run_epidemic_graph_gillespie(N,im_normal,graph_information,fixation_threshold),in_parallel);
+    yy,pp =  get_p_reach(runssim,N)
+    pfix,_ = get_pfix_from_yy_pp(yy,pp)
+    return PreachResult(yy,pp,num_trials),pfix,runssim
 end
 
 function get_p_reach_gamma_theory(N,alpha,beta,sigma_k,k,num_trials,graph_information,hypergeometric=true)
@@ -335,6 +355,8 @@ end
 ### Epidemic on a Graph ###
 ###########################
 
+
+
 function run_epidemic_graph_experimental(N::Int,im::InfectionModel,graph_information::GraphInformation,fixation_threshold=1.0)
     fixed=false
     shuffle_nodes = false
@@ -388,7 +410,7 @@ function run_epidemic_graph_experimental(N::Int,im::InfectionModel,graph_informa
 end
 
 #gillespie version
-function run_epidemic_graph_gillespie(N::Int,im::InfectionModel,graph_information::GraphInformation,fixation_threshold=1.0)
+function run_epidemic_graph_gillespie(N::Int,im::Union{InfectionModel,InfectionModelLinear},graph_information::GraphInformation,fixation_threshold=1.0)
     fixed=false
     shuffle_nodes = false
     #construct graph
@@ -397,20 +419,27 @@ function run_epidemic_graph_gillespie(N::Int,im::InfectionModel,graph_informatio
     carry_by_node_info::Bool = graph_information.carry_by_node_info
 
     #create payload graph
-    p = create_graph_from_value(g,SUSCEPTIBLE)
     infecteds::Array{Float64,1} = []
+    times::Array{Float64,1} = []
     infecteds_by_nodes::Array{Array{Int,1},1} = []
+    rates = RateArray(fill(0.0,nv(g)))
+    neighbor_numbers = fill(0,nv(g))
+    payload = fill(SUSCEPTIBLE,nv(g))
 
 
-    set_payload(p,rand(1:length(get_payload(p))),INFECTED)
-    frac = get_fraction_of_type(p,INFECTED)
-    push!(infecteds,N*frac)
+    payload[rand(1:length(payload))] = INFECTED
+    compute_all_neighbor_numbers_of_type(g,payload,neighbor_numbers,INFECTED)
+    t = 0
+    num_infected = 1
+    frac = 1.0*num_infected/N
+    push!(infecteds,num_infected)
+    push!(times,t)
     if carry_by_node_info
         graph_information.graph = g
-        push!(infecteds_by_nodes,copy(get_payload(p)))
+        push!(infecteds_by_nodes,copy(payload))
     end
 
-    rates = compute_all_rates(p,im) 
+    compute_all_rates(g,payload,im,rates,neighbor_numbers) 
 
     while frac > 0
         if !(frac < 1 && frac < fixation_threshold)
@@ -418,17 +447,23 @@ function run_epidemic_graph_gillespie(N::Int,im::InfectionModel,graph_informatio
             break
         end
 
-        t = update_graph_gillespie(p,im,rates)
-        frac = get_fraction_of_type(p,INFECTED)
-        push!(infecteds,N*frac)
+        dt,num_infected = update_graph_gillespie(g,payload,im,rates,neighbor_numbers,num_infected)
+        t += dt
+        frac = 1.0*num_infected/N
+        push!(infecteds,num_infected)
+        push!(times,t)
         if carry_by_node_info
-            push!(infecteds_by_nodes,copy(get_payload(p)))
+            push!(infecteds_by_nodes,copy(payload))
         end
         if shuffle_nodes
             if graph_information.data == nothing
-                shuffle_payload(p)
+                shuffle!(payload)
             else
-                shuffle_payload_by_cluster(p,graph_information.data.clusters)
+                #shuffle payload by cluster
+                clusters = graph_information.data.clusters
+                for cluster in clusters
+                    payload[cluster] = shuffle(payload[cluster])
+                end
             end
         end
     end
@@ -438,12 +473,12 @@ function run_epidemic_graph_gillespie(N::Int,im::InfectionModel,graph_informatio
         size = Inf
     end
 
-    return EpidemicRun(infecteds,size,fixed,infecteds_by_nodes,graph_information)
+    return EpidemicRun(times,infecteds,size,fixed,infecteds_by_nodes,graph_information)
 end
 
 
 ### Epidemic on a Graph ###
-function run_epidemic_graph(N::Int,im::InfectionModel,graph_information::GraphInformation,fixation_threshold=1.0)
+function run_epidemic_graph(N::Int,im::Union{InfectionModel,InfectionModelLinear},graph_information::GraphInformation,fixation_threshold=1.0)
     fixed=false
     shuffle_nodes = false
     #construct graph
@@ -492,7 +527,8 @@ function run_epidemic_graph(N::Int,im::InfectionModel,graph_information::GraphIn
         size = Inf
     end
 
-    return EpidemicRun(infecteds,size,fixed,infecteds_by_nodes,graph_information)
+
+    return EpidemicRun(im.dt*collect(1:length(infecteds)),infecteds,size,fixed,infecteds_by_nodes,graph_information)
 end
 
 
@@ -521,7 +557,7 @@ function run_epidemic_well_mixed(N,im,fixation_threshold=1.0)
     return EpidemicRun(infecteds,size,fixed)
 end
 
-function update_n(n::Int,N::Int,im::InfectionModel)
+function update_n(n::Int,N::Int,im::Union{InfectionModel,InfectionModelLinear})
     y = n/N
     delta_n_plus = rand(Binomial(N-n,y*p_birth(im,y)))
     delta_n_minus = rand(Binomial(n,(1-y)*p_death(im,y)))
@@ -602,9 +638,12 @@ end
 
 
 function run_epidemics_parallel(num_runs::Int,run_epidemic_fn,parallel=true)
-
-    mapfn = parallel ? pmap : map
-    ret = mapfn( _ -> run_epidemic_fn() ,1:num_runs)
+    # mapfn = parallel ? pmap : map
+    if parallel
+        ret = pmap( _ -> run_epidemic_fn() ,1:num_runs,batch_size=100)
+    else
+        ret = map( _ -> run_epidemic_fn() ,1:num_runs)
+    end
     for val in ret
         if isa(val,RemoteException)
             throw(val)

@@ -7,15 +7,18 @@ module SIS
 import LightGraphs,SharedArrays
 using PayloadGraph,IM,Distributions,DegreeDistribution,StatsBase
 
-export INFECTED,SUSCEPTIBLE,get_average_degree,
+export INFECTED,SUSCEPTIBLE,RateArray,
+get_average_degree,
 get_fraction_of_type,print_graph,update_graph,set_all_types,
-get_neighbor_fraction_of_type,get_neighbor_fraction_of_type_new,
+get_neighbor_fraction_of_type,
+get_neighbor_number_of_type,
 
 get_parameters,
 
 update_graph_threads,get_c_r,get_n_n,get_alpha_beta,
 update_graph_experimental, update_graph_gillespie,
 compute_all_rates,
+compute_all_neighbor_numbers_of_type,
 pick_update_and_time
 
 
@@ -227,7 +230,7 @@ function calculate_n_k(g,ks,ks_map)
 end
 
 
-function update_graph_experimental(g::Graph{P},im::InfectionModel,new_types::Union{Array{P,1},SharedArrays.SharedArray{P,1}}) where {P}
+function update_graph_experimental(g::Graph{P},im::Union{InfectionModel,InfectionModelLinear},new_types::Union{Array{P,1},SharedArrays.SharedArray{P,1}}) where {P}
     ks,ks_map,N_k,p_k,p_k_n = create_p_k_p_k_neighbor_from_graph(g.g)
     n_k = calculate_n_k(g,ks,ks_map)
     # p_k,p_k_n,n_k = 0,0,0
@@ -243,7 +246,7 @@ function update_graph_experimental(g::Graph{P},im::InfectionModel,new_types::Uni
     set_payload(g,new_types)
 end
 
-function update_node_experimental(g::Graph{P},v::Int,im::InfectionModel,new_types::Union{Array{P,1},SharedArrays.SharedArray{P,1}},N,N_k,ks_map,p_k,p_k_n,n_k) where {P}
+function update_node_experimental(g::Graph{P},v::Int,im::Union{InfectionModel,InfectionModelLinear},new_types::Union{Array{P,1},SharedArrays.SharedArray{P,1}},N,N_k,ks_map,p_k,p_k_n,n_k) where {P}
     # if get_payload(g,v) == INFECTED
     #     # k = get_average_degree(g) 
     #     #infect neighbors
@@ -294,7 +297,7 @@ function update_node_experimental(g::Graph{P},v::Int,im::InfectionModel,new_type
 end
 
 
-# function update_node_experimental{P}(g::Graph{P},v::Int,im::InfectionModel,new_types::Union{Array{P,1},SharedArray{P,1}})
+# function update_node_experimental{P}(g::Graph{P},v::Int,im::Union{InfectionModel,InfectionModelLinear},new_types::Union{Array{P,1},SharedArray{P,1}})
 #     y = get_fraction_of_type(g,INFECTED)
 #     k = length(neighbors(g,v))
 #     # y_sample = rand(Binomial(k,y))/k
@@ -334,19 +337,33 @@ end
 #####################################################
 ### Epidemic on a Graph ###
 
-function compute_all_rates(g::Graph{P},im::InfectionModel) where {P} 
+mutable struct RateArray
+    arr::Array{Float64,1}
+    s::Float64
+end
+
+function RateArray(v::Array{Float64,1})
+    s = sum(v)
+    return RateArray(v,s)
+end
+
+function update_sum(r::RateArray)
+    r.s = sum(r.arr)
+end
+
+function compute_all_rates(g::LightGraphs.Graph,payload::Array{P,1},im::Union{InfectionModel,InfectionModelLinear}) where {P} 
     rates = fill(0.0,num_vertices(g))
-    for v in vertices(g)
-        rates[v] = compute_rate(g,v,im)
+    for v in LightGraphs.vertices(g)
+        rates[v] = compute_rate(g,payload,v,im)
     end
     return rates
 end
 
 
 
-function compute_rate(g::Graph{P},v::Int,im::InfectionModel) where {P} 
+function compute_rate(g::Graph{P},v::Int,im::Union{InfectionModel,InfectionModelLinear}) where {P} 
     y = get_neighbor_fraction_of_type(g,v,INFECTED)
-    rate = 0.0
+    rate::Float64 = 0.0
     if get_payload(g,v) == INFECTED
         rate = (1-y)*p_death(im,y)
     else 
@@ -356,32 +373,90 @@ function compute_rate(g::Graph{P},v::Int,im::InfectionModel) where {P}
     return rate
 end
 
-
-function pick_update_and_time(rates::Array{Float64,1})
-    v = sample(Weights(rates))
-    t = rand(Exponential(1/rates[v]))
-    return v,t
+function compute_rate(g::LightGraphs.Graph,payload::Array{P,1},v::Int,neighbor_numbers::Array{Int,1},im::Union{InfectionModel,InfectionModelLinear}) where {P} 
+    y = get_neighbor_fraction_of_type(g,payload,v,neighbor_numbers,INFECTED)
+    rate = 0.0
+    if payload[v] == INFECTED
+        rate = (1-y)*p_death(im,y)
+    else 
+        @assert(payload[v] == SUSCEPTIBLE )
+        rate = y*p_birth(im,y)
+    end
+    return rate
 end
 
-function update_nodes_and_rates(g::Graph{P},v::Int,rates::Array{Float64,1},im::InfectionModel) where {P} 
-    curr_type = get_payload(g,v)
-    ns = PayloadGraph.neighbors(g,v)
+function compute_all_rates(g::LightGraphs.Graph,payload::Array{P,1},im::Union{InfectionModel,InfectionModelLinear},rates::RateArray,neighbor_numbers::Array{Int,1}) where {P} 
+    for v in LightGraphs.vertices(g)
+        rates.arr[v] = compute_rate(g,payload,v,neighbor_numbers,im)
+    end
+    update_sum(rates)
+end
+
+function compute_all_neighbor_numbers_of_type(g::LightGraphs.Graph,payload::Array{P,1},neighbor_numbers::Array{Int,1},thistype::P) where {P} 
+    for v in LightGraphs.vertices(g)
+        neighbor_numbers[v] = get_neighbor_number_of_type(g,payload,v,thistype)
+    end
+end
+
+# function pick_update_and_time(rates::RateArray)
+    # v = sample(Weights(rates.arr,wsum=rates.s))
+    # v = pfsample(rates)
+    # t = rand(Exponential(1/rates.arr[v]))
+    # return v,t
+# end
+
+function pfsample(w::RateArray)
+    n::Int = length(w.arr)
+    t::Float64 = rand() * w.s
+    i::Int = 1
+    cw::Float64 = w.arr[1]
+    while cw < t && i < n
+        i += 1
+        @inbounds cw += w.arr[i]
+    end
+    return i
+end
+
+function update_nodes_and_rates(g::LightGraphs.Graph,payload::Array{P,1},v::Int,rates::RateArray,neighbor_numbers::Array{Int,1},im::Union{InfectionModel,InfectionModelLinear}) where {P} 
+    curr_type = payload[v]
+    infected_change::Int = 0
     if curr_type == INFECTED#set to SUSCEPTIBLE
-        set_payload(g,v,SUSCEPTIBLE)
+        payload[v] = SUSCEPTIBLE
+        infected_change = -1
     else
-        set_payload(g,v,INFECTED)
+        payload[v] = INFECTED
+        infected_change = +1
     end
-    rates[v] = compute_rate(g,v,im)
-    for w in ns 
-        rates[w] = compute_rate(g,w,im)
+    for w in LightGraphs.neighbors(g,v)
+        neighbor_numbers[w] += infected_change
     end
+    old::Float64 = 0.0
+    new::Float64 = 0.0
+    old = rates.arr[v]
+    new = compute_rate(g,payload,v,neighbor_numbers,im)
+    rates.arr[v] = new
+    rates.s += (new - old)
+    for w in LightGraphs.neighbors(g,v)
+        old = rates.arr[w]
+        new = compute_rate(g,payload,w,neighbor_numbers,im)
+        rates.arr[w] = new
+        rates.s += (new - old)
+    end
+    # if abs(rates.s - sum(rates.arr)) > 1e-8
+    #     println(rates.s)
+    #     println(sum(rates.arr))
+    # end
+    return infected_change 
 end
 
-
-function update_graph_gillespie(g::Graph{P},im::InfectionModel,rates::Array{Float64,1}) where {P} 
-    v,t = pick_update_and_time(rates)
-    update_nodes_and_rates(g,v,rates,im)
-    return t
+function update_graph_gillespie(g::LightGraphs.Graph,payload::Array{P,1},im::Union{InfectionModel,InfectionModelLinear},rates::RateArray,neighbor_numbers::Array{Int,1},num_infected::Int) where {P} 
+    # v::Int = pfsample(rates)
+    v::Int = sample(Weights(rates.arr,rates.s))
+    # t::Float64 = rand(Exponential(1/rates.arr[v]))
+    dt::Float64 = rand(Exponential(1/rates.s))
+    # v,t = pick_update_and_time(rates)
+    infected_change = update_nodes_and_rates(g,payload,v,rates,neighbor_numbers,im)
+    return dt,num_infected+infected_change
 end
 
 
@@ -392,20 +467,36 @@ end
 ####################END  Gillespie###################
 #####################################################
 
-
-
-
-
-function get_neighbor_fraction_of_type(g::Graph{P},v::Int,thistype::P) where {P} 
-    neighbors = PayloadGraph.neighbors(g,v)
-    if length(neighbors) == 0 return 0.0 end
-    count = 0
-    for n in neighbors
-        if get_payload(g,n) == thistype
-            count += 1
+function get_neighbor_number_of_type(g::LightGraphs.Graph,payload::Array{P,1},v::Int,thistype::P) where {P} 
+    count::Int = 0
+    for n in LightGraphs.neighbors(g,v) 
+        if payload[n] == thistype
+            count = count + 1
         end
     end
-    return count/length(neighbors)
+    return count
+end
+
+function get_neighbor_number_of_type(g::Graph{P},v::Int,thistype::P) where {P} 
+    count::Int = 0
+    for n in PayloadGraph.neighbors(g,v) 
+        if get_payload(g,n) == thistype
+            count = count + 1
+        end
+    end
+    return count
+end
+
+function get_neighbor_fraction_of_type(g::LightGraphs.Graph,payload::Array{P,1},v::Int,neighbor_numbers::Array{Int,1},thistype::P) where {P} 
+    nn = length(LightGraphs.neighbors(g,v)) 
+    if nn == 0 return 0.0 end
+    return 1.0*neighbor_numbers[v]/nn
+end
+
+function get_neighbor_fraction_of_type(g::Graph{P},v::Int,thistype::P) where {P} 
+    if length(PayloadGraph.neighbors(g,v)) == 0 return 0.0 end
+    count = get_neighbor_number_of_type(g,v,thistype) 
+    return count/length(PayloadGraph.neighbors(g,v))
 end
 
 function get_degree(g::Graph{P},v::Int) where {P} 
@@ -414,13 +505,13 @@ end
 
 function get_fraction_of_type(g::Graph{P},thistype::P) where {P} 
     count = 0
-    vs = vertices(g)
-    for v in vs
+    N = num_vertices(g)
+    for v in 1:N
         if get_payload(g,v) == thistype
             count += 1
         end
     end
-    return count/length(vs)
+    return 1.0*count/N
 end
 
 
@@ -445,7 +536,7 @@ function print_graph(g::Graph{P}) where {P}
 end
 
 
-function update_graph(g::Graph{P},im::InfectionModel,new_types::Union{Array{P,1},SharedArrays.SharedArray{P,1}}) where {P} 
+function update_graph(g::Graph{P},im::Union{InfectionModel,InfectionModelLinear},new_types::Union{Array{P,1},SharedArrays.SharedArray{P,1}}) where {P} 
 
     set_array_with_payload(g,new_types)
     # @sync @parallel for v in vertices(g)
@@ -457,7 +548,7 @@ end
 
 
 
-function update_node(g::Graph{P},v::Int,im::InfectionModel,new_types::Union{Array{P,1},SharedArrays.SharedArray{P,1}}) where {P} 
+function update_node(g::Graph{P},v::Int,im::Union{InfectionModel,InfectionModelLinear},new_types::Union{Array{P,1},SharedArrays.SharedArray{P,1}}) where {P} 
     if get_payload(g,v) == INFECTED
         # k = get_average_degree(g) 
         #infect neighbors
@@ -528,7 +619,7 @@ end
 
 
 # #This function doesn't use the infection model yet since anonymous functions crash in the threading package!
-# function update_graph_threads{P}(g::Graph{P},im::InfectionModel,new_types::Union{Array{P,1},SharedArrays.SharedArray{P,1}})
+# function update_graph_threads{P}(g::Graph{P},im::Union{InfectionModel,InfectionModelLinear},new_types::Union{Array{P,1},SharedArrays.SharedArray{P,1}})
 #     rngs = [MersenneTwister(777+x) for x in 1:nthreads()]
 #     m = Mutex()
 #     set_array_with_payload(g,new_types)
@@ -577,7 +668,7 @@ end
 #     return 1 + 0.1*x
 # end
 
-# function update_node_threads{P}(g::Graph{P},v::Int,im::InfectionModel,new_types,rngs,m::Mutex)
+# function update_node_threads{P}(g::Graph{P},v::Int,im::Union{InfectionModel,InfectionModelLinear},new_types,rngs,m::Mutex)
 #     if get_payload(g,v) == INFECTED
 #         k = get_average_degree(g) 
 #         #infect neighbors

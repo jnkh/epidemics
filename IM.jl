@@ -8,16 +8,47 @@ module IM
 using Dierckx
 #import Cubature
 import QuadGK,PyPlot,Interpolations
-export p_birth,p_death,InfectionModel, plot_schematic, get_parameters,
+export p_birth,p_death,InfectionModel,InfectionModelLinear, plot_schematic, get_parameters,
 P_reach,P_fix,P_reach_fast,P_reach_raw_fast,
 
 get_s_interp, get_s_integral_interp
+
+
+struct InfectionModelLinear
+    alpha::Float64
+    beta::Float64
+    dt::Float64
+end
 
 
 struct InfectionModel
     birth_rate::Function
     death_rate::Function
     dt::Float64
+end
+
+function birth_rate_linear(alpha::Float64,x::Float64)
+    return 1.0 + alpha*x
+end
+
+function death_rate_linear(beta::Float64,x::Float64)
+    return 1.0 + beta
+end
+
+
+function p_birth(im::InfectionModelLinear,x::Float64)
+    return birth_rate_linear(im.alpha,x)*im.dt
+end
+
+function p_death(im::InfectionModelLinear,x::Float64)
+    return death_rate_linear(im.beta,x)*im.dt
+end
+
+function InfectionModelLinear(alpha::Float64,beta::Float64)
+    desired_rate = 0.01
+    max_rate = maximum([birth_rate_linear(alpha,1.0),death_rate_linear(beta,1.0),birth_rate_linear(alpha,0.0),death_rate_linear(beta,0.0)])
+    dt = desired_rate/max_rate
+    InfectionModelLinear(alpha,beta,dt)
 end
 
 eps = 1e-10
@@ -30,21 +61,21 @@ function InfectionModel(birth_rate::Function,death_rate::Function)
     InfectionModel(birth_rate,death_rate,dt)
 end
 
-
-
-function p_birth(im::InfectionModel,x)
-    return im.birth_rate(x)*im.dt
+function p_birth(im::InfectionModel,x::Float64)
+    rate::Float64 = im.birth_rate(x)*im.dt
+    return rate
 end
 
-function p_death(im::InfectionModel,x)
-    return im.death_rate(x)*im.dt
+function p_death(im::InfectionModel,x::Float64)
+    rate::Float64 = im.death_rate(x)*im.dt
+    return rate
 end
 
-function s(im::InfectionModel,x)
+function s(im::Union{InfectionModel,InfectionModelLinear},x)
     return (1- x)*(p_birth(im,x) - p_death(im,x))
 end
     
-function P_fix(im::InfectionModel,N::Int,x0::Real)
+function P_fix(im::Union{InfectionModel,InfectionModelLinear},N::Int,x0::Real)
     s(x) = (1-x)*(p_birth(im,x) - p_death(im,x))
     a(x) = x*s(x)
     b(x) = 1/N*(1-x)*x*(p_birth(im,x) + p_death(im,x))
@@ -54,11 +85,11 @@ function P_fix(im::InfectionModel,N::Int,x0::Real)
     return QuadGK.quadgk(y -> psi(y,a,b),0,x0)[1]/QuadGK.quadgk(y -> psi(y,a,b),0,1)[1]
 end
 
-function P_fix(im::InfectionModel,N::Int,x0::Array)
+function P_fix(im::Union{InfectionModel,InfectionModelLinear},N::Int,x0::Array)
     return [P_fix(im,N,xind) for xind in x0]
 end
 
-# function P_reach(im::InfectionModel,N::Int,x0::Real,x1::Real)
+# function P_reach(im::Union{InfectionModel,InfectionModelLinear},N::Int,x0::Real,x1::Real)
 #     s(x) = (1-x)*(p_birth(im,x) - p_death(im,x))
 #     a(x) = x*s(x)
 #     b(x) = 1/N*(1-x)*x*(p_birth(im,x) + p_death(im,x))
@@ -68,7 +99,7 @@ end
 #     return QuadGK.quadgk(y -> psi(y,a,b),0,x0)[1]/QuadGK.quadgk(y -> psi(y,a,b),0,x1)[1]
 # end
 
-# function P_reach(im::InfectionModel,N::Int,x0::Real,x1::Array)
+# function P_reach(im::Union{InfectionModel,InfectionModelLinear},N::Int,x0::Real,x1::Array)
 #     return [P_reach(im,N,x0,xind) for xind in x1]
 # end
 
@@ -101,7 +132,7 @@ function P_reach(s::Function,splus::Function,N::Int,x0::Real,x1::Array)
     return [P_reach(s,splus,N,x0,xind) for xind in x1]
 end
 
-function P_reach(im::InfectionModel,N::Int,x0::Real,x1::Real)
+function P_reach(im::Union{InfectionModel,InfectionModelLinear},N::Int,x0::Real,x1::Real)
     s(x) = (1-x)*(p_birth(im,x) - p_death(im,x))
     a(x) = x*s(x)
     b(x) = 1/N*(1-x)*x*(p_birth(im,x) + p_death(im,x))
@@ -111,14 +142,14 @@ function P_reach(im::InfectionModel,N::Int,x0::Real,x1::Real)
     return QuadGK.quadgk(y -> psi(y,a,b),eps,x0)[1]/QuadGK.quadgk(y -> psi(y,a,b),eps,x1)[1]
 end
 
-function P_reach(im::InfectionModel,N::Int,x0::Real,x1::Array)
+function P_reach(im::Union{InfectionModel,InfectionModelLinear},N::Int,x0::Real,x1::Array)
     return [P_reach(im,N,x0,xind) for xind in x1]
 end
 
 
 
 
-function P_reach_fast(im::InfectionModel,N::Int,x0::Real,x1::Array,slow_im=false;num_points=100)
+function P_reach_fast(im::Union{InfectionModel,InfectionModelLinear},N::Int,x0::Real,x1::Array,slow_im=false;num_points=100)
     a(x) = (p_birth(im,x) - p_death(im,x)) #*x(1-x)
     b(x) = 1/N*(p_birth(im,x) + p_death(im,x)) #*x(1-x) 
     if slow_im
@@ -187,7 +218,7 @@ end
 #     psi_interp(x) = evaluate(psi_spline,x)
 #     return psi_interp
 # end
-function get_s_interp(im::InfectionModel,N::Int)
+function get_s_interp(im::Union{InfectionModel,InfectionModelLinear},N::Int)
     # a(x) = x*(1-x)*(p_birth(im,x) - p_death(im,x))
     # b(x) = 1/N*(1-x)*x*(p_birth(im,x) + p_death(im,x))  
     # s(x) = 2*a(x)/(N*b(x))
@@ -195,7 +226,7 @@ function get_s_interp(im::InfectionModel,N::Int)
     return get_interp_function(s,eps,1,1000)
 end
 
-function get_s_integral_interp(im::InfectionModel,N::Int)
+function get_s_integral_interp(im::Union{InfectionModel,InfectionModelLinear},N::Int)
     s = get_s_interp(im,N)
     get_s_integral_interp(s)
 end

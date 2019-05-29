@@ -1,6 +1,6 @@
 module GraphGeneration
 
-using LightGraphs, Distributions
+using LightGraphs, Distributions,Munkres,Random
 
 export get_gamma_params, graph_from_gamma_distribution,
 graph_from_degree_distribution,
@@ -13,7 +13,10 @@ get_p_k_two_degree,
 regular_clustering_graph,
 change_num_triangles!,
 change_clustering_by_swapping,
-get_mutual_neighbors
+get_mutual_neighbors,
+community_overlap
+
+
 
 function get_gamma_params(mu,sigma)
     k = mu^2/sigma^2
@@ -349,7 +352,70 @@ function regular_clustering_graph(N,k,C)
     return change_clustering_by_swapping(G,C)
 end
 
+function community_overlap(ls1::Array{Int,1},ls2::Array{Int,1})
+    ls1 = randomize_labels(ls1)
+    ls2 = randomize_labels(ls2)
+    @assert(maximum(ls1) <= length(ls1))
+    @assert(maximum(ls2) <= length(ls2))
+    cs1 = unique(ls1)
+    cs2 = unique(ls2)
+    mat = construct_overlap_matrix(ls1,ls2,cs1,cs2)
+#     mat_modified[mat .== 0]
+    matching = munkres(-1*mat)
+    total_overlap = sum([mat[i,matching[i]] for i in 1:length(matching) if ~isnothing(matching[i])])
+#     o,ls1,ls2,d = community_overlap(ls1,ls2)
+#     total_overlap = sum([mat[i,d[i]] for i in 1:length(matching)])
+    return 1.0*total_overlap/length(ls1),[matching[x] for x in ls1],ls2,matching
+end
 
+function construct_overlap_matrix(ls1,ls2,cs1,cs2)
+#     n = maximum([length(cs1),length(cs2)])
+    n1,n2 = length(cs1),length(cs2)
+    mat = zeros(Int,n1,n2)
+    for i = 1:n1
+        for j = 1:n2
+#             if i > length(cs1) || j > length(cs2)
+#                 mat[i,j] = -Inf
+#             end
+            mat[i,j] = overlap(ls1,i,ls2,j)
+        end
+    end
+    return mat
+end
+
+function community_overlap(g::Graph,g1::Graph,num_trials = 20)
+    max_overlap = 0.0
+    max_ls1 = []
+    max_ls2 = []
+    for i in 1:num_trials
+        ls1 = label_propagation(g)[1]
+        ls2 = label_propagation(g1)[1]
+        o,ls1_new,ls2_new = community_overlap(ls1,ls2)
+        if o > max_overlap
+            max_overlap = o
+            max_ls1 = ls1_new
+            max_ls2 = ls2_new
+        end
+    end
+    return max_overlap,max_ls1,max_ls2
+end
+
+
+function overlap(ls1,idx1,ls2,idx2)
+    return sum((ls1 .== idx1) .& (ls2 .== idx2))
+end
+
+function community_size(ls,idx)
+    return sum(ls .== idx)
+end
+
+function randomize_labels(ls_vec)
+    unique_labels = sort(unique(ls_vec))
+    rand_labels = shuffle(unique_labels)
+    d = Dict(unique_labels[i] => rand_labels[i] for i in 1:length(unique_labels))
+    ls_vec_new = [d[el] for el in ls_vec]
+    return ls_vec_new
+end
 
 
 #############Creates a graph from a prescribed degree distribution using 
