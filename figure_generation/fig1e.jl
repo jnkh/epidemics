@@ -76,7 +76,7 @@ C_random = k/N
 println("N: $N, k: $k, C: $C")
 @assert(length(connected_components(g)) == 1)
 
-save_path_graphs = "./data/fig2e_graphs.jld"#"./data/fig2e_$(now()).jld"
+save_path_graphs = "./data/fig1e_graphs.jld"#"./data/fig2e_$(now()).jld"
 if isfile(save_path_graphs)
 	dat = load(save_path_graphs)
 	g_range = dat["g_range"]
@@ -88,7 +88,7 @@ else
 end
 
 generate_data = true
-save_path = "./data/fig2e.jld"#"./data/fig2e_$(now()).jld"
+save_path = "./data/fig1e.jld"#"./data/fig2e_$(now()).jld"
 
 if generate_data
 	use_theory = false
@@ -104,7 +104,7 @@ if generate_data
 	    for (j,(alpha,beta)) in enumerate(ab_range)
 	    	if beta < 0.0
 	    		num_trials = 40_000
-	    	if alpha > 0.0 && C_curr > 0.45
+	    	elseif alpha > 0.0 && C_curr > 0.45
 	    		num_trials = 40_000
 	    	else
 	    		num_trials = trials_range[i]
