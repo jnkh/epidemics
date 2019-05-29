@@ -94,16 +94,17 @@ end
 
 
 function unzip(input::Vector)
-    n = length(input)
-    types  = map(typeof, first(input))
-    output = map(T->Vector{T}(n), types)
+    return collect(zip(input...))
+    # n = length(input)
+    # types  = map(typeof, first(input))
+    # output = map(T->Vector{T}(n), types)
 
-    for i = 1:n
-       @inbounds for (j, x) in enumerate(input[i])
-           (output[j])[i] = x
-       end
-    end
-    return (output...)
+    # for i = 1:n
+    #    @inbounds for (j, x) in enumerate(input[i])
+    #        (output[j])[i] = x
+    #    end
+    # end
+    # return (output...)
 end
 
 end
