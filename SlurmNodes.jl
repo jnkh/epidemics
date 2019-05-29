@@ -1,7 +1,7 @@
 module SlurmNodes
 
 using PyCall
-@pyimport hostlist
+hostlist = @pyimport("hostlist")
 
 export get_list_of_nodes,get_partial_list_of_nodes
 
