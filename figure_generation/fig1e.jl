@@ -94,7 +94,7 @@ if generate_data
 	use_theory = false
 	num_trials_th = 100
 	trials_range = num_trials*ones(Int,length(C_range_actual))#4000*ones(Int,length(C_range))#[40000,40000,40000,4000,2000]#10000*ones(Int,5)#[1000,1000,1000,1000,1000]
-	ab_range = [(1.0,0.2),(0.0,-0.02),(0.0,0.0),(0.0,0.003)]
+	ab_range = [(1.0,0.2),(0.0,-0.005),(0.0,0.0),(0.0,0.003)]
 	pfix_range = zeros(length(C_range_actual),length(ab_range))
 	yy_arr = Array{Any}(undef,length(C_range_actual),length(ab_range))
 	pp_arr = Array{Any}(undef,length(C_range_actual),length(ab_range))
