@@ -640,7 +640,7 @@ end
 function run_epidemics_parallel(num_runs::Int,run_epidemic_fn,parallel=true)
     # mapfn = parallel ? pmap : map
     if parallel
-        ret = pmap( _ -> run_epidemic_fn() ,1:num_runs,batch_size=100)
+        ret = pmap( _ -> run_epidemic_fn() ,1:num_runs,batch_size=1000)
     else
         ret = map( _ -> run_epidemic_fn() ,1:num_runs)
     end
