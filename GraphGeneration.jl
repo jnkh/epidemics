@@ -1,3 +1,4 @@
+__precompile__()
 module GraphGeneration
 
 using LightGraphs, Distributions,Munkres,Random
@@ -14,7 +15,8 @@ regular_clustering_graph,
 change_num_triangles!,
 change_clustering_by_swapping,
 get_mutual_neighbors,
-community_overlap
+community_overlap,
+randomize_labels
 
 
 

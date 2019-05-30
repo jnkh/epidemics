@@ -1,7 +1,7 @@
 ##################################################
 #### SIS Model captured in a module###############
 ##################################################
-
+__precompile__()
 module SIS
 
 import LightGraphs,SharedArrays

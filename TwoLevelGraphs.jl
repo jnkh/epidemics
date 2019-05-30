@@ -1,3 +1,4 @@
+__precompile__()
 module TwoLevelGraphs
 
 using LightGraphs, Distributions, StatsBase, IM, NLsolve#,PyPlot

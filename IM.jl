@@ -2,7 +2,7 @@
 ######## A simple model of infection with variable timestep
 ##################################################
 
-
+__precompile__()
 module IM
 
 using Dierckx

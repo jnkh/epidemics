@@ -1,3 +1,4 @@
+__precompile__()
 module DataAnalysis
 
 using SIS,IM,PayloadGraph, GraphClustering,Epidemics,JLD, TwoLevelGraphs,Dierckx
