@@ -7,7 +7,7 @@ module IM
 
 using Dierckx
 #import Cubature
-import QuadGK,PyPlot,Interpolations
+import QuadGK,Interpolations#,PyPlot
 export p_birth,p_death,InfectionModel,InfectionModelLinear, plot_schematic, get_parameters,
 P_reach,P_fix,P_reach_fast,P_reach_raw_fast,
 
