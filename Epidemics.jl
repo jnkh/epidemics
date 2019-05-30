@@ -1,3 +1,4 @@
+__precompile__()
 module Epidemics
 
 using SIS,Distributions, IM, LightGraphs,PayloadGraph, Dierckx,GraphGeneration,Distributed
@@ -65,7 +66,7 @@ function guarantee_connected(graph_fn)
     return g
 end
 
-struct GraphInformation
+mutable struct GraphInformation
     graph_fn
     graph::LightGraphs.Graph
     carry_by_node_info::Bool
@@ -186,10 +187,9 @@ end
 
 
 #get graph information for the different types of graphs
-function get_graph_information(graph_type::RandomGraphType;N=400,k = 10,sigma_k = 10,m=20,l=19,r=1,custom_g = nothing)
+function get_graph_information(graph_type::RandomGraphType;N=400,k = 10,sigma_k = 10,m=20,l=19,r=1,custom_g = nothing,carry_by_node_information=false)
     graph_fn = nothing
     graph_data = nothing
-    carry_by_node_information = false
     G = 0
     if graph_type == regular_rg
         graph_data = k
