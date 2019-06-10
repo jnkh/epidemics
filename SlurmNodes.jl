@@ -35,14 +35,13 @@ end
 
 function get_list_of_nodes()
 	hostlist = pyimport("hostlist")
-	println(hostlist)
 	println("nodelist: $(ENV["SLURM_NODELIST"])")
 	println("cpus_per_node: $(ENV["SLURM_JOB_CPUS_PER_NODE"])")
 	s = ENV["SLURM_NODELIST"]
-    	node_list = hostlist.expand_hostlist(s)
-	println(node_list)
+    node_list = hostlist.expand_hostlist(s)
+	# println(node_list)
 	cpus_per_node = reduce(vcat,map(convert_cpus_strings_to_ints,split(ENV["SLURM_JOB_CPUS_PER_NODE"],',')))
-	println(cpus_per_node)
+	# println(cpus_per_node)
 	# idx = searchindex(s,"[")
 	# if idx > 0
 	# 	num_digits = length(split(split(s[idx+1:end-1],",")[end],"-")[end])
