@@ -458,6 +458,8 @@ function run_epidemic_graph_gillespie(N::Int,im::Union{InfectionModel,InfectionM
         if shuffle_nodes
             if graph_information.data == nothing
                 shuffle!(payload)
+                compute_all_neighbor_numbers_of_type(g,payload,neighbor_numbers,INFECTED)
+                compute_all_rates(g,payload,im,rates,neighbor_numbers) 
             else
                 #shuffle payload by cluster
                 clusters = graph_information.data.clusters

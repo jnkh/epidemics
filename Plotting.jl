@@ -1,13 +1,43 @@
 module Plotting
 
-using SIS,IM,PayloadGraph,PyPlot, Epidemics,JLD, TwoLevelGraphs,Dierckx
+using SIS,IM,PayloadGraph,PyPlot, Epidemics,JLD, TwoLevelGraphs,Dierckx,DataAnalysis
 import LightGraphs
 
 export plot_schematic,plot_schematics,
 
 plot_w,plot_two_level_schematic,
-plot_p_reach_th,plot_p_reach_sim,plot_simulation_result,plot_theory_result
+plot_p_reach_th,plot_p_reach_sim,plot_simulation_result,
+plot_theory_result,plot_y_by_community,color_range
 
+function color_range(n,cm_name="plasma",cm_min=0.0,cm_max=1.0)
+    cm = matplotlib.cm.get_cmap(cm_name)
+    xx = collect(1:n)
+    colors = cm.(cm_min .+ (cm_max-cm_min).*(xx.-1)./(n-1))
+    return colors
+end
+
+
+function plot_y_by_community(ts,i_vs_t,n_vs_t,labels,min_size=10,cmap="plasma")
+    eps = 0.0
+    N = length(labels)
+    # rcParams["axes.spines.right"] = true 
+    # rcParams["axes.spines.top"] = true 
+    ylim([0,1])
+    xlim([minimum(ts),maximum(ts)])
+    communities = sort(unique(labels))
+    ret,len = get_communities_vs_time(i_vs_t,labels);
+    
+    colors_all = color_range(length(communities),cmap)
+    for i in 1:length(communities)
+        if len[i] > min_size
+            PyPlot.plot(ts,clamp.(ret[i],eps,1-eps),color=colors_all[i],linewidth=0.75)
+        end
+    end
+    PyPlot.plot(ts,clamp.(n_vs_t./N,eps,1-eps),color="k")
+#     plt.yscale("logit")
+    xlabel(L"Timestep, $t$")
+    ylabel(L"Type B fraction, $y(t)$")
+end
 
 function log_interp(yy,pp,num_trials,num_points = 10)
     x = log10.(yy)
@@ -30,7 +60,7 @@ function plot_p_reach_th(pr::PreachResult;color="b",linestyle="-",marker="o",lab
     loglog(yyraw,ppraw,linestyle=linestyle,color=color,linewidth=1,label=label)
     xlabel(L"Frequency, $y$",size=20)
     ylabel(L"P_{reach}(y)",size=20)
-    gca()[:tick_params](labelsize=15)
+    gca().tick_params(labelsize=15)
 end
 
 function plot_p_reach_sim(pr::PreachResult;color="b",linestyle="none",linewidth=0.5,marker="o",fillstyle="full",num_points=10)
@@ -38,11 +68,11 @@ function plot_p_reach_sim(pr::PreachResult;color="b",linestyle="none",linewidth=
     ppraw = pr.pp
     num_trials = pr.num_trials
     xx,yy,dyy = log_interp(yyraw,ppraw,num_trials,num_points)
-    plt[:errorbar](xx,yy,color=color,linestyle=linestyle,marker=marker,yerr=dyy,fillstyle=fillstyle,linewidth=linewidth,markersize=3)
+    plt.errorbar(xx,yy,color=color,linestyle=linestyle,marker=marker,yerr=dyy,fillstyle=fillstyle,linewidth=linewidth,markersize=3)
     loglog()
     xlabel(L"Frequency, $y$",size=20)
     ylabel(L"P_{reach}(y)",size=20)
-    gca()[:tick_params](labelsize=15)
+    gca().tick_params(labelsize=15)
 end
 
 function plot_simulation_result(si::SimulationResult;color="b",marker="o",fillstyle="full",error_line_width=0.5,label="",linestyle = "-",num_points=10)
@@ -147,9 +177,9 @@ function plot_w(sizes,N,alpha,beta,k::Int,word = "two level")
     bins = logspace(log10(minimum(sizes)),log10(maximum(sizes)),150)
 #     word = graph_model ? "graph" : "well-mixed"
     label = latexstring("$word, \$k = $k\$")
-    PyPlot.plt[:hist](sizes,log=true,bins=bins,alpha=0.2,normed=true,label=label)
+    PyPlot.plt.hist(sizes,log=true,bins=bins,alpha=0.2,normed=true,label=label)
 
-    gca()[:set_xscale]("log")
+    gca().set_xscale("log")
 
     w_range = bins[1:end]#logspace(log10(4*minimum(sizes)),log10(maximum(sizes)),30)
 
@@ -179,9 +209,9 @@ function plot_w(sizes,N,alpha,beta,s_eff_fn::Function, word = "two level")
     bins = logspace(log10(minimum(sizes)),log10(maximum(sizes)),150)
 #     word = graph_model ? "graph" : "well-mixed"
     label = latexstring("$word, \$k = $k\$")
-    PyPlot.plt[:hist](sizes,log=true,bins=bins,alpha=0.2,normed=true,label=label)
+    PyPlot.plt.hist(sizes,log=true,bins=bins,alpha=0.2,normed=true,label=label)
 
-    gca()[:set_xscale]("log")
+    gca().set_xscale("log")
 
     w_range = bins[1:end]#logspace(log10(4*minimum(sizes)),log10(maximum(sizes)),30)
 

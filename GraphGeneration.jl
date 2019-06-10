@@ -38,7 +38,7 @@ end
 ####################################################
 #Create a graph with a degree distribution that 
 #allows only 2 degrees
-struct TwoDegreeParams
+mutable struct TwoDegreeParams
     k1::Int
     k2::Int
     p1::Float64
@@ -580,7 +580,7 @@ function sample_degrees(d::UnivariateDistribution,N::Int,min_degree=1)
 end
 
 function get_stubs(degrees)
-    stubs = Array{Int}(sum(degrees))
+    stubs = zeros(Int,sum(degrees))
     idx = 1
     for i = 1:length(degrees)
         for j = 0:degrees[i]-1

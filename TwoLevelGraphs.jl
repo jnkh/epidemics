@@ -1,7 +1,7 @@
 __precompile__()
 module TwoLevelGraphs
 
-using LightGraphs, Distributions, StatsBase, IM, NLsolve#,PyPlot
+using LightGraphs, Distributions, StatsBase, IM, NLsolve,Random#,PyPlot
 
 export TwoLevel, is_valid, get_num_infected, distribute_randomly, make_consistent,
 TwoLevelGraph, get_clusters, make_two_level_random_graph,birth_fn,death_fn,
@@ -15,7 +15,7 @@ generate_regular_two_level_graph,same_cluster,get_p_reach_theory,get_sparse_j_ma
 get_stationary_distribution_nlsolve_finite_size,get_community_graph_fixation_ratio,
 get_fixation_MC,phase_transition_condition,get_t
 
-struct TwoLevel
+mutable struct TwoLevel
     a::Array{Number,1} #number communities with [idx] infected nodes
     N::Int #total number of nodes
     m::Int #number of nodes per community
@@ -715,7 +715,7 @@ end
 function get_sparse_j_mask(t)
   eps = 1+1e-6
   js = collect(0:t.m)
-  mask = falses(js)
+  mask = falses(length(js))
   for j in js
     mask[j+1] = (j <= t.i+eps) && ((t.m - j) <= (t.N - t.i) + eps)
   end
@@ -1579,7 +1579,7 @@ function distribute_super_edges(super_edges,clusters,r)
     super_edges = shuffle(super_edges)
     new_edges = copy(super_edges)
     for (clust_idx,cluster) in enumerate(clusters)
-        cluster_indeces = shuffle(repmat(cluster,r))
+        cluster_indeces = shuffle(repeat(cluster,r))
         for (edge_idx,edge) in enumerate(super_edges)
             if edge.src == clust_idx
                 new_edge = Edge(pop!(cluster_indeces),new_edges[edge_idx].dst)

@@ -254,7 +254,7 @@ function create_p_k_p_k_neighbor_from_graph(g)
     N = nv(g)
     ks = sort(unique(degree(g)))
     ks_map = Dict([ks[i] => i for i in 1:length(ks)])
-    p_k = zeros(ks)
+    p_k = zeros(length(ks))
     p_k_neighbor = zeros(length(ks),length(ks))
 
     for v in vertices(g)

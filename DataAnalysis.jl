@@ -12,8 +12,30 @@ get_two_level_states_from_runs,get_mean_distribution_from_states,
 
 get_two_level_states,
 
-get_individual_arrays,get_z_arrays, get_infection_size,get_max_reach
+get_individual_arrays,get_z_arrays, get_infection_size,get_max_reach,
+get_communities_vs_time,get_community_vs_time
 
+function get_communities_vs_time(inf_vs_time,labels)
+    unique_labels = sort(unique(labels))
+    ret = Array{Float64,1}[]
+    comm_sizes = []
+    for l in unique_labels
+        vec,len = get_community_vs_time(inf_vs_time,labels,l)
+        push!(ret,vec)
+        push!(comm_sizes,len)
+    end
+    ret,comm_sizes
+end
+
+function get_community_vs_time(inf_vs_time,labels,l)
+    indices = labels .== l
+    len = sum(indices)
+    vec = zeros(length(inf_vs_time))
+    for (i,inf_at_time) in enumerate(inf_vs_time)
+        vec[i] = sum(inf_vs_time[i][indices])/len
+    end
+    vec,len
+end
 
 
 function load_p_reach_data(path)
