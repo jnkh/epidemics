@@ -207,7 +207,7 @@ end
 
 
 #get graph information for the different types of graphs
-function get_graph_information(graph_type::RandomGraphType;N=400,k = 10,sigma_k = 10,m=20,l=19,r=1,custom_g = nothing,carry_by_node_information=false,carry_temporal_info=true)
+function get_graph_information(graph_type::RandomGraphType;N=400,k = 10,sigma_k = 10,m=20,l=19,r=1,custom_g = nothing,carry_by_node_information=false,carry_temporal_info=true,pregenerate_graph=false)
     graph_fn = nothing
     graph_data = nothing
     G = 0
@@ -241,6 +241,10 @@ function get_graph_information(graph_type::RandomGraphType;N=400,k = 10,sigma_k 
         graph_fn = () -> custom_g
     else
         println("Unkown Graph Type, returning Void GraphInformation")
+    end
+    if pregenerate_graph
+        generated_graph = graph_fn()
+        graph_fn = () -> generated_graph
     end
 
     graph_information = GraphInformation(graph_fn,LightGraphs.Graph(),carry_by_node_information,carry_temporal_info,graph_data,graph_type)
