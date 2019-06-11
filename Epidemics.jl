@@ -68,7 +68,7 @@ end
 
 mutable struct GraphInformation
     graph_fn
-    graph::LightGraphs.Graph
+    graph
     carry_by_node_info::Bool
     data
     graph_type::RandomGraphType
