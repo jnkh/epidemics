@@ -1,20 +1,22 @@
 ###Preamble###
 using Distributed
-push!(LOAD_PATH, pwd()*"/..")
+import_path_desai = "/n/home07/juliankh/physics/research/desai/epidemics/src"
+push!(LOAD_PATH, import_path_desai)
 using SlurmNodes
 in_parallel = true
 if in_parallel
-	# addprocs(get_list_of_nodes())
-	addprocs()
+	addprocs(get_list_of_nodes())
+	#addprocs()
 	println("Running on $(nprocs()) processes.")
 else
 	println("Running in serial.")
 end
 @everywhere using JLD2,FileIO,Random, Munkres, Distributions,StatsBase,NLsolve,LightGraphs,Dierckx,PyPlot,Plots,PyCall,Dates
-@everywhere push!(LOAD_PATH, pwd()*"/..")
-@everywhere import_path = "/Users/julian/Harvard/research/nowak/indirect_rec/src"
-@everywhere push!(LOAD_PATH, import_path)
-@everywhere using Epidemics,IM, GraphGeneration,DegreeDistribution,GraphGeneration,GraphCreation,GraphClustering,TwoLevelGraphs,DataAnalysis,GraphPlotting
+@everywhere import_path_desai = "/n/home07/juliankh/physics/research/desai/epidemics/src"
+@everywhere push!(LOAD_PATH, import_path_desai)
+@everywhere import_path_nowak = "/n/home07/juliankh/physics/research/nowak/indirect_rec/src"
+@everywhere push!(LOAD_PATH, import_path_nowak)
+@everywhere using Epidemics,IM, GraphGeneration,DegreeDistribution,GraphGeneration,GraphCreation,GraphClustering,TwoLevelGraphs,DataAnalysis,GraphPlotting,Plotting
 
 use_helvetica=true
 helvetica_preamble = [
@@ -51,8 +53,8 @@ plot_beta = false
 if generate_data
 	beta = 0.1
 	alpha = 1.0
-	N = 2000#40000
-	k_range = [5,10,12,20] #[5,10,12,1000]#[1000,12,10,5]
+	N = 40000
+	k_range = [5,10,12,1000] #[5,10,12,1000]#[1000,12,10,5]
 	l1 = length(k_range)
 	gi_arr = Array{Any}(undef,l1)
 	sr_arr = Array{Any}(undef,l1)
@@ -61,8 +63,7 @@ if generate_data
 	num_trials_sim = 1000
 	in_parallel = true
 	for (i,k) in enumerate(k_range)
-	    graph_type = sigma_k == 0 ? regular_rg : gamma_rg
-	    gi = get_graph_information(graph_type,N=N,k=k,sigma_k=sigma_k)
+	    gi = get_graph_information(regular_rg,N=N,k=k)
 	#     tr = get_theory_result(N,alpha,beta,gi,num_trials_th)
 	    @time    sr = get_simulation_result(N,alpha,beta,gi,num_trials_th,num_trials_sim,in_parallel=in_parallel)
 	#     tr_arr[i] = tr
