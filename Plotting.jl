@@ -54,10 +54,10 @@ function get_binomial_errorbars(x,num_trials)
     return (x.*(1.0.-x)./num_trials).^0.5
 end
 
-function plot_p_reach_th(pr::PreachResult;color="b",linestyle="-",marker="o",label="")
+function plot_p_reach_th(pr::PreachResult;color="b",linestyle="-",marker="o",label="",linewidth=1.5)
     yyraw = pr.yy
     ppraw = pr.pp
-    loglog(yyraw,ppraw,linestyle=linestyle,color=color,linewidth=1,label=label)
+    loglog(yyraw,ppraw,linestyle=linestyle,color=color,linewidth=linewidth,label=label)
     xlabel(L"Frequency, $y$",size=20)
     ylabel(L"P_{reach}(y)",size=20)
     gca().tick_params(labelsize=15)
@@ -75,16 +75,16 @@ function plot_p_reach_sim(pr::PreachResult;color="b",linestyle="none",linewidth=
     gca().tick_params(labelsize=15)
 end
 
-function plot_simulation_result(si::SimulationResult;color="b",marker="o",fillstyle="full",error_line_width=0.5,label="",linestyle = "-",num_points=10)
-    plot_p_reach_th(si.prth,color=color,label=label,linestyle=linestyle)
+function plot_simulation_result(si::SimulationResult;color="b",marker="o",fillstyle="full",error_line_width=0.5,label="",linestyle = "-",num_points=10,linewidth=1.5)
+    plot_p_reach_th(si.prth,color=color,label=label,linestyle=linestyle,linewidth=linewidth)
     plot_p_reach_sim(si.prsim,color=color,num_points=num_points,linestyle="none",linewidth=error_line_width,fillstyle=fillstyle)
     gca().spines["right"].set_visible(false)
     gca().spines["top"].set_visible(false)
 
 end
 
-function plot_theory_result(thr::TheoryResult;color="b",marker="o",label="",linestyle="-",num_points=10)
-    plot_p_reach_th(thr.pr,color=color,label=label,linestyle=linestyle)
+function plot_theory_result(thr::TheoryResult;color="b",marker="o",label="",linestyle="-",num_points=10,linewidth=1.5)
+    plot_p_reach_th(thr.pr,color=color,label=label,linestyle=linestyle,linewidth=linewidth)
 end
 
 

@@ -70,18 +70,24 @@ mutable struct GraphInformation
     graph_fn
     graph
     carry_by_node_info::Bool
+    carry_temporal_info::Bool
     data
     graph_type::RandomGraphType
 end
 
+function GraphInformation(graph_fn,g,carry_by_node_info::Bool,data,graph_type::RandomGraphType)
+    return GraphInformation(graph_fn,g,carry_by_node_info,true,data,graph_type)
+end
+
 function GraphInformation()
-    return GraphInformation(x -> x,LightGraphs.Graph(),false,nothing,random_rg)
+    return GraphInformation(x -> x,LightGraphs.Graph(),false,true,nothing,random_rg)
 end
 
 struct EpidemicRun
     times::Array{Float64,1}
     infecteds_vs_time::Array{Float64,1}
     size::Float64
+    max_reach::Float64
     fixed::Bool
     infecteds_by_nodes_vs_time::Array{Array{Int,1},1}
     graph_information::GraphInformation
@@ -100,13 +106,27 @@ function CompactEpidemicRuns(runs::Array{EpidemicRun,1},N::Int)
     return CompactEpidemicRuns(sizes,y_reach,p_reach,length(runs))
 end
 
+function set_max_reach(er::EpidemicRun)
+    er.max_reach = get_max_reach(er)
+end
+
+function EpidemicRun(infecteds_vs_time::Array{Float64,1},size::Float64,max_reach::Float64,fixed::Bool)
+    times = zeros(Float64,length(infecteds_vs_time))
+    er = EpidemicRun(times,infecteds_vs_time,size,max_reach,fixed,[],GraphInformation())
+    return er
+end
+
 function EpidemicRun(infecteds_vs_time::Array{Float64,1},size::Float64,fixed::Bool)
     times = zeros(Float64,length(infecteds_vs_time))
-    return EpidemicRun(times,infecteds_vs_time,size,fixed,[],GraphInformation())
+    er = EpidemicRun(times,infecteds_vs_time,size,0.0,fixed,[],GraphInformation())
+    set_max_reach(er)
+    return er
 end
 
 function EpidemicRun(times::Array{Float64,1},infecteds_vs_time::Array{Float64,1},size::Float64,fixed::Bool)
-    return EpidemicRun(times,infecteds_vs_time,size,fixed,[],GraphInformation())
+    er =  EpidemicRun(times,infecteds_vs_time,size,0.0,fixed,[],GraphInformation())
+    set_max_reach(er)
+    return EpidemicRun
 end
 
 
@@ -129,7 +149,7 @@ function get_max_reach(run::EpidemicRun)
 end
 
 function get_max_reaches(runs::Array{EpidemicRun, 1})
-    return map(get_max_reach,runs)
+    return [er.max_reach for er in runs]
 end
 
 function get_p_reach(runs::Array{EpidemicRun, 1})
@@ -187,7 +207,7 @@ end
 
 
 #get graph information for the different types of graphs
-function get_graph_information(graph_type::RandomGraphType;N=400,k = 10,sigma_k = 10,m=20,l=19,r=1,custom_g = nothing,carry_by_node_information=false)
+function get_graph_information(graph_type::RandomGraphType;N=400,k = 10,sigma_k = 10,m=20,l=19,r=1,custom_g = nothing,carry_by_node_information=false,carry_temporal_info=true)
     graph_fn = nothing
     graph_data = nothing
     G = 0
@@ -223,7 +243,7 @@ function get_graph_information(graph_type::RandomGraphType;N=400,k = 10,sigma_k 
         println("Unkown Graph Type, returning Void GraphInformation")
     end
 
-    graph_information = GraphInformation(graph_fn,LightGraphs.Graph(),carry_by_node_information,graph_data,graph_type)
+    graph_information = GraphInformation(graph_fn,LightGraphs.Graph(),carry_by_node_information,carry_temporal_info,graph_data,graph_type)
     return graph_information
 end
 
@@ -406,7 +426,7 @@ function run_epidemic_graph_experimental(N::Int,im::InfectionModel,graph_informa
         size = Inf
     end
 
-    return EpidemicRun(infecteds,size,fixed,infecteds_by_nodes,graph_information)
+    return EpidemicRun(infecteds,size,0.0,fixed,infecteds_by_nodes,graph_information)
 end
 
 #gillespie version
@@ -417,11 +437,13 @@ function run_epidemic_graph_gillespie(N::Int,im::Union{InfectionModel,InfectionM
     g = guarantee_connected(graph_information.graph_fn)
 #     graph_information.graph = g
     carry_by_node_info::Bool = graph_information.carry_by_node_info
+    carry_temporal_info::Bool = graph_information.carry_temporal_info
 
     #create payload graph
     infecteds::Array{Float64,1} = []
     times::Array{Float64,1} = []
     infecteds_by_nodes::Array{Array{Int,1},1} = []
+    max_reach = 1.0
     rates = RateArray(fill(0.0,nv(g)))
     neighbor_numbers = fill(0,nv(g))
     payload = fill(SUSCEPTIBLE,nv(g))
@@ -432,11 +454,13 @@ function run_epidemic_graph_gillespie(N::Int,im::Union{InfectionModel,InfectionM
     t = 0
     num_infected = 1
     frac = 1.0*num_infected/N
-    push!(infecteds,num_infected)
-    push!(times,t)
-    if carry_by_node_info
-        graph_information.graph = g
-        push!(infecteds_by_nodes,copy(payload))
+    if carry_temporal_info
+        push!(infecteds,num_infected)
+        push!(times,t)
+        if carry_by_node_info
+            graph_information.graph = g
+            push!(infecteds_by_nodes,copy(payload))
+        end
     end
 
     compute_all_rates(g,payload,im,rates,neighbor_numbers) 
@@ -450,10 +474,15 @@ function run_epidemic_graph_gillespie(N::Int,im::Union{InfectionModel,InfectionM
         dt,num_infected = update_graph_gillespie(g,payload,im,rates,neighbor_numbers,num_infected)
         t += dt
         frac = 1.0*num_infected/N
-        push!(infecteds,num_infected)
-        push!(times,t)
-        if carry_by_node_info
-            push!(infecteds_by_nodes,copy(payload))
+        if num_infected > max_reach
+            max_reach = num_infected
+        end
+        if carry_temporal_info
+            push!(infecteds,num_infected)
+            push!(times,t)
+            if carry_by_node_info
+                push!(infecteds_by_nodes,copy(payload))
+            end
         end
         if shuffle_nodes
             if graph_information.data == nothing
@@ -475,7 +504,7 @@ function run_epidemic_graph_gillespie(N::Int,im::Union{InfectionModel,InfectionM
         size = Inf
     end
 
-    return EpidemicRun(times,infecteds,size,fixed,infecteds_by_nodes,graph_information)
+    return EpidemicRun(times,infecteds,size,max_reach,fixed,infecteds_by_nodes,graph_information)
 end
 
 
@@ -497,6 +526,7 @@ function run_epidemic_graph(N::Int,im::Union{InfectionModel,InfectionModelLinear
     set_payload(p,rand(1:length(get_payload(p))),INFECTED)
     frac = get_fraction_of_type(p,INFECTED)
     push!(infecteds,N*frac)
+    max_reach = 1.0
     if carry_by_node_info
         graph_information.graph = g
         push!(infecteds_by_nodes,copy(get_payload(p)))
@@ -511,6 +541,9 @@ function run_epidemic_graph(N::Int,im::Union{InfectionModel,InfectionModelLinear
         end
         update_graph(p,im,new_types)
         frac = get_fraction_of_type(p,INFECTED)
+        if num_infected > max_reach
+            max_reach = num_infected
+        end
         push!(infecteds,N*frac)
         if carry_by_node_info
             push!(infecteds_by_nodes,copy(get_payload(p)))
@@ -530,7 +563,7 @@ function run_epidemic_graph(N::Int,im::Union{InfectionModel,InfectionModelLinear
     end
 
 
-    return EpidemicRun(im.dt*collect(1:length(infecteds)),infecteds,size,fixed,infecteds_by_nodes,graph_information)
+    return EpidemicRun(im.dt*collect(1:length(infecteds)),infecteds,size,max_reach,fixed,infecteds_by_nodes,graph_information)
 end
 
 
