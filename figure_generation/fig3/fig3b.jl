@@ -2,19 +2,21 @@
 using Distributed
 import_path_desai = "/n/home07/juliankh/physics/research/desai/epidemics/src"
 push!(LOAD_PATH, import_path_desai)
-using SlurmNodes
-in_parallel = true
+in_parallel = false
 if in_parallel
+    using SlurmNodes
 	addprocs(get_list_of_nodes())
 	#addprocs()
 	println("Running on $(nprocs()) processes.")
 else
 	println("Running in serial.")
 end
-@everywhere using JLD2,FileIO,Random, Munkres, Distributions,StatsBase,NLsolve,LightGraphs,SimpleGraphs,Dierckx,PyPlot,Plots,PyCall,Dates
-@everywhere import_path_desai = "/n/home07/juliankh/physics/research/desai/epidemics/src"
+@everywhere using JLD2,FileIO,Random, Munkres, Distributions,StatsBase,NLsolve,LightGraphs,SimpleGraphs,Dierckx,PyPlot,Plots,PyCall,Dates,Interpolations
+# @everywhere import_path_desai = "/n/home07/juliankh/physics/research/desai/epidemics/src"
+@everywhere import_path_desai = "../.././"
 @everywhere push!(LOAD_PATH, import_path_desai)
-@everywhere import_path_nowak = "/n/home07/juliankh/physics/research/nowak/indirect_rec/src"
+# @everywhere import_path_nowak = "/n/home07/juliankh/physics/research/nowak/indirect_rec/src"
+@everywhere import_path_nowak = "/Users/julian/Harvard/research/nowak/indirect_rec/src/"
 @everywhere push!(LOAD_PATH, import_path_nowak)
 @everywhere using Epidemics,IM, GraphGeneration,DegreeDistribution,GraphGeneration,GraphCreation,GraphClustering,TwoLevelGraphs,DataAnalysis,GraphPlotting,Plotting
 
@@ -53,31 +55,42 @@ plot_beta = false
 if generate_data
 	beta = 0.1
 	alpha = 1.0
-	N = 10000
+	N = 10000 #10000
 	k_range = [5,10,14,1000] #[5,10,12,1000]#[1000,12,10,5]
 	l1 = length(k_range)
-	gi_arr = Array{Any}(undef,l1)
 	sr_arr = Array{Any}(undef,l1)
 	num_trials = 400
 	num_trials_th = 100
-	num_trials_sim = 100_000
+	num_trials_sim = 100
 	in_parallel = true
 	pregenerate_graph = true
-	for (i,k) in enumerate(k_range)
+
+    trials_sim_range = [10000,40000,100_000,100_000]
+    # num_trials_sim = 100
+    in_parallel = true
+    pregenerate_graph = true
+    for (i,k) in enumerate(k_range)
+        num_trials_sim = trials_sim_range[i]
+
 	    gi = get_graph_information(regular_rg,N=N,k=k,carry_temporal_info=false,pregenerate_graph=pregenerate_graph)
 	#     tr = get_theory_result(N,alpha,beta,gi,num_trials_th)
 	    @time    sr = get_simulation_result(N,alpha,beta,gi,num_trials_th,num_trials_sim,in_parallel=in_parallel)
+        clean_result(sr)
 	#     tr_arr[i] = tr
-	    gi_arr[i] = gi
+        # sr.graph_information.graph=nothing
+        # sr.graph_information.graph_fn=nothing
 	    sr_arr[i] = sr
 	    println(sparsity_cascade_condition(N,alpha,beta,k))
 
 	end
 	gi = get_graph_information(complete_rg,N=N)
 	tr_complete = get_theory_result(N,alpha,beta,gi,num_trials_th)
-	@save save_path sr_arr gi_arr tr_complete num_trials_sim alpha beta N k_range
+    clean_result(tr_complete)
+    # tr_complete.graph_information.graph=nothing
+    # tr_complete.graph_information.graph_fn=nothing
+	@save save_path sr_arr tr_complete num_trials_sim alpha beta N k_range
 else
-	@load save_path sr_arr gi_arr tr_complete num_trials_sim alpha beta N k_range
+	@load save_path sr_arr tr_complete num_trials_sim alpha beta N k_range
 end
 
 rmprocs(workers())
