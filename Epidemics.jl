@@ -715,6 +715,7 @@ function run_epidemics_parallel(num_runs::Int,run_epidemic_fn,parallel=true)
     end
     for val in ret
         if isa(val,RemoteException)
+            print(val)
             throw(val)
         end
     end
