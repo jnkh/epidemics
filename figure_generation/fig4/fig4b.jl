@@ -48,7 +48,7 @@ rcParams["lines.linewidth"] = 1.5
 rcParams["font.size"] = 20
 
 ###Functions###
-save_path = "../data/fig4c.jld2"
+save_path = "../data/fig4b.jld2"
 generate_data = true
 plot_beta = false
 

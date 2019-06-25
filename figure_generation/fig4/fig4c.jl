@@ -12,11 +12,11 @@ else
 	println("Running in serial.")
 end
 @everywhere using JLD2,FileIO,Random, Munkres, Distributions,StatsBase,NLsolve,LightGraphs,SimpleGraphs,Dierckx,PyPlot,Plots,PyCall,Dates,Interpolations
-# @everywhere import_path_desai = "/n/home07/juliankh/physics/research/desai/epidemics/src"
-@everywhere import_path_desai = "../.././"
+@everywhere import_path_desai = "/n/home07/juliankh/physics/research/desai/epidemics/src"
+#@everywhere import_path_desai = "../.././"
 @everywhere push!(LOAD_PATH, import_path_desai)
-# @everywhere import_path_nowak = "/n/home07/juliankh/physics/research/nowak/indirect_rec/src"
-@everywhere import_path_nowak = "/Users/julian/Harvard/research/nowak/indirect_rec/src/"
+@everywhere import_path_nowak = "/n/home07/juliankh/physics/research/nowak/indirect_rec/src"
+#@everywhere import_path_nowak = "/Users/julian/Harvard/research/nowak/indirect_rec/src/"
 @everywhere push!(LOAD_PATH, import_path_nowak)
 @everywhere using Epidemics,IM, GraphGeneration,DegreeDistribution,GraphGeneration,GraphCreation,GraphClustering,TwoLevelGraphs,DataAnalysis,GraphPlotting,Plotting
 
@@ -48,7 +48,7 @@ rcParams["lines.linewidth"] = 1.5
 rcParams["font.size"] = 20
 
 ###Functions###
-save_path = "../data/fig4b.jld2"
+save_path = "../data/fig4c.jld2"
 generate_data = true
 plot_beta = false
 
