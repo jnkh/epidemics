@@ -65,7 +65,7 @@ if generate_data
 	in_parallel = true
 	pregenerate_graph = true
 
-    trials_sim_range = [10000,40000,100_000,100_000]
+    trials_sim_range = [10000,100000,1000_000,1000_000]
     # num_trials_sim = 100
     in_parallel = true
     pregenerate_graph = true
@@ -88,9 +88,9 @@ if generate_data
     clean_result(tr_complete)
     # tr_complete.graph_information.graph=nothing
     # tr_complete.graph_information.graph_fn=nothing
-	@save save_path sr_arr tr_complete num_trials_sim alpha beta N k_range
+	@save save_path sr_arr tr_complete trials_sim_range alpha beta N k_range
 else
-	@load save_path sr_arr tr_complete num_trials_sim alpha beta N k_range
+	@load save_path sr_arr tr_complete trials_sim_range alpha beta N k_range
 end
 
 rmprocs(workers())
@@ -136,7 +136,7 @@ plot_theory_result(tr_complete,color="k",label=latexstring("\$k = N-1\$"),linest
 legend(frameon=false,fontsize=labelsize)
 gca().tick_params(labelsize=labelsize)
 # xlim([N_min,N_max])
-xlabel(L"y",size=labelsize)
+xlabel(L"Overall frequency, y",size=labelsize)
 ylabel(L"P_{reach}(y)",size=labelsize)
 ylim([1e-6,1e-0])
 PyPlot.savefig("fig3b.pdf",bbox_inches="tight",transparent=true)
