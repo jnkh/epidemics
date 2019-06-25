@@ -454,6 +454,7 @@ function update_graph_gillespie(g::LightGraphs.Graph,payload::Array{P,1},im::Uni
     v::Int = sample(Weights(rates.arr,rates.s))
     # t::Float64 = rand(Exponential(1/rates.arr[v]))
     dt::Float64 = rand(Exponential(1/rates.s))
+   
     # v,t = pick_update_and_time(rates)
     infected_change = update_nodes_and_rates(g,payload,v,rates,neighbor_numbers,im)
     return dt,num_infected+infected_change

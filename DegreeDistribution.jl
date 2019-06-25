@@ -2,7 +2,7 @@ __precompile__()
 module DegreeDistribution
 
 using Epidemics,
-NLsolve,Distributions,StatsBase,LightGraphs
+NLsolve,Distributions,StatsBase,LightGraphs,LinearAlgebra
 
 export get_mean_k, get_k_range,
 get_y_k_equilibrium, 
@@ -14,9 +14,12 @@ get_delta_y_plus,get_delta_y_minus,get_y_bar,
 
 run_epidemics_by_degree,run_epidemic_well_mixed_by_degree,
 get_p_reach_well_mixed_by_degree_simulation,
+get_p_reach_well_mixed_by_degree_simulation_batch,
 get_p_reach_well_mixed_by_degree_simulation_from_graph,
 create_p_k_p_k_neighbor_from_graph,
-create_p_k_p_k_neighbor_from_graph_fn
+create_p_k_p_k_neighbor_from_graph_fn,
+run_epidemic_well_mixed_by_degree_given_N_k,
+sample_N_k
 
 function get_k_range(N)
     return collect(1:N-1)
@@ -53,8 +56,8 @@ function get_p_k_as_vec(degr_distr,N)
     end
     mask = p_k .> thresh
     #set irrelevant entries to zero.
-    p_k[.~mask] = 0
-    p_k_neighbor[.~mask] = 0
+    p_k[.~mask] .= 0
+    p_k_neighbor[.~mask] .= 0
     p_k /= sum(p_k)
     p_k_neighbor /= sum(p_k_neighbor)
     return p_k, p_k_neighbor,mean_k
@@ -185,8 +188,8 @@ function get_p_reach_from_max_reaches(max_reaches)
     xvals = unique(sorted_max_reaches)
     yvals = zeros(length(xvals))
     for r in sorted_max_reaches
-        idx = findfirst(xvals,r)
-        yvals[1:idx] += 1
+        idx = findfirst( x -> x == r,xvals)
+        yvals[1:idx] .+= 1
     end
 
     return xvals,yvals/length(max_reaches)
@@ -353,12 +356,22 @@ function run_epidemic_well_mixed_by_degree_from_graph(N,alpha,beta,G,
 end
 
 
-function run_epidemic_well_mixed_by_degree(N,alpha,beta,p_k,p_k_neighbor,fixation_threshold=1.0;hypergeometric=true)
+
+function run_epidemic_well_mixed_by_degree(N,alpha,beta,p_k_orig,p_k_neighbor_orig,fixation_threshold=1.0;hypergeometric=true,keep_y_k)
+    N_k,p_k,p_k_neighbor,p_k_neighbor_is_matrix,mask,ks,k_idx_array = sample_N_k(N,p_k_orig,p_k_neighbor_orig)
+
+    return run_epidemic_well_mixed_by_degree_given_N_k(N,alpha,beta,N_k,p_k,
+    p_k_neighbor,p_k_neighbor_is_matrix,mask,ks,k_idx_array,
+    fixation_threshold=fixation_threshold,hypergeometric=true,keep_y_k=keep_y_k)
+end
+
+
+function sample_N_k(N,p_k_orig,p_k_neighbor_orig)
     ks = get_k_range(N)
-    p_k_neighbor_is_matrix = length(size(p_k_neighbor)) > 1
+    p_k_neighbor_is_matrix = length(size(p_k_neighbor_orig)) > 1
     
     #sample N_k (could also do this deterministically!)
-    N_k = rand(Multinomial(N,p_k))
+    N_k = rand(Multinomial(N,p_k_orig))
     #need to adjust p_k for this specific application:
     p_k = N_k ./ N
     p_k /= sum(p_k)
@@ -369,18 +382,22 @@ function run_epidemic_well_mixed_by_degree(N,alpha,beta,p_k,p_k_neighbor,fixatio
         p_k_neighbor /= sum(p_k_neighbor)
         p_k_neighbor = p_k_neighbor[mask]
     else
-        p_k_neighbor = p_k_neighbor[mask,mask]
+        p_k_neighbor = p_k_neighbor_orig[mask,mask]
     end
 
-
-    k_idx_array = find(mask)
+    k_idx_array = findall(mask)
 
     N_k = N_k[mask]
     p_k = p_k[mask]
     ks = ks[mask]
+    return N_k,p_k,p_k_neighbor,p_k_neighbor_is_matrix,mask,ks,k_idx_array
+end
+
+function run_epidemic_well_mixed_by_degree_given_N_k(N,alpha,beta,N_k,p_k,
+    p_k_neighbor,p_k_neighbor_is_matrix,mask,ks,k_idx_array;
+    fixation_threshold=1.0,hypergeometric=true,keep_y_k=false)
     
-    
-    n_vec = zeros(ks)
+    n_vec = zeros(Int,length(ks))
     idx = sample(collect(1:length(ks)),Weights(N_k))
     n_vec[idx] = 1
     dt = 0.1
@@ -388,13 +405,15 @@ function run_epidemic_well_mixed_by_degree(N,alpha,beta,p_k,p_k_neighbor,fixatio
 #     infecteds::Array{Float64,1} = []
     infecteds::Array{Float64,1} = []
     y_k_vec::Array{Array{Float64,1},1} = []
-    y_k = 1.0*zeros(ks)
+    y_k = 1.0*zeros(length(ks))
     
     n = sum(n_vec)
     max_y = n/N
     fixed=false
-#     push!(infecteds,n)
-    push!(y_k_vec,n_vec ./ N_k)
+    push!(infecteds,n)
+    if keep_y_k
+        push!(y_k_vec,n_vec ./ N_k)
+    end
 
     while n > 0
         if n >= N || n >= fixation_threshold*N 
@@ -412,11 +431,13 @@ function run_epidemic_well_mixed_by_degree(N,alpha,beta,p_k,p_k_neighbor,fixatio
         n = sum(n_vec)
         max_y = max(max_y,n/N)
         # infecteds[step] = n
-        # push!(infecteds,n)
+        push!(infecteds,n)
         # n_vec_actual = zeros(get_k_range(N))
         # n_vec_actual[k_idx_array] = n_vec
 #         push!(y_k_vec,n_vec_actual)
-        push!(y_k_vec,n_vec ./ N_k)
+        if keep_y_k
+            push!(y_k_vec,n_vec ./ N_k)
+        end
     end
 
     run_size = dt*sum(infecteds)
@@ -526,10 +547,10 @@ function update_n_vec_by_degree(n_vec::Array{Int,1},y_k::Array{Float64,1},
     z = get_z(y_k,p_k_neighbor)
     y_k_tilde = 0.0
     y_k_sq_tilde = 0.0
-    n_plus_trials = 0.0
-    n_minus_trials = 0.0
-    n_plus_prob = 0.0
-    n_minus_prob = 0.0
+    n_plus_trials::Int64 = 0
+    n_minus_trials::Int64 = 0
+    n_plus_prob::Float64= 0.0
+    n_minus_prob::Float64 = 0.0
 
     hg_fac1 = 0.0
     hg_fac2 = 0.0
@@ -659,21 +680,53 @@ function get_p_reach_well_mixed_by_degree_simulation_from_graph(N,alpha,beta,gra
 end
 
 
-function get_p_reach_well_mixed_by_degree_simulation(N,alpha,beta,p_k,p_k_neighbor,num_runs=10,hypergeometric=true)
-    runs,tuples,maxs = run_epidemics_by_degree(num_runs, () -> run_epidemic_well_mixed_by_degree(N,alpha,beta,p_k,p_k_neighbor,hypergeometric=hypergeometric));
+function get_p_reach_well_mixed_by_degree_simulation(N,alpha,beta,p_k,p_k_neighbor,num_runs=10;hypergeometric=true,keep_y_k=false)
+    runs,tuples,maxs = run_epidemics_by_degree(num_runs, () -> run_epidemic_well_mixed_by_degree(N,alpha,beta,p_k,p_k_neighbor,hypergeometric=hypergeometric,keep_y_k=keep_y_k));
 #     yy,pp = get_p_reach(runs,N)
     yy,pp = get_p_reach_from_max_reaches(maxs)
     return yy,pp,tuples
 end
 
+function get_p_reach_well_mixed_by_degree_simulation_batch(N,alpha,beta,p_k_orig,p_k_neighbor_orig,num_runs=100;batch_size=1000,fixation_threshold=1.0,hypergeometric=true,keep_y_k=false)
+    batch_size = min(num_runs,batch_size)
+    num_batches = Int(ceil(num_runs/batch_size))
+    runs = Array{EpidemicRun}(undef,num_runs)
+    maxs = Array{Float64}(undef,num_runs)
+    y_k_vec_arr::Array{Array{Array{Float64,1},1}} = []
+
+
+    completed_runs = 0
+
+    while completed_runs < num_runs 
+        N_k,p_k,p_k_neighbor,p_k_neighbor_is_matrix,mask,ks,k_idx_array = sample_N_k(N,p_k_orig,p_k_neighbor_orig)
+
+        for j in 1:batch_size
+            er,y_k_vec = run_epidemic_well_mixed_by_degree_given_N_k(N,alpha,beta,N_k,p_k,
+                         p_k_neighbor,p_k_neighbor_is_matrix,mask,ks,k_idx_array,
+                         fixation_threshold=fixation_threshold,hypergeometric=true,keep_y_k=keep_y_k)
+
+            completed_runs += 1
+            runs[completed_runs] = er
+            push!(y_k_vec_arr,y_k_vec)
+
+            if completed_runs >= num_runs
+                break
+            end
+        end
+    end
+    yy,pp = get_p_reach(runs,N)
+    # yy,pp = get_p_reach_from_max_reaches(maxs)
+    return yy,pp,y_k_vec_arr
+end
+
 function run_epidemics_by_degree(num_runs::Int,run_epidemic_fn)
-    runs = Array{EpidemicRun}(num_runs)
-    maxs = Array{Float64}(num_runs)
+    runs = Array{EpidemicRun}(undef,num_runs)
+    maxs = Array{Float64}(undef,num_runs)
     y_k_vec_arr::Array{Array{Array{Float64,1},1}} = []
 
     for i in 1:num_runs
-        _,y_k_vec,max_y = run_epidemic_fn()
-#         runs[i] = run
+        er,y_k_vec,max_y = run_epidemic_fn()
+        runs[i] = er
         maxs[i] = max_y
         push!(y_k_vec_arr,y_k_vec)
     end

@@ -1,7 +1,7 @@
 __precompile__()
 module GraphGeneration
 
-using LightGraphs, Distributions,Munkres,Random
+using LightGraphs, Distributions,Munkres,Random,LinearAlgebra
 
 export get_gamma_params, graph_from_gamma_distribution,
 graph_from_degree_distribution,

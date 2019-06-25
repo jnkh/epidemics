@@ -381,8 +381,8 @@ function compute_mean_y_local(t::TwoLevel,susceptible::Bool)
   y_local = 0.
   weight = 0.
 
-  weights = zeros(t.a)
-  y_locals = zeros(t.a)
+  weights = zeros(length(t.a))
+  y_locals = zeros(length(t.a))
 
   for j = 0:t.m
     curr_weight = get_number_weight(t,j,susceptible)
@@ -849,7 +849,7 @@ end
 
 
 function find_valid_initial_value(f_out,y_desired)
-  x_range = logspace(-6,6,100)
+  x_range = 10.0.^range(-6,stop=6,length=100)
   y_range = zeros(x_range)
   success_range = falses(x_range)
 
@@ -1060,8 +1060,8 @@ using Dierckx
 function logitspace(eps,num_points)
   @assert( 0<eps<1)
   logit(x) = log(x/(1-x))
-  logist(x) = 1/(e^(-x) + 1)
-  return logist.(linspace(logit(eps),logit(1-eps),num_points))
+  logist(x) = 1/(exp(-x) + 1)
+  return logist.(range(logit(eps),stop=logit(1-eps),length=num_points))
 end
 
 
@@ -1075,18 +1075,18 @@ function get_interpolations(t::TwoLevel,alpha,beta,apply_finite_size=true,num_po
     # dy2 = clamp(y_min,0.01,0.1)
     # y_range = vcat( collect(y_min:y_min:4*dy),collect(5*dy:dy:0.1) , collect(0.1+dy:dy2:(1.0-dy)) )
     # y_range = logspace(log10(y_min),log10(1-y_min),200)
-    y_range = linspace(y_min,1-y_min,num_points)
+    y_range = range(y_min,stop=1-y_min,length=num_points)
     if t.N > num_points #distribute points logistically between 0 and 1
       y_range = logitspace(y_min,num_points)
     end
     interpolation_order = 1
-    y_real_range = zeros(y_range)
+    y_real_range = zeros(length(y_range))
 
-    y_eff_range_inf = zeros(y_range)
-    y_sq_eff_range_inf = zeros(y_range)
+    y_eff_range_inf = zeros(length(y_range))
+    y_sq_eff_range_inf = zeros(length(y_range))
 
-    y_eff_range_susc = zeros(y_range)
-    y_sq_eff_range_susc = zeros(y_range)
+    y_eff_range_susc = zeros(length(y_range))
+    y_sq_eff_range_susc = zeros(length(y_range))
 
     for (i,y_desired) in enumerate(y_range)
       # set_y(t,y_desired)
@@ -1200,19 +1200,21 @@ function get_splus_effective_two_level(y,y_susc,y_sq_susc,y_inf,y_sq_inf,alpha::
 end
 
 function get_s_birth_effective_two_level(y::Array,y_susc,y_sq_susc,alpha::Float64)
-    ret = 1.0/y.*(y_susc + alpha .* y_sq_susc)
-    ret[y .== 0] = 1.0
+    ret = 1.0./y.*(y_susc + alpha .* y_sq_susc)
+    # println(size(y))
+    # println(size(ret))
+    ret[y .== 0] .= 1.0
     return ret
 end
 
 function get_s_birth_effective_two_level(y::Number,y_susc,y_sq_susc,alpha::Float64)
     if y == 0 return 1.0 end
-    return 1.0/y.*(y_susc + alpha .* y_sq_susc)
+    return 1.0./y.*(y_susc + alpha .* y_sq_susc)
 end
 
 function get_s_death_effective_two_level(y::Array,y_inf,beta::Float64)
-  ret = 1.0 ./ (1-y).*(1 - y_inf).*(1 + beta)
-  ret[y .== 1.0] = (1 + beta)
+  ret = 1.0 ./ (1.0 .- y).*(1.0 .- y_inf).*(1 + beta)
+  ret[y .== 1.0] .= (1 + beta)
   return ret
 end
 
@@ -1265,7 +1267,7 @@ function get_p_reach_theory(t,alpha,beta,N,apply_finite_size=true,num_points=100
 
     s_actual(x) = 2*s(x)./splus(x)
 
-    xx = logspace(log10(1/N),0,num_points) 
+    xx = 10.0.^range(log10(1/N),stop=0,length=num_points) 
     pp = P_reach_fast(s,splus,N,1/N,xx)
     return xx,pp,s_actual
 end

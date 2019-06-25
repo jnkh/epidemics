@@ -201,9 +201,14 @@ function P_reach_raw_fast(a_over_b::Function,N::Int,x0::Real,x1::Array,num_point
         # PyPlot.figure()
         # PyPlot.plot(xx,psi_interp(xx),"--b")
         # PyPlot.show()
-        xx = 0:0.01:1.0
-        println(psi_interp(xx))
-        throw(DomainError)
+        ret = zeros(length(x1))
+        # ret = 0.0*similar(psi_interp(x1)) #ensure the same type as psi_interp, which could be BigFloat
+        ret[1] = 1.0
+        xx = collect(0:0.01:1.0)
+        # throw(DomainError)
+        println("P_fix seems exponentially small, return 0.0")
+        # println(psi_interp(xx))
+        return ret
     end
 end
     
@@ -266,7 +271,8 @@ function get_psi_interp(a_over_b::Function,eps::Real,N::Int,num_points=100)
     if any(is_out_of_reasonable_range.(psi_interp(xx))) #if the fortran routine fails, use julia and bigfloat
         psi_vec = exp.( -2.0*BigFloat.(yy))
         intp = Interpolations.interpolate((xx,),psi_vec,Interpolations.Gridded(Interpolations.Linear()))
-        psi_interp_new(x) = intp[x]
+        intp = Interpolations.extrapolate(intp,Interpolations.Line())
+        psi_interp_new(x) = intp(x)
         return psi_interp_new
     else
         return psi_interp

@@ -51,14 +51,21 @@ function log_interp(yy,pp,num_trials,num_points = 10)
 end
     
 function get_binomial_errorbars(x,num_trials)
+    x = clamp.(x,0.0,1.0)
     return (x.*(1.0.-x)./num_trials).^0.5
 end
 
-function plot_p_reach_th(pr::PreachResult;color="b",linestyle="-",marker="o",label="",linewidth=1.5)
+function plot_p_reach_th(pr::PreachResult;color="b",linestyle="-",marker="o",label="",linewidth=1.5,num_points=10,error_region=false,alpha=0.5)
     yyraw = pr.yy
     ppraw = pr.pp
-    loglog(yyraw,ppraw,linestyle=linestyle,color=color,linewidth=linewidth,label=label)
-    xlabel(L"Frequency, $y$",size=20)
+    yy,pp,dpp = log_interp(yyraw,ppraw,pr.num_trials,num_points)
+    if error_region
+        loglog(yy,pp,linestyle=linestyle,color=color,linewidth=linewidth,label=label)
+        fill_between(yy,pp-dpp,pp+dpp,color=color,alpha=alpha)
+    else
+        loglog(yyraw,ppraw,linestyle=linestyle,color=color,linewidth=linewidth,label=label)
+    end
+    xlabel(L"Overall frequency, $y$",size=20)
     ylabel(L"P_{reach}(y)",size=20)
     gca().tick_params(labelsize=15)
 end
@@ -70,13 +77,17 @@ function plot_p_reach_sim(pr::PreachResult;color="b",linestyle="none",linewidth=
     xx,yy,dyy = log_interp(yyraw,ppraw,num_trials,num_points)
     plt.errorbar(xx,yy,color=color,linestyle=linestyle,marker=marker,yerr=dyy,fillstyle=fillstyle,linewidth=linewidth,markersize=3)
     loglog()
-    xlabel(L"Frequency, $y$",size=20)
+    xlabel(L"Overall frequency, $y$",size=20)
     ylabel(L"P_{reach}(y)",size=20)
     gca().tick_params(labelsize=15)
 end
 
-function plot_simulation_result(si::SimulationResult;color="b",marker="o",fillstyle="full",error_line_width=0.5,label="",linestyle = "-",num_points=10,linewidth=1.5)
-    plot_p_reach_th(si.prth,color=color,label=label,linestyle=linestyle,linewidth=linewidth)
+function plot_simulation_result(si::SimulationResult;color="b",marker="o",fillstyle="full",error_line_width=0.5,label="",linestyle = "-",num_points=10,linewidth=1.5,error_region=false,error_num_points=20,alpha=0.5)
+    # error_region = false
+    # if si.graph_information.graph_type == gamma_rg
+        # error_region = true
+    # end
+    plot_p_reach_th(si.prth,color=color,label=label,linestyle=linestyle,linewidth=linewidth,error_region=error_region,num_points=error_num_points,alpha=alpha)
     plot_p_reach_sim(si.prsim,color=color,num_points=num_points,linestyle="none",linewidth=error_line_width,fillstyle=fillstyle)
     gca().spines["right"].set_visible(false)
     gca().spines["top"].set_visible(false)
