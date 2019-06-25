@@ -2,7 +2,7 @@
 using Distributed
 import_path_desai = "/n/home07/juliankh/physics/research/desai/epidemics/src"
 push!(LOAD_PATH, import_path_desai)
-in_parallel = true
+in_parallel = false
 if in_parallel
     using SlurmNodes
 	addprocs(get_list_of_nodes())
@@ -53,7 +53,6 @@ generate_data = true
 plot_beta = false
 
 if generate_data
-	plot_beta = false
     N = 50000;k=20;sigma_k = 0
     N_small = 2000
     # N_range = [120,200,320,440]#,800,1600,3200]
@@ -61,14 +60,9 @@ if generate_data
     alpha_range = 10.0.^range(log10(0.01),stop=log10(1.0),length=30)#8*[0.005,0.01,0.02,0.04,0.06,0.1,0.15,0.25]#,0.3]#collect(0.01:0.1:0.5)
     k_range = [4,6,8,10,15,20,30]
     # alpha_range = logspace(log10(0.01),log10(2.0),10)#8*[0.005,0.01,0.02,0.04,0.06,0.1,0.15,0.25]#,0.3]#collect(0.01:0.1:0.5)
-    if plot_beta
-    #     sigma_k = 30
-        iter_arr = collect(-0.2:0.01:0.2)#beta
-    else
-        beta = 0.025
-        iter_arr = [4,6,8,10,14,18,22,26,30,34,38,40]#k
-    end
-    l2 = length(iter_arr)
+    beta = 0.025
+    k_range = [4,6,8,10,14,18,22,26,30,34,38,40]#k
+    l2 = length(k_range)
     l1 = length(alpha_range)
     # l2 = length(N_range)
     phase_trans_arr = zeros(Float64,l1,l2)
@@ -83,13 +77,8 @@ if generate_data
     in_parallel = false
 
     for (i,alpha) in enumerate(alpha_range)
-        for (j,iter_el) in enumerate(iter_arr)
+        for (j,k) in enumerate(k_range)
             graph_type = sigma_k == 0 ? regular_rg : gamma_rg
-            if plot_beta
-                beta = iter_el
-            else
-                k = iter_el
-            end
             gi = get_graph_information(graph_type,N=N,k=k,sigma_k=sigma_k,pregenerate_graph=pregenerate_graph)
             @time sr = get_simulation_result(N,alpha,beta,gi,num_trials_th,num_trials_sim,in_parallel=in_parallel) 
             pfix_arr[i,j] = get_pfix_sim(sr)[1]
@@ -112,9 +101,9 @@ if generate_data
     end
     # tr_complete.graph_information.graph=nothing
     # tr_complete.graph_information.graph_fn=nothing
-	@save save_path pfix_arr pfix_arr_small phase_trans_arr phase_trans_simple_arr num_trials_sim num_trials_th alpha beta N N_small iter_arr
+	@save save_path pfix_arr pfix_arr_small phase_trans_arr phase_trans_simple_arr num_trials_sim num_trials_th alpha beta N N_small k_range 
 else
-    @load save_path pfix_arr pfix_arr_small phase_trans_arr phase_trans_simple_arr num_trials_sim num_trials_th alpha beta N N_small iter_arr
+    @load save_path pfix_arr pfix_arr_small phase_trans_arr phase_trans_simple_arr num_trials_sim num_trials_th alpha beta N N_small k_range 
 end
 
 rmprocs(workers())
@@ -137,12 +126,12 @@ else
     xlabel(L"k",size=20)
 #     yn_transition = beta./(alpha_range_loc.*ones(x_arr)') - 1/k
 end
-contourf(iter_arr,alpha_range,tmp,500,vmin=vmin,vmax=vmax,cmap="gnuplot")#vmin=vmin,vmax = vmax,cmap="inferno")#,norm=matplotlib[:colors][:LogNorm](vmin=0.001,vmax=0.1,clip=true))#logspace(0,1,20)[1:end-1]))#) #cmap="inferno"
+contourf(k_range,alpha_range,tmp,500,vmin=vmin,vmax=vmax,cmap="gnuplot")#vmin=vmin,vmax = vmax,cmap="inferno")#,norm=matplotlib[:colors][:LogNorm](vmin=0.001,vmax=0.1,clip=true))#logspace(0,1,20)[1:end-1]))#) #cmap="inferno"
 cb = colorbar(ticks=0:0.1:1)
-contour(iter_arr,alpha_range,phase_trans_arr,[1.0],linestyles="--",colors="w") #negative selection regime starts
-contour(iter_arr,alpha_range,phase_trans_simple_arr,[0.0],linestyles="-",colors="w") #above this we have at worst 1/sqrt(N) scaling
+contour(k_range,alpha_range,phase_trans_arr,[1.0],linestyles="--",colors="w") #negative selection regime starts
+contour(k_range,alpha_range,phase_trans_simple_arr,[0.0],linestyles="-",colors="w") #above this we have at worst 1/sqrt(N) scaling
 # contour(x_arr,alpha_range_loc,yn_transition,[-0.02,0.0,0.02],linestyles="--",colors="w")
-contour(iter_arr,alpha_range,tmp,[sqrt(N_small/N),1.0],linestyles=":",linewidths=5,colors=["w","k"])#vmin=vmin,vmax = vmax,cmap="inferno")#,norm=matplotlib[:colors][:LogNorm](vmin=0.001,vmax=0.1,clip=true))#logspace(0,1,20)[1:end-1]))#) #cmap="inferno"
+contour(k_range,alpha_range,tmp,[sqrt(N_small/N),1.0],linestyles=":",linewidths=5,colors=["w","k"])#vmin=vmin,vmax = vmax,cmap="inferno")#,norm=matplotlib[:colors][:LogNorm](vmin=0.001,vmax=0.1,clip=true))#logspace(0,1,20)[1:end-1]))#) #cmap="inferno"
 gca()[:tick_params](labelsize=15)
 # gca()[:set_xticks]([1,5,10,15,19])
 cb[:ax][:tick_params](labelsize=15)
