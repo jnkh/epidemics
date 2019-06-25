@@ -1,7 +1,7 @@
 __precompile__()
 module Epidemics
 
-using SIS,Distributions, IM, LightGraphs,PayloadGraph, Dierckx,GraphGeneration,Distributed
+using SIS,Distributions, IM, LightGraphs,PayloadGraph, Dierckx,GraphGeneration,Distributed,QuadGK,Random
 import TwoLevelGraphs,DegreeDistribution
 
 export
@@ -32,13 +32,15 @@ get_alpha,get_beta,get_c_r,get_n_n,QuadraticEpidemicParams,get_QuadraticEpidemic
 get_p_reach_well_mixed_simulation,get_p_reach_well_mixed_two_level_simulation,
 get_p_reach,get_p_reach_theory,get_p_reach_sim,SimulationResult,PreachResult,
 TheoryResult,get_theory_result,get_graph_information,get_simulation_result,
-get_simulation_yy_pp,get_p_reach_and_runs_sim,
+get_simulation_yy_pp,get_p_reach_and_runs_sim,get_pfix_sim,get_pfix_th,get_pfix,
 
 sparsity_pfix_prediction,
 sparsity_pfix_prediction_large_N,
 sparsity_cascade_condition,
 sparsity_cascade_condition_simple,
-sparsity_get_yn
+sparsity_get_yn,
+
+clean_result
 
 
 
@@ -83,7 +85,7 @@ function GraphInformation()
     return GraphInformation(x -> x,LightGraphs.Graph(),false,true,nothing,random_rg)
 end
 
-struct EpidemicRun
+mutable struct EpidemicRun
     times::Array{Float64,1}
     infecteds_vs_time::Array{Float64,1}
     size::Float64
@@ -272,7 +274,8 @@ function get_p_reach_gamma_theory(N,alpha,beta,sigma_k,k,num_trials,graph_inform
     p_k,p_k_neighbor,mean_k = DegreeDistribution.get_p_k_as_vec(degr_distr,N);
     graph_fn = graph_information.graph_fn
     #p_k_exp,p_k_neighbor_exp = DegreeDistribution.create_p_k_p_k_neighbor_from_graph_fn(graph_fn,100)
-    yy_wm,pp_wm,_ = DegreeDistribution.get_p_reach_well_mixed_by_degree_simulation(N,alpha,beta,p_k,p_k_neighbor,num_trials,hypergeometric)
+    # yy_wm,pp_wm,_ = DegreeDistribution.get_p_reach_well_mixed_by_degree_simulation(N,alpha,beta,p_k,p_k_neighbor,num_trials,hypergeometric)
+    yy_wm,pp_wm,_ = DegreeDistribution.get_p_reach_well_mixed_by_degree_simulation_batch(N,alpha,beta,p_k,p_k_neighbor,num_trials,hypergeometric=hypergeometric)
     return yy_wm,pp_wm
 end
 
@@ -334,6 +337,38 @@ struct SimulationResult
     graph_information::GraphInformation
 end
 
+struct TheoryResult
+    pr::PreachResult
+    N::Int
+    alpha::Float64
+    beta::Float64
+    graph_information::GraphInformation
+end
+
+function clean_result(sr::SimulationResult)
+    sr.graph_information.graph=nothing
+    sr.graph_information.graph_fn=nothing
+    sr.graph_information.data=nothing
+end
+
+function clean_result(tr::TheoryResult)
+    tr.graph_information.graph=nothing
+    tr.graph_information.graph_fn=nothing
+    tr.graph_information.data=nothing
+end
+
+function get_pfix_sim(sr::SimulationResult)
+    return get_pfix_from_yy_pp(sr.prsim.yy,sr.prsim.pp)
+end
+
+function get_pfix_th(sr::SimulationResult)
+    return get_pfix_from_yy_pp(sr.prth.yy,sr.prth.pp)
+end
+
+function get_pfix(tr::TheoryResult)
+    return get_pfix_from_yy_pp(tr.pr.yy,tr.pr.pp)
+end
+
 function SimulationResult(yysim,ppsim,num_trials_sim,yyth,ppth,num_trials_th,N,alpha,beta,gi)
     prsim = PreachResult(yysim,ppsim,num_trials_sim)
     prth = PreachResult(yyth,ppth,num_trials_th)
@@ -342,13 +377,7 @@ end
 
 
 
-struct TheoryResult
-    pr::PreachResult
-    N::Int
-    alpha::Float64
-    beta::Float64
-    graph_information::GraphInformation
-end
+
 
 function TheoryResult(yyth,ppth,num_trials_th,N,alpha,beta,gi)
     pr = PreachResult(yysim,ppsim,num_trials_sim)
@@ -417,7 +446,7 @@ function run_epidemic_graph_experimental(N::Int,im::InfectionModel,graph_informa
             push!(infecteds_by_nodes,copy(get_payload(p)))
         end
         if shuffle_nodes
-            if graph_information.data == nothing
+            if graph_information.graph_type != two_level_rg
                 shuffle_payload(p)
             else
                 shuffle_payload_by_cluster(p,graph_information.data.clusters)
@@ -439,6 +468,7 @@ function run_epidemic_graph_gillespie(N::Int,im::Union{InfectionModel,InfectionM
     shuffle_nodes = false
     #construct graph
     g = guarantee_connected(graph_information.graph_fn)
+    @assert(N == LightGraphs.nv(g))
 #     graph_information.graph = g
     carry_by_node_info::Bool = graph_information.carry_by_node_info
     carry_temporal_info::Bool = graph_information.carry_temporal_info
@@ -489,7 +519,7 @@ function run_epidemic_graph_gillespie(N::Int,im::Union{InfectionModel,InfectionM
             end
         end
         if shuffle_nodes
-            if graph_information.data == nothing
+            if graph_information.graph_type != two_level_rg
                 shuffle!(payload)
                 compute_all_neighbor_numbers_of_type(g,payload,neighbor_numbers,INFECTED)
                 compute_all_rates(g,payload,im,rates,neighbor_numbers) 
