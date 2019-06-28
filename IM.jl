@@ -257,17 +257,20 @@ function is_out_of_reasonable_range(x)
 end
 
 function get_psi_interp(a_over_b::Function,eps::Real,N::Int,num_points=100)
-    psi(x0,x1) = QuadGK.quadgk(a_over_b,x0,x1,maxevals=maxevals)[1]
-    xx = 10.0.^range(log10(eps),stop=0,length=num_points)
-    yy = 0*similar(xx)
-    yy[1] = psi(eps,xx[1])
-    for i in 2:length(xx)
-        yy[i] = yy[i-1] + psi(xx[i-1],xx[i])
+    try
+        psi(x0,x1) = QuadGK.quadgk(a_over_b,x0,x1,maxevals=maxevals)[1]
+        xx = 10.0.^range(log10(eps),stop=0,length=num_points)
+        yy = 0*similar(xx)
+        yy[1] = psi(eps,xx[1])
+        for i in 2:length(xx)
+            yy[i] = yy[i-1] + psi(xx[i-1],xx[i])
+        end
+        psi_vec = exp.( - 2.0* yy)
+        psi_spline = Spline1D(xx,psi_vec,k=1,bc="extrapolate")
+        psi_interp(x) = evaluate(psi_spline,x)
+    catch DomainError
+        return get_psi_interp(a_over_b,eps*10,N,num_points)
     end
-    psi_vec = exp.( - 2.0* yy)
-    psi_spline = Spline1D(xx,psi_vec,k=1,bc="extrapolate")
-    psi_interp(x) = evaluate(psi_spline,x)
-
     if any(is_out_of_reasonable_range.(psi_interp(xx))) #if the fortran routine fails, use julia and bigfloat
         psi_vec = exp.( -2.0*BigFloat.(yy))
         intp = Interpolations.interpolate((xx,),psi_vec,Interpolations.Gridded(Interpolations.Linear()))
