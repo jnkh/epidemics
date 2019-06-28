@@ -73,16 +73,17 @@ mutable struct GraphInformation
     graph
     carry_by_node_info::Bool
     carry_temporal_info::Bool
+    pregenerate_graph::Bool
     data
     graph_type::RandomGraphType
 end
 
 function GraphInformation(graph_fn,g,carry_by_node_info::Bool,data,graph_type::RandomGraphType)
-    return GraphInformation(graph_fn,g,carry_by_node_info,true,data,graph_type)
+    return GraphInformation(graph_fn,g,carry_by_node_info,true,false,data,graph_type)
 end
 
 function GraphInformation()
-    return GraphInformation(x -> x,LightGraphs.Graph(),false,true,nothing,random_rg)
+    return GraphInformation(x -> x,LightGraphs.Graph(),false,true,false,nothing,random_rg)
 end
 
 mutable struct EpidemicRun
@@ -244,12 +245,12 @@ function get_graph_information(graph_type::RandomGraphType;N=400,k = 10,sigma_k 
     else
         println("Unkown Graph Type, returning Void GraphInformation")
     end
+    this_graph = LightGraphs.Graph()
     if pregenerate_graph
-        generated_graph = graph_fn()
-        graph_fn = () -> generated_graph
+        this_graph = graph_fn()
     end
 
-    graph_information = GraphInformation(graph_fn,LightGraphs.Graph(),carry_by_node_information,carry_temporal_info,graph_data,graph_type)
+    graph_information = GraphInformation(graph_fn,this_graph,carry_by_node_information,carry_temporal_info,pregenerate_graph,graph_data,graph_type)
     return graph_information
 end
 
@@ -467,7 +468,13 @@ function run_epidemic_graph_gillespie(N::Int,im::Union{InfectionModel,InfectionM
     fixed=false
     shuffle_nodes = false
     #construct graph
-    g = guarantee_connected(graph_information.graph_fn)
+    if graph_information.pregenerate_graph
+        g = graph_information.graph
+        @assert(graph_is_connected(g))
+    else
+        g = guarantee_connected(graph_information.graph_fn)
+    end
+
     @assert(N == LightGraphs.nv(g))
 #     graph_information.graph = g
     carry_by_node_info::Bool = graph_information.carry_by_node_info
@@ -719,6 +726,7 @@ function run_epidemics_parallel(num_runs::Int,run_epidemic_fn,parallel=true)
             throw(val)
         end
     end
+    #runs = ret
     runs::Array{EpidemicRun,1} = ret
     return runs
 end
