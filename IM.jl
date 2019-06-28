@@ -258,9 +258,9 @@ end
 
 function get_psi_interp(a_over_b::Function,eps::Real,N::Int,num_points=100)
     psi_interp = 0
+    xx = 10.0.^range(log10(eps),stop=0,length=num_points)
     try
         psi(x0,x1) = QuadGK.quadgk(a_over_b,x0,x1,maxevals=maxevals)[1]
-        xx = 10.0.^range(log10(eps),stop=0,length=num_points)
         yy = 0*similar(xx)
         yy[1] = psi(eps,xx[1])
         for i in 2:length(xx)
