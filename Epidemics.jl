@@ -247,7 +247,7 @@ function get_graph_information(graph_type::RandomGraphType;N=400,k = 10,sigma_k 
     end
     this_graph = LightGraphs.Graph()
     if pregenerate_graph
-        this_graph = graph_to_mat(graph_fn())
+        this_graph = LightGraphs.adjacency_matrix(graph_fn())
     end
 
     graph_information = GraphInformation(graph_fn,this_graph,carry_by_node_information,carry_temporal_info,pregenerate_graph,graph_data,graph_type)
@@ -486,7 +486,7 @@ function mat_to_graph(mat::SparseMatrixCSC)
     return g
 end
 
-to_lightgraphs_graph(m::SparseMatrixCSC) = mat_to_graph(m)
+to_lightgraphs_graph(m::SparseMatrixCSC) = LightGraphs.Graph(m)
 to_lightgraphs_graph(g::LightGraphs.Graph) = g
 
 #gillespie version
