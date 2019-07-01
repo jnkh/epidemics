@@ -1,7 +1,7 @@
 __precompile__()
 module Epidemics
 
-using SIS,Distributions, IM, LightGraphs,PayloadGraph, Dierckx,GraphGeneration,Distributed,QuadGK,Random
+using SIS,Distributions, IM, LightGraphs,PayloadGraph, Dierckx,GraphGeneration,Distributed,QuadGK,Random,SparseArrays
 import TwoLevelGraphs,DegreeDistribution
 
 export
@@ -40,7 +40,7 @@ sparsity_cascade_condition,
 sparsity_cascade_condition_simple,
 sparsity_get_yn,
 
-clean_result
+clean_result,graph_to_mat,mat_to_graph,to_lightgraphs_graph
 
 
 
@@ -247,7 +247,7 @@ function get_graph_information(graph_type::RandomGraphType;N=400,k = 10,sigma_k 
     end
     this_graph = LightGraphs.Graph()
     if pregenerate_graph
-        this_graph = graph_fn()
+        this_graph = graph_to_mat(graph_fn())
     end
 
     graph_information = GraphInformation(graph_fn,this_graph,carry_by_node_information,carry_temporal_info,pregenerate_graph,graph_data,graph_type)
@@ -463,13 +463,34 @@ function run_epidemic_graph_experimental(N::Int,im::InfectionModel,graph_informa
     return EpidemicRun(infecteds,size,0.0,fixed,infecteds_by_nodes,graph_information)
 end
 
+function graph_to_mat(g::LightGraphs.Graph)
+    n = LightGraphs.nv(g)
+    mat = spzeros(Int64,n,n)
+    for e in edges(g)
+        mat[e.src,e.dst] = 1
+    end
+    return mat
+end
+
+function mat_to_graph(mat::SparseMatrixCSC)
+    n = size(mat)[1]
+    g = LightGraphs.Graph(n)
+    for e in findall(!iszero,mat)
+        LightGraphs.add_edge!(g,e[1],e[2])
+    end
+    return g
+end
+
+to_lightgraphs_graph(m::SparseMatrixCSC) = mat_to_graph(m)
+to_lightgraphs_graph(g::LightGraphs.Graph) = g
+
 #gillespie version
 function run_epidemic_graph_gillespie(N::Int,im::Union{InfectionModel,InfectionModelLinear},graph_information::GraphInformation,fixation_threshold=1.0)
     fixed=false
     shuffle_nodes = false
     #construct graph
     if graph_information.pregenerate_graph
-        g = graph_information.graph
+        g = to_lightgraphs_graph(graph_information.graph)
         @assert(graph_is_connected(g))
     else
         g = guarantee_connected(graph_information.graph_fn)
