@@ -465,11 +465,16 @@ end
 
 function graph_to_mat(g::LightGraphs.Graph)
     n = LightGraphs.nv(g)
-    mat = spzeros(Int64,n,n)
-    for e in edges(g)
-        mat[e.src,e.dst] = 1
+    # mat = spzeros(Int64,n,n)
+    m = LightGraphs.ne(g)
+    I = zeros(Int64,m)
+    J = zeros(Int64,m)
+    V = ones(Int64,m)
+    for (i,e) in enumerate(edges(g))
+        I[i] = e.dst
+        J[i] = e.src
     end
-    return mat
+    return sparse(I,J,V)
 end
 
 function mat_to_graph(mat::SparseMatrixCSC)
