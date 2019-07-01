@@ -254,17 +254,24 @@ function get_graph_information(graph_type::RandomGraphType;N=400,k = 10,sigma_k 
     return graph_information
 end
 
-function get_p_reach_sim(N,alpha,beta,num_trials,graph_information;in_parallel=false,fixation_threshold=1.0)
+
+function get_p_reach_sim_results(N,alpha,beta,num_trials,graph_information;in_parallel=false,fixation_threshold=1.0,batch_size=100)
+    batch_size = min(batch_size,num_trials)
     im_normal = InfectionModelLinear(alpha,beta);
-    runssim = run_epidemics_parallel(num_trials,() -> run_epidemic_graph_gillespie(N,im_normal,graph_information,fixation_threshold),in_parallel);
+    runssim = run_epidemics_parallel(Int(ceil(num_trials/batch_size)),() -> run_epidemic_graph_gillespie(N,im_normal,graph_information,fixation_threshold,batch_size=batch_size),in_parallel);
+    runssim = runssim[1:num_trials] #use only exactly batch_size trials
     yy,pp =  get_p_reach(runssim,N)
+    return runssim,yy,pp
+end
+
+
+function get_p_reach_sim(N,alpha,beta,num_trials,graph_information;in_parallel=false,fixation_threshold=1.0,batch_size=100)
+    runssim,yy,pp = get_p_reach_sim_results(N,alpha,beta,num_trials,graph_information,in_parallel=in_parallel,fixation_threshold=fixation_threshold,batch_size=batch_size)
     return PreachResult(yy,pp,num_trials)
 end
 
-function get_p_reach_and_runs_sim(N,alpha,beta,num_trials,graph_information;in_parallel=false,fixation_threshold=1.0)
-    im_normal = InfectionModelLinear(alpha,beta);
-    runssim = run_epidemics_parallel(num_trials,() -> run_epidemic_graph_gillespie(N,im_normal,graph_information,fixation_threshold),in_parallel);
-    yy,pp =  get_p_reach(runssim,N)
+function get_p_reach_and_runs_sim(N,alpha,beta,num_trials,graph_information;in_parallel=false,fixation_threshold=1.0,batch_size=100)
+    runssim,yy,pp = get_p_reach_sim_results(N,alpha,beta,num_trials,graph_information,in_parallel=in_parallel,fixation_threshold=fixation_threshold,batch_size=batch_size)
     pfix,_ = get_pfix_from_yy_pp(yy,pp)
     return PreachResult(yy,pp,num_trials),pfix,runssim
 end
@@ -390,8 +397,8 @@ function get_theory_result(N,alpha,beta,gi,num_trials_th;in_parallel=false,fixat
     return TheoryResult(pr,N,alpha,beta,gi)
 end
 
-function get_simulation_result(N,alpha,beta,gi,num_trials_th,num_trials_sim;in_parallel=false,fixation_threshold=1.0)
-    prsim = get_p_reach_sim(N,alpha,beta,num_trials_sim,gi,in_parallel=in_parallel,fixation_threshold=fixation_threshold)
+function get_simulation_result(N,alpha,beta,gi,num_trials_th,num_trials_sim;in_parallel=false,fixation_threshold=1.0,batch_size=100)
+    prsim = get_p_reach_sim(N,alpha,beta,num_trials_sim,gi,in_parallel=in_parallel,fixation_threshold=fixation_threshold,batch_size=batch_size)
     prth = get_p_reach_theory(N,alpha,beta,gi,num_trials_th);
     return SimulationResult(prsim,prth,N,alpha,beta,gi)
 end
@@ -489,18 +496,9 @@ end
 to_lightgraphs_graph(m::SparseMatrixCSC) = LightGraphs.Graph(m)
 to_lightgraphs_graph(g::LightGraphs.Graph) = g
 
-#gillespie version
-function run_epidemic_graph_gillespie(N::Int,im::Union{InfectionModel,InfectionModelLinear},graph_information::GraphInformation,fixation_threshold=1.0)
+function run_epidemic_graph_gillespie_given_graph(N::Int,im::Union{InfectionModel,InfectionModelLinear},graph_information::GraphInformation,g::LightGraphs.Graph,fixation_threshold=1.0)
     fixed=false
     shuffle_nodes = false
-    #construct graph
-    if graph_information.pregenerate_graph
-        g = to_lightgraphs_graph(graph_information.graph)
-        @assert(graph_is_connected(g))
-    else
-        g = guarantee_connected(graph_information.graph_fn)
-    end
-
     @assert(N == LightGraphs.nv(g))
 #     graph_information.graph = g
     carry_by_node_info::Bool = graph_information.carry_by_node_info
@@ -573,6 +571,35 @@ function run_epidemic_graph_gillespie(N::Int,im::Union{InfectionModel,InfectionM
 
     return EpidemicRun(times,infecteds,size,max_reach,fixed,infecteds_by_nodes,graph_information)
 end
+
+# #gillespie version
+# function run_epidemic_graph_gillespie(N::Int,im::Union{InfectionModel,InfectionModelLinear},graph_information::GraphInformation,fixation_threshold=1.0)
+#     #construct graph
+#     if graph_information.pregenerate_graph
+#         g = to_lightgraphs_graph(graph_information.graph)
+#         @assert(graph_is_connected(g))
+#     else
+#         g = guarantee_connected(graph_information.graph_fn)
+#     end
+#     runs = Array{EpidemicRun}(undef,1)
+#     return run_epidemic_graph_gillespie_given_graph(N,im,graph_information,fixation_threshold,g)
+# end
+
+function run_epidemic_graph_gillespie(N::Int,im::Union{InfectionModel,InfectionModelLinear},graph_information::GraphInformation,fixation_threshold=1.0;batch_size=100)
+    #construct graph
+    if graph_information.pregenerate_graph
+        g = to_lightgraphs_graph(graph_information.graph)
+        @assert(graph_is_connected(g))
+    else
+        g = guarantee_connected(graph_information.graph_fn)
+    end
+    runs = Array{EpidemicRun}(undef,batch_size)
+    for i = 1:batch_size
+        runs[i] = run_epidemic_graph_gillespie_given_graph(N,im,graph_information,g,fixation_threshold)
+    end
+    return runs
+end
+
 
 
 ### Epidemic on a Graph ###
@@ -742,10 +769,11 @@ end
 function run_epidemics_parallel(num_runs::Int,run_epidemic_fn,parallel=true)
     # mapfn = parallel ? pmap : map
     if parallel
-        ret = pmap( _ -> run_epidemic_fn() ,1:num_runs,batch_size=1000)
+        ret = pmap( _ -> run_epidemic_fn() ,1:num_runs,batch_size=10)
     else
         ret = map( _ -> run_epidemic_fn() ,1:num_runs)
     end
+    ret = reduce(vcat,ret)
     for val in ret
         if isa(val,RemoteException)
             print(val)
