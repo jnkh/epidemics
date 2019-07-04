@@ -215,23 +215,25 @@ function get_graph_information(graph_type::RandomGraphType;N=400,k = 10,sigma_k 
     graph_data = nothing
     G = 0
     if graph_type == regular_rg
-        graph_data = k
+        graph_data = (N,k)
         graph_fn = () -> LightGraphs.random_regular_graph(N,k)
     elseif graph_type == random_rg
+        graph_data = (N,k)
         graph_fn = () -> LightGraphs.erdos_renyi(N,1.0*k/(N-1))
     elseif graph_type == scale_free_rg
+        graph_data = (N,k)
         graph_fn = () -> LightGraphs.barabasi_albert(N,Int(round(k/2)),Int(round(k/2)))
     elseif graph_type == gamma_rg
         graph_fn = () -> graph_from_gamma_distribution(N,k,sigma_k)
-        graph_data = (k,sigma_k)
+        graph_data = (N,k,sigma_k)
     elseif graph_type == clustering_rg
         # @eval @everywhere d = Binomial(k,1)
         # graph_fn = () -> create_graph(N,k,:rand_clust,C,deg_distr=d)
         graph_fn = () -> create_graph(N,k,:watts_strogatz,C)
-        graph_data = C
+        graph_data = (N,k,C)
     elseif graph_type == two_degree_rg
             graph_fn = () -> graph_from_two_degree_distribution(N,k,sigma_k)
-            graph_data = (k,sigma_k)
+            graph_data = (N,k,sigma_k)
     elseif graph_type == two_level_rg
         t = TwoLevelGraphs.TwoLevel(N,m,l,r)
         # @eval @everywhere t = $t
@@ -239,21 +241,59 @@ function get_graph_information(graph_type::RandomGraphType;N=400,k = 10,sigma_k 
         # graph_fn = () -> make_two_level_random_graph(t)[1]
         graph_fn = () -> TwoLevelGraphs.generate_regular_two_level_graph(t)
     elseif graph_type == complete_rg
+        graph_data = (N,)
         graph_fn = () -> LightGraphs.CompleteGraph(N)
     elseif graph_type == custom_rg
+        graph_data = ""
         graph_fn = () -> custom_g
     else
         println("Unkown Graph Type, returning Void GraphInformation")
     end
     this_graph = LightGraphs.Graph()
-    if pregenerate_graph
-        this_graph = LightGraphs.adjacency_matrix(graph_fn())
-    end
-
     graph_information = GraphInformation(graph_fn,this_graph,carry_by_node_information,carry_temporal_info,pregenerate_graph,graph_data,graph_type)
+    if pregenerate_graph
+         cache_graph(graph_fn(),graph_information)
+    end
     return graph_information
 end
 
+function cache_graph(g::LightGraphs.Graph,gi::GraphInformation)
+    prepath = "./graph_cache/"
+    if(!isdir(prepath))
+        mkpath(prepath)
+    end
+    file_string = get_graph_description_string(gi)
+    full_path = prepath*file_string
+    if(!isfile(full_path))
+        LightGraphs.savegraph(full_path,g)
+    end
+end
+
+function uncache_graph(gi::GraphInformation)
+    prepath = "./graph_cache/"
+    if(!isdir(prepath))
+        mkpath(prepath)
+    end
+    file_string = get_graph_description_string(gi)
+    full_path = prepath*file_string
+    if(isfile(full_path))
+        g = LightGraphs.loadgraph(full_path)
+
+    else
+        println("cached graph not found, regenerating")
+        g = gi.graph_fn()
+    end
+end
+
+function get_graph_description_string(gi::GraphInformation)
+    gtype = gi.graph_type
+    dat = gi.data
+    if gtype == two_level_rg
+        dat = (gi.data.t.m,gi.data.t.r,gi.data.t.l)
+    end
+    return "graph_$(gtype)_$(dat)"
+# end
+end
 
 function get_p_reach_sim_results(N,alpha,beta,num_trials,graph_information;in_parallel=false,fixation_threshold=1.0,batch_size=100)
     batch_size = min(batch_size,num_trials)
@@ -588,7 +628,8 @@ end
 function run_epidemic_graph_gillespie(N::Int,im::Union{InfectionModel,InfectionModelLinear},graph_information::GraphInformation,fixation_threshold=1.0;batch_size=100)
     #construct graph
     if graph_information.pregenerate_graph
-        g = to_lightgraphs_graph(graph_information.graph)
+        g = uncache_graph(graph_information)
+        # g = to_lightgraphs_graph(graph_information.graph)
         @assert(graph_is_connected(g))
     else
         g = guarantee_connected(graph_information.graph_fn)
