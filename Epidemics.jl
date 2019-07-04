@@ -276,8 +276,8 @@ function uncache_graph(gi::GraphInformation)
     end
     file_string = get_graph_description_string(gi)
     full_path = prepath*file_string
-    if(!isfile(full_path))
-        g = LightGraphs.load_graph(full_path)
+    if(isfile(full_path))
+        g = LightGraphs.loadgraph(full_path)
 
     else
         println("cached graph not found, regenerating")
@@ -628,7 +628,7 @@ end
 function run_epidemic_graph_gillespie(N::Int,im::Union{InfectionModel,InfectionModelLinear},graph_information::GraphInformation,fixation_threshold=1.0;batch_size=100)
     #construct graph
     if graph_information.pregenerate_graph
-        g = uncache_graph(gi)
+        g = uncache_graph(graph_information)
         # g = to_lightgraphs_graph(graph_information.graph)
         @assert(graph_is_connected(g))
     else
