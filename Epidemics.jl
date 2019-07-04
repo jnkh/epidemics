@@ -289,7 +289,7 @@ function get_graph_description_string(gi::GraphInformation)
     gtype = gi.graph_type
     dat = gi.data
     if gtype == two_level_rg
-        dat = (gi.data.t.m,gi.data.t.r,gi.data.t.l)
+        dat = (gi.data.t.N,gi.data.t.m,gi.data.t.r,gi.data.t.l)
     end
     return "graph_$(gtype)_$(dat)"
 # end
