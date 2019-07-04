@@ -339,24 +339,25 @@ function get_p_reach_theory(N,alpha,beta,graph_information,num_trials)
         t = graph_information.data.t
         yy,pp,s_eff_two_level = TwoLevelGraphs.get_p_reach_theory(t,alpha,beta,N,apply_finite_size,num_points)
     elseif graph_type == scale_free_rg 
+        N,k = graph_information.data
         im = InfectionModel(x -> 1 + beta + get_s_eff_degree_distribution_scale_free(x,alpha,beta,k,N) , x -> 1 + beta)
         pp = P_reach_fast(im,N,1.0/N,yy,true)
     elseif graph_type == gamma_rg
-        k,sigma_k = graph_information.data
+        N,k,sigma_k = graph_information.data
         yy,pp = get_p_reach_gamma_theory(N,alpha,beta,sigma_k,k,num_trials,graph_information)
     elseif graph_type == two_degree_rg
-        k,sigma_k = graph_information.data
+        N,k,sigma_k = graph_information.data
         tdp = compute_two_degree_params(k,sigma_k)
 #             yy_wm,pp_wm,_ = get_p_reach_well_mixed_two_degree_simulation(alpha,beta,N,tdp,num_trials)
         degr_distr = get_p_k_two_degree(tdp)
         p_k,p_k_neighbor,mean_k = get_p_k_as_vec(degr_distr,N);
         yy,pp,_ = get_p_reach_well_mixed_by_degree_simulation(N,alpha,beta,p_k,p_k_neighbor,num_trials_wm,hypergeometric)
     elseif graph_type == regular_rg 
-        k = graph_information.data
+        N,k = graph_information.data
         im = InfectionModel(x -> 1 + beta + get_s_eff_exact(x,alpha,beta,k,N) , x -> 1 + beta)
         pp = P_reach_fast(im,N,1.0/N,yy,true)
     elseif graph_type == clustering_rg 
-        C = graph_information.data
+        N,k,C = graph_information.data
         yy,pp,edge_counts = GraphClustering.get_p_reach_well_mixed_with_clustering(N,k,C,alpha,beta,num_trials_wm,1-1/N);
 #         t =get_optimal_tl_params(N,k,C)
 #         yy,pp,s_eff_two_level = get_p_reach_theory(t,alpha,beta,N,apply_finite_size,num_points)
