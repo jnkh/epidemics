@@ -1,8 +1,8 @@
 __precompile__()
 module Epidemics
 
-using SIS,Distributions, IM, LightGraphs,PayloadGraph, Dierckx,GraphGeneration,Distributed,QuadGK,Random,SparseArrays
-import TwoLevelGraphs,DegreeDistribution
+using SIS,Distributions, IM, LightGraphs,PayloadGraph, DegreeDistribution, Dierckx,GraphGeneration,Distributed,QuadGK,Random,SparseArrays
+import TwoLevelGraphs
 
 export
 
@@ -279,11 +279,11 @@ end
 function get_p_reach_gamma_theory(N,alpha,beta,sigma_k,k,num_trials,graph_information,hypergeometric=true)
     min_degree = 3
     degr_distr = get_p_k_gamma(sigma_k,k,min_degree)
-    p_k,p_k_neighbor,mean_k = DegreeDistribution.get_p_k_as_vec(degr_distr,N);
+    p_k,p_k_neighbor,mean_k = get_p_k_as_vec(degr_distr,N);
     graph_fn = graph_information.graph_fn
     #p_k_exp,p_k_neighbor_exp = DegreeDistribution.create_p_k_p_k_neighbor_from_graph_fn(graph_fn,100)
     # yy_wm,pp_wm,_ = DegreeDistribution.get_p_reach_well_mixed_by_degree_simulation(N,alpha,beta,p_k,p_k_neighbor,num_trials,hypergeometric)
-    yy_wm,pp_wm,_ = DegreeDistribution.get_p_reach_well_mixed_by_degree_simulation_batch(N,alpha,beta,p_k,p_k_neighbor,num_trials,hypergeometric=hypergeometric)
+    yy_wm,pp_wm,_ = get_p_reach_well_mixed_by_degree_simulation_batch(N,alpha,beta,p_k,p_k_neighbor,num_trials,hypergeometric=hypergeometric)
     return yy_wm,pp_wm
 end
 
