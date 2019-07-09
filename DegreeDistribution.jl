@@ -1,8 +1,9 @@
 __precompile__()
 module DegreeDistribution
 
-using Epidemics,
-NLsolve,Distributions,StatsBase,LightGraphs,LinearAlgebra
+
+import Epidemics
+using NLsolve,Distributions,StatsBase,LightGraphs,LinearAlgebra
 
 export get_mean_k, get_k_range,
 get_y_k_equilibrium, 
@@ -352,7 +353,7 @@ function run_epidemic_well_mixed_by_degree_from_graph(N,alpha,beta,G,
         run_size = Inf
     end
 
-    return EpidemicRun(infecteds,run_size,fixed),y_k_vec,max_y
+    return Epidemics.EpidemicRun(infecteds,run_size,fixed),y_k_vec,max_y
 end
 
 
@@ -445,7 +446,7 @@ function run_epidemic_well_mixed_by_degree_given_N_k(N,alpha,beta,N_k,p_k,
         run_size = Inf
     end
 
-    return EpidemicRun(infecteds,run_size,fixed),y_k_vec,max_y
+    return Epidemics.EpidemicRun(infecteds,run_size,fixed),y_k_vec,max_y
 end
 
 function get_y_k_from_n_k!(y_k,n_k,N_k)
@@ -674,7 +675,7 @@ function get_p_reach_well_mixed_by_degree_simulation_from_graph(N,alpha,beta,gra
             hypergeometric=hypergeometric,p_k_neighbor_is_matrix=p_k_neighbor_is_matrix));
         all_maxs = vcat(all_maxs,maxs)
     end
-#     yy,pp = get_p_reach(runs,N)
+#     yy,pp = Epidemics.get_p_reach(runs,N)
     yy,pp = get_p_reach_from_max_reaches(all_maxs)
     return yy,pp,tuples
 end
@@ -682,7 +683,7 @@ end
 
 function get_p_reach_well_mixed_by_degree_simulation(N,alpha,beta,p_k,p_k_neighbor,num_runs=10;hypergeometric=true,keep_y_k=false)
     runs,tuples,maxs = run_epidemics_by_degree(num_runs, () -> run_epidemic_well_mixed_by_degree(N,alpha,beta,p_k,p_k_neighbor,hypergeometric=hypergeometric,keep_y_k=keep_y_k));
-#     yy,pp = get_p_reach(runs,N)
+#     yy,pp = Epidemics.get_p_reach(runs,N)
     yy,pp = get_p_reach_from_max_reaches(maxs)
     return yy,pp,tuples
 end
@@ -690,7 +691,7 @@ end
 function get_p_reach_well_mixed_by_degree_simulation_batch(N,alpha,beta,p_k_orig,p_k_neighbor_orig,num_runs=100;batch_size=1000,fixation_threshold=1.0,hypergeometric=true,keep_y_k=false)
     batch_size = min(num_runs,batch_size)
     num_batches = Int(ceil(num_runs/batch_size))
-    runs = Array{EpidemicRun}(undef,num_runs)
+    runs = Array{Epidemics.EpidemicRun}(undef,num_runs)
     maxs = Array{Float64}(undef,num_runs)
     y_k_vec_arr::Array{Array{Array{Float64,1},1}} = []
 
@@ -714,13 +715,13 @@ function get_p_reach_well_mixed_by_degree_simulation_batch(N,alpha,beta,p_k_orig
             end
         end
     end
-    yy,pp = get_p_reach(runs,N)
+    yy,pp = Epidemics.get_p_reach(runs,N)
     # yy,pp = get_p_reach_from_max_reaches(maxs)
     return yy,pp,y_k_vec_arr
 end
 
 function run_epidemics_by_degree(num_runs::Int,run_epidemic_fn)
-    runs = Array{EpidemicRun}(undef,num_runs)
+    runs = Array{Epidemics.EpidemicRun}(undef,num_runs)
     maxs = Array{Float64}(undef,num_runs)
     y_k_vec_arr::Array{Array{Array{Float64,1},1}} = []
 
