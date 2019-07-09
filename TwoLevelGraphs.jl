@@ -984,8 +984,25 @@ function get_stationary_distribution_nlsolve_finite_size(t,alpha,beta)
     res = nlsolve(fn,ones(dim+2), autodiff = :forward,ftol=1e-12,iterations=10_000)
     
     if ~res.f_converged
+        println("Problem, didn't converge. Trying with alpha, beta set to zero")
         println(res)
-        println("Problem, didn't converge")
+        fn1(x_res,x) = f_finite_size!(x_res,x,t,0.0,0.0)
+        res = nlsolve(fn1,ones(dim+2), autodiff = :forward,ftol=1e-12,iterations=10_000)
+    end
+    if ~res.f_converged
+        println("Problem, still didn't converge. Trying with different N")
+        println(res)
+        t_new = TwoLevel(t.m*20,m,l,r)
+        t_new.i = t.i/t.N*t_new.N
+        fn2(x_res,x) = f_finite_size!(x_res,x,t_new,0.0,0.0)
+        res = nlsolve(fn2,ones(dim+2), autodiff = :forward,ftol=1e-12,iterations=10_000)
+        res.zero[1:end-2] *= t.N / sum(res.zero[1:end-2])
+    end
+    if ~res.f_converged
+        println("Won't converge, returning default value")
+        t_new = TwoLevel(t.N,t.m,t.l,t.r)
+        adjust_infecteds(t_new,t.i/t.N)
+        return t_new.a
     end
     answer = zeros(length(mask))
     answer[mask] = res.zero[1:end-2]

@@ -270,7 +270,12 @@ function get_psi_interp(a_over_b::Function,eps::Real,N::Int,num_points=100)
         psi_spline = Spline1D(xx,psi_vec,k=1,bc="extrapolate")
         psi_interp(x) = evaluate(psi_spline,x)
     catch DomainError
-        return get_psi_interp(a_over_b,eps*10,N,num_points)
+        if eps > 0.1
+            println("Numerical instability, returning default 1/x P_reach.")
+            return x -> x
+        else
+            return get_psi_interp(a_over_b,eps*10,N,num_points)
+        end
     end
     if any(is_out_of_reasonable_range.(psi_interp(xx))) #if the fortran routine fails, use julia and bigfloat
         psi_vec = exp.( -2.0*BigFloat.(yy))

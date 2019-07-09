@@ -40,7 +40,7 @@ sparsity_cascade_condition,
 sparsity_cascade_condition_simple,
 sparsity_get_yn,
 
-clean_result,graph_to_mat,mat_to_graph,to_lightgraphs_graph
+clean_result,graph_to_mat,mat_to_graph,to_lightgraphs_graph,cache_graph,uncache_graph
 
 
 
@@ -237,7 +237,11 @@ function get_graph_information(graph_type::RandomGraphType;N=400,k = 10,sigma_k 
     elseif graph_type == two_level_rg
         t = TwoLevelGraphs.TwoLevel(N,m,l,r)
         # @eval @everywhere t = $t
-        graph_data = TwoLevelGraphs.TwoLevelGraph(LightGraphs.Graph(),t,TwoLevelGraphs.get_clusters(t))
+        if carry_by_node_information
+            graph_data = TwoLevelGraphs.TwoLevelGraph(LightGraphs.Graph(),t,TwoLevelGraphs.get_clusters(t))
+        else
+            graph_data = TwoLevelGraphs.TwoLevelGraph(LightGraphs.Graph(),t,[[0]])
+        end
         # graph_fn = () -> make_two_level_random_graph(t)[1]
         graph_fn = () -> TwoLevelGraphs.generate_regular_two_level_graph(t)
     elseif graph_type == complete_rg
@@ -252,12 +256,12 @@ function get_graph_information(graph_type::RandomGraphType;N=400,k = 10,sigma_k 
     this_graph = LightGraphs.Graph()
     graph_information = GraphInformation(graph_fn,this_graph,carry_by_node_information,carry_temporal_info,pregenerate_graph,graph_data,graph_type)
     if pregenerate_graph
-         cache_graph(graph_fn(),graph_information)
+         cache_graph(graph_fn,graph_information)
     end
     return graph_information
 end
 
-function cache_graph(g::LightGraphs.Graph,gi::GraphInformation)
+function cache_graph(graph_fn,gi::GraphInformation)
     prepath = "./graph_cache/"
     if(!isdir(prepath))
         mkpath(prepath)
@@ -265,6 +269,7 @@ function cache_graph(g::LightGraphs.Graph,gi::GraphInformation)
     file_string = get_graph_description_string(gi)
     full_path = prepath*file_string
     if(!isfile(full_path))
+        g = graph_fn()
         LightGraphs.savegraph(full_path,g)
     end
 end
