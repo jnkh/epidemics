@@ -590,7 +590,7 @@ function run_epidemic_graph_gillespie_given_graph(N::Int,im::Union{InfectionMode
         if num_infected > max_reach
             max_reach = num_infected
         end
-        if timestep % 10_000 == 0
+        if timestep % 100_000 == 0
             update_sum(rates) #make sure the value of the sum doesn't drift too much
         end
         if carry_temporal_info
