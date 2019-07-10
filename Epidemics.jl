@@ -159,7 +159,7 @@ function get_p_reach(runs::Array{EpidemicRun, 1})
     max_reaches = get_max_reaches(runs)
     sorted_max_reaches = sort(max_reaches)
     xvals = unique(sorted_max_reaches)
-    yvals = 0*similar(xvals)
+    yvals = zeros(length(xvals))
     for r in sorted_max_reaches
         idx = findfirst(x -> x == r, xvals)
         yvals[1:idx] .+= 1
@@ -558,6 +558,7 @@ function run_epidemic_graph_gillespie_given_graph(N::Int,im::Union{InfectionMode
     rates = RateArray(fill(0.0,nv(g)))
     neighbor_numbers = fill(0,nv(g))
     payload = fill(SUSCEPTIBLE,nv(g))
+    timestep = 0
 
 
     payload[rand(1:length(payload))] = INFECTED
@@ -584,9 +585,13 @@ function run_epidemic_graph_gillespie_given_graph(N::Int,im::Union{InfectionMode
 
         dt,num_infected = update_graph_gillespie(g,payload,im,rates,neighbor_numbers,num_infected)
         t += dt
+        timestep += 1
         frac = 1.0*num_infected/N
         if num_infected > max_reach
             max_reach = num_infected
+        end
+        if timestep % 10_000 == 0
+            update_sum(rates) #make sure the value of the sum doesn't drift too much
         end
         if carry_temporal_info
             push!(infecteds,num_infected)
@@ -613,6 +618,9 @@ function run_epidemic_graph_gillespie_given_graph(N::Int,im::Union{InfectionMode
     size = im.dt*sum(infecteds)
     if fixed
         size = Inf
+    end
+    if isnan(max_reach)
+        println("Max reach is NaN, returning after timestep: $timestep. N: $N, num infected: $(num_infected)")
     end
 
     return EpidemicRun(times,infecteds,size,max_reach,fixed,infecteds_by_nodes,graph_information)

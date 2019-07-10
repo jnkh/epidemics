@@ -19,7 +19,8 @@ update_graph_threads,get_c_r,get_n_n,get_alpha_beta,
 update_graph_experimental, update_graph_gillespie,
 compute_all_rates,
 compute_all_neighbor_numbers_of_type,
-pick_update_and_time
+pick_update_and_time,
+update_sum
 
 
 
