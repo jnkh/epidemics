@@ -164,7 +164,15 @@ function get_p_reach(runs::Array{EpidemicRun, 1})
         idx = findfirst(x -> x == r, xvals)
         yvals[1:idx] .+= 1
     end
-
+    if any(isnan.(yvals))
+        println("Nan detected in pp")
+        println(xvals)
+        println(yvals)
+        println([r.max_reach for r in runs])
+        println(runs)
+        println(max_reaches)
+        println(sorted_max_reaches)
+    end
     return xvals,yvals/length(max_reaches)
 end
 

@@ -278,6 +278,7 @@ function get_psi_interp(a_over_b::Function,eps::Real,N::Int,num_points=100)
         end
     end
     if any(is_out_of_reasonable_range.(psi_interp(xx))) #if the fortran routine fails, use julia and bigfloat
+        # println("out of reasonable range")
         psi_vec = exp.( -2.0*BigFloat.(yy))
         intp = Interpolations.interpolate((xx,),psi_vec,Interpolations.Gridded(Interpolations.Linear()))
         intp = Interpolations.extrapolate(intp,Interpolations.Line())
